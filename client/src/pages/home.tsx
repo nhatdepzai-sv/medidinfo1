@@ -113,6 +113,11 @@ export default function Home() {
     setShowCamera(true);
   };
 
+  const handleMedicationFound = (medication: any) => {
+    setCurrentMedication(medication);
+    setShowCamera(false);
+  };
+
   const isLoadingState = searchMutation.isPending || photoMutation.isPending || isLoading;
 
   if (showCamera) {
@@ -120,6 +125,15 @@ export default function Home() {
       <CameraInterface
         onCapture={handlePhotoCapture}
         onClose={() => setShowCamera(false)}
+        onMedicationFound={handleMedicationFound}
+        setError={(error: string) => {
+          console.error('Camera error:', error);
+          // You can add toast notification here if needed
+        }}
+        setProcessingStage={(stage: string) => {
+          console.log('Processing stage:', stage);
+          // You can add loading state updates here if needed
+        }}
       />
     );
   }

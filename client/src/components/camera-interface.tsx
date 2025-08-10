@@ -1,342 +1,157 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, SwitchCamera, Zap, ZapOff, Download, RefreshCw, Settings, X, Check } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card, CardContent } from './ui/card';
-import { useLanguage } from '../contexts/language-context';
-import { Badge } from './ui/badge';
-import { Slider } from './ui/slider';
-import { Switch } from './ui/switch';
-import { Label } from './ui/label';
-import * as Tesseract from 'tesseract.js';
+
+import React, { useRef, useCallback, useState, useEffect } from "react";
+import { Camera, X, FlipHorizontal, RotateCcw, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useLanguage } from "@/contexts/language-context";
+import { createWorker, type Worker } from "tesseract.js";
 
 interface CameraInterfaceProps {
-  onCapture: (imageData: string) => void;
+  onCapture: (file: File, extractedText?: string) => void;
   onClose: () => void;
-  onMedicationFound: (medication: any) => void; // Assuming medication is an object
-  setError: (error: string) => void;
-  setProcessingStage: (stage: string) => void;
+  isProcessing: boolean;
+  processingStage: string;
 }
 
-export default function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setProcessingStage }: CameraInterfaceProps) {
-  const { t } = useLanguage();
+export default function CameraInterface({ 
+  onCapture, 
+  onClose, 
+  isProcessing, 
+  processingStage 
+}: CameraInterfaceProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const workerRef = useRef<Tesseract.Worker | null>(null);
-
-  const [isActive, setIsActive] = useState(false);
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
-  const [hasFlash, setHasFlash] = useState(false);
-  const [flashEnabled, setFlashEnabled] = useState(false);
-  const [zoom, setZoom] = useState([1]);
-  const [brightness, setBrightness] = useState([100]);
-  const [contrast, setContrast] = useState([100]);
-  const [showSettings, setShowSettings] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processingStage, setProcessingStageLocal] = useState('');
-  const [autoFocus, setAutoFocus] = useState(true);
-  const [resolution, setResolution] = useState<'HD' | 'FHD' | '4K'>('FHD');
+  const workerRef = useRef<Worker | null>(null);
+  
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
+  const [error, setError] = useState<string>("");
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [processingStageLocal, setProcessingStageLocal] = useState("");
+  
+  const { t } = useLanguage();
 
   // Initialize Tesseract worker
-  useEffect(() => {
-    const initializeWorker = async () => {
-      try {
-        workerRef.current = await Tesseract.createWorker('eng');
-        await workerRef.current.load();
-        await workerRef.current.loadLanguage('eng');
-        await workerRef.current.initialize('eng');
-      } catch (err) {
-        console.error("Failed to initialize Tesseract worker:", err);
-        setError(t("tesseractInitializationError") || "Error initializing OCR engine.");
-      }
-    };
-    initializeWorker();
-
-    return () => {
+  const initializeWorker = useCallback(async () => {
+    try {
       if (workerRef.current) {
-        workerRef.current.terminate();
+        await workerRef.current.terminate();
       }
-    };
-  }, [setError, t]);
 
-  const getConstraints = useCallback(() => {
-    const constraints: MediaStreamConstraints = {
-      video: {
-        facingMode: facingMode,
-        width: { ideal: resolution === '4K' ? 3840 : resolution === 'FHD' ? 1920 : 1280 },
-        height: { ideal: resolution === '4K' ? 2160 : resolution === 'FHD' ? 1080 : 720 },
-        aspectRatio: { ideal: 16/9 },
-      }
-    };
+      console.log("Initializing Tesseract worker...");
+      const worker = await createWorker({
+        logger: (m) => console.log("Tesseract:", m),
+        errorHandler: (err) => console.error("Tesseract error:", err)
+      });
 
-    if (autoFocus) {
-      (constraints.video as any).focusMode = 'continuous';
+      // Load language data
+      await worker.loadLanguage('eng');
+      await worker.initialize('eng');
+
+      // Configure for better medication text recognition
+      await worker.setParameters({
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .-()/',
+        tessedit_pageseg_mode: 8, // Single word
+        preserve_interword_spaces: 1,
+        tessedit_do_invert: 0
+      });
+
+      workerRef.current = worker;
+      console.log("Tesseract worker initialized successfully");
+    } catch (error) {
+      console.error("Failed to initialize Tesseract worker:", error);
+      setError(t("tesseractInitializationError") || "Failed to initialize OCR engine");
     }
+  }, [t]);
 
-    return constraints;
-  }, [facingMode, resolution, autoFocus]);
-
+  // Start camera
   const startCamera = useCallback(async () => {
     try {
+      setError("");
+      
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia(getConstraints());
+      const constraints: MediaStreamConstraints = {
+        video: {
+          facingMode: facingMode,
+          width: { ideal: 1920, max: 1920 },
+          height: { ideal: 1080, max: 1080 }
+        }
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setIsActive(true);
-
-        // Check for flash capability
-        const videoTrack = stream.getVideoTracks()[0];
-        const capabilities = videoTrack.getCapabilities();
-        setHasFlash(!!capabilities.torch);
+        videoRef.current.play();
+        setIsCameraReady(true);
       }
-    } catch (error) {
-      console.error('Error accessing camera:', error);
-      alert(t('cameraAccessError') || 'Camera access error. Please check permissions.');
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      setError(t("cameraAccessError") || "Camera access error");
+      setIsCameraReady(false);
     }
-  }, [getConstraints, t]);
+  }, [facingMode, t]);
 
-  const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    setIsActive(false);
-    setFlashEnabled(false);
-  }, []);
+  // Initialize on mount
+  useEffect(() => {
+    initializeWorker();
+    startCamera();
 
-  const switchCamera = useCallback(() => {
-    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
-  }, []);
-
-  const toggleFlash = useCallback(async () => {
-    if (streamRef.current && hasFlash) {
-      const videoTrack = streamRef.current.getVideoTracks()[0];
-      try {
-        await videoTrack.applyConstraints({
-          advanced: [{ torch: !flashEnabled } as any]
-        });
-        setFlashEnabled(!flashEnabled);
-      } catch (error) {
-        console.error('Flash toggle error:', error);
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
       }
-    }
-  }, [flashEnabled, hasFlash]);
-
-  const applyImageFilters = useCallback((ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-
-    const brightnessValue = brightness[0] / 100;
-    const contrastValue = contrast[0] / 100;
-
-    // Enhanced image preprocessing for better OCR
-    for (let i = 0; i < data.length; i += 4) {
-      // Convert to grayscale with optimized weights for text
-      const gray = Math.round(0.3 * data[i] + 0.59 * data[i + 1] + 0.11 * data[i + 2]);
-
-      // Apply brightness
-      let processedValue = Math.min(255, Math.max(0, gray * brightnessValue));
-
-      // Apply adaptive contrast enhancement
-      processedValue = Math.min(255, Math.max(0, ((processedValue - 128) * contrastValue) + 128));
-
-      // Apply adaptive threshold for text enhancement
-      const threshold = 128;
-      if (Math.abs(processedValue - threshold) < 30) {
-        // Enhance text edges
-        processedValue = processedValue > threshold ? Math.min(255, processedValue + 50) : Math.max(0, processedValue - 50);
+      if (workerRef.current) {
+        workerRef.current.terminate();
       }
+    };
+  }, [initializeWorker, startCamera]);
 
-      // Apply processed value to all RGB channels (grayscale)
-      data[i] = processedValue;     // Red
-      data[i + 1] = processedValue; // Green  
-      data[i + 2] = processedValue; // Blue
+  // Restart camera when facing mode changes
+  useEffect(() => {
+    if (isCameraReady) {
+      startCamera();
     }
+  }, [facingMode, startCamera, isCameraReady]);
 
-    ctx.putImageData(imageData, 0, 0);
-  }, [brightness, contrast]);
-
-  const capturePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    setIsProcessing(true);
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) return;
-
-    // Set canvas dimensions for optimal OCR (higher resolution)
-    const optimalWidth = Math.min(video.videoWidth, 1920);
-    const optimalHeight = Math.min(video.videoHeight, 1080);
-    canvas.width = optimalWidth;
-    canvas.height = optimalHeight;
-
-    // Apply zoom with better quality
-    const zoomLevel = zoom[0];
-    const scaledWidth = canvas.width / zoomLevel;
-    const scaledHeight = canvas.height / zoomLevel;
-    const offsetX = (canvas.width - scaledWidth) / 2;
-    const offsetY = (canvas.height - scaledHeight) / 2;
-
-    // Enable smoothing for better quality
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-
-    // Draw video frame with zoom
-    ctx.drawImage(video, offsetX, offsetY, scaledWidth, scaledHeight, 0, 0, canvas.width, canvas.height);
-
-    // Apply enhanced image filters for OCR
-    applyImageFilters(ctx, canvas);
-
-    // Advanced text enhancement for better OCR
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-    const width = canvas.width;
-    const height = canvas.height;
-
-    // Create a copy for edge detection
-    const originalData = new Uint8ClampedArray(data);
-
-    // Apply Sobel edge detection to enhance text boundaries
-    for (let y = 1; y < height - 1; y++) {
-      for (let x = 1; x < width - 1; x++) {
-        const idx = (y * width + x) * 4;
-        
-        // Get surrounding pixels for edge detection
-        const topLeft = originalData[((y-1) * width + (x-1)) * 4];
-        const top = originalData[((y-1) * width + x) * 4];
-        const topRight = originalData[((y-1) * width + (x+1)) * 4];
-        const left = originalData[(y * width + (x-1)) * 4];
-        const center = originalData[idx];
-        const right = originalData[(y * width + (x+1)) * 4];
-        const bottomLeft = originalData[((y+1) * width + (x-1)) * 4];
-        const bottom = originalData[((y+1) * width + x) * 4];
-        const bottomRight = originalData[((y+1) * width + (x+1)) * 4];
-
-        // Sobel X and Y gradients
-        const sobelX = (topRight + 2*right + bottomRight) - (topLeft + 2*left + bottomLeft);
-        const sobelY = (bottomLeft + 2*bottom + bottomRight) - (topLeft + 2*top + topRight);
-        const magnitude = Math.sqrt(sobelX*sobelX + sobelY*sobelY);
-
-        // Enhance edges (likely text boundaries)
-        let enhanced = center;
-        if (magnitude > 30) {
-          enhanced = center > 128 ? Math.min(255, center + magnitude/4) : Math.max(0, center - magnitude/4);
-        }
-
-        // Apply binary threshold for cleaner text
-        enhanced = enhanced > 140 ? 255 : enhanced < 115 ? 0 : enhanced;
-
-        data[idx] = data[idx + 1] = data[idx + 2] = enhanced;
-      }
-    }
-
-    ctx.putImageData(imageData, 0, 0);
-
-    // Convert to high-quality image with better compression for OCR
-    const imageData64 = canvas.toDataURL('image/png');
-    setCapturedImage(imageData64);
-    setIsProcessing(false);
-  }, [zoom, applyImageFilters]);
-
-  const processImage = useCallback(async (imageSrc: string) => {
+  const processImageWithOCR = async (imageBlob: Blob): Promise<string> => {
     if (!workerRef.current) {
-      setError(t("ocrNotReady") || "OCR engine is not ready yet.");
-      return;
+      throw new Error(t("ocrNotReady") || "OCR engine not ready");
     }
+
+    setProcessingStageLocal(t("analyzingImage") || "Analyzing image...");
 
     try {
-      setIsProcessing(true);
-      setProcessingStageLocal(t("analyzingImage") || "Analyzing image...");
-      setProcessingStage(t("analyzingImage"));
+      // Convert blob to buffer for Tesseract
+      const arrayBuffer = await imageBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
 
-      // Create image element
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = imageSrc;
-      });
-
-      // Create canvas and preprocess image
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas context not available');
-
-      // Scale image for better OCR results
-      const scale = Math.min(1920 / img.width, 1080 / img.height);
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      // Apply advanced image preprocessing for better OCR
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-
-      // Convert to grayscale with better weights
-      for (let i = 0; i < data.length; i += 4) {
-        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-
-        // Apply adaptive thresholding for better text extraction
-        const threshold = 128;
-        const enhanced = gray > threshold ? 255 : 0;
-
-        data[i] = enhanced;
-        data[i + 1] = enhanced;
-        data[i + 2] = enhanced;
-      }
-
-      ctx.putImageData(imageData, 0, 0);
-
-      setProcessingStageLocal(t("extractingText") || "Extracting text...");
-      setProcessingStage(t("extractingText"));
-
-      // Perform OCR with optimized configurations for medication names
+      console.log("Starting OCR processing...");
+      
+      // Multiple OCR attempts with different configurations
       const ocrConfigs = [
-        {
-          language: 'eng',
-          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,-()mg',
-          tessedit_pageseg_mode: 6, // Single uniform block
-          tessedit_ocr_engine_mode: 1, // Neural nets LSTM engine
-        },
-        {
-          language: 'eng',
-          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
-          tessedit_pageseg_mode: 8, // Single word
-          tessedit_ocr_engine_mode: 1,
-        },
-        {
-          language: 'eng',
-          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .-',
-          tessedit_pageseg_mode: 13, // Raw line. Treat the image as a single text line
-          tessedit_ocr_engine_mode: 1,
-        },
-        {
-          language: 'eng',
-          tessedit_pageseg_mode: 7, // Single text line
-          tessedit_ocr_engine_mode: 2, // Legacy + LSTM engines
-        }
+        { tessedit_pageseg_mode: 8 }, // Single word
+        { tessedit_pageseg_mode: 7 }, // Single text line
+        { tessedit_pageseg_mode: 6 }, // Single uniform block
+        { tessedit_pageseg_mode: 13 }, // Raw line
       ];
 
-      let bestResult = '';
+      let bestResult = "";
       let bestConfidence = 0;
 
       for (const config of ocrConfigs) {
         try {
-          const result = await workerRef.current.recognize(canvas, config);
-          const confidence = result.data.confidence;
-
+          await workerRef.current.setParameters(config);
+          const result = await workerRef.current.recognize(uint8Array);
+          const confidence = result.data.confidence || 0;
+          
+          console.log(`OCR Config ${config.tessedit_pageseg_mode}: "${result.data.text.trim()}" (confidence: ${confidence})`);
+          
           if (confidence > bestConfidence && result.data.text.trim().length > 0) {
             bestResult = result.data.text.trim();
             bestConfidence = confidence;
@@ -348,12 +163,11 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
 
       console.log('Best OCR Result:', bestResult, 'Confidence:', bestConfidence);
 
-      if (!bestResult || bestResult.length < 2 || bestConfidence < 10) {
+      if (!bestResult || bestResult.length < 2 || bestConfidence < 15) {
         throw new Error('No clear text detected. Please ensure good lighting and focus on the medication name.');
       }
 
       setProcessingStageLocal(t("searchingDatabase") || "Searching database...");
-      setProcessingStage(t("searchingDatabase"));
 
       // Advanced text cleaning for medication names
       const cleanedText = bestResult
@@ -369,327 +183,188 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
         .filter(word => /^[A-Za-z]/.test(word)) // Starts with a letter
         .filter(word => !/^\d+$/.test(word)); // Not just numbers
 
-      // Prioritize longer words (likely drug names)
-      const sortedWords = words.sort((a, b) => b.length - a.length);
-      const searchQueries = [cleanedText, ...sortedWords.slice(0, 5)];
+      // Create search queries
+      const searchQueries = [
+        cleanedText,
+        ...words,
+        bestResult.trim() // Include original text as fallback
+      ].filter(query => query.length >= 3);
 
-      // Search for medication with multiple queries
-      const response = await fetch('/api/identify-medication', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: cleanedText,
-          alternativeQueries: searchQueries,
-          searchMethod: 'photo',
-          confidence: bestConfidence
-        })
+      console.log("Search queries:", searchQueries);
+
+      return searchQueries[0] || bestResult.trim();
+
+    } catch (error) {
+      console.error("OCR processing error:", error);
+      throw new Error(error instanceof Error ? error.message : "OCR processing failed");
+    }
+  };
+
+  const capturePhoto = useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current || !isCameraReady || isCapturing) {
+      return;
+    }
+
+    setIsCapturing(true);
+    setError("");
+
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        throw new Error("Canvas context not available");
+      }
+
+      // Set canvas dimensions to match video
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      // Draw the current video frame to canvas
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Convert to blob
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error("Failed to create image blob"));
+          }
+        }, 'image/jpeg', 0.8);
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to identify medication');
+      // Process with OCR
+      let extractedText = "";
+      try {
+        extractedText = await processImageWithOCR(blob);
+      } catch (ocrError) {
+        console.warn("OCR failed, continuing without text extraction:", ocrError);
       }
 
-      const responseData = await response.json();
+      // Convert blob to File
+      const file = new File([blob], `medication-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      
+      onCapture(file, extractedText);
 
-      if (responseData.medication) {
-        setProcessingStageLocal(t("medicationFound") || "Medication found!");
-        // Small delay to show success message before closing
-        setTimeout(() => {
-          onMedicationFound(responseData.medication);
-          onClose(); // Close camera interface and return to home
-        }, 1000);
-      } else {
-        setError(t("noMedicationFound") + ` Detected text: "${cleanedText}"`);
-        setIsProcessing(false);
-      }
-
-    } catch (err) {
-      console.error('Error processing image:', err);
-      setError(err instanceof Error ? err.message : t("failedToProcessImage"));
-      setIsProcessing(false);
+    } catch (error) {
+      console.error("Camera error:", error);
+      setError(error instanceof Error ? error.message : "Failed to capture photo");
+    } finally {
+      setIsCapturing(false);
+      setProcessingStageLocal("");
     }
-  }, [t, onMedicationFound, setError, setProcessingStage]);
+  }, [isCameraReady, isCapturing, onCapture, processImageWithOCR]);
 
-  const confirmCapture = useCallback(() => {
-    if (capturedImage) {
-      setCapturedImage(null); // Clear captured image to show processing overlay
-      processImage(capturedImage);
-    }
-  }, [capturedImage, processImage]);
-
-  const retakePhoto = useCallback(() => {
-    setCapturedImage(null);
-  }, []);
-
-  const downloadImage = useCallback(() => {
-    if (capturedImage) {
-      const link = document.createElement('a');
-      link.download = `medication-scan-${Date.now()}.jpg`;
-      link.href = capturedImage;
-      link.click();
-    }
-  }, [capturedImage]);
-
-  useEffect(() => {
-    startCamera();
-    return () => stopCamera();
-  }, [startCamera, stopCamera]);
-
-  useEffect(() => {
-    if (isActive) {
-      startCamera();
-    }
-  }, [facingMode, resolution, isActive, startCamera]);
-
-  const videoStyle = {
-    transform: `scale(${zoom[0]})`,
-    filter: `brightness(${brightness[0]}%) contrast(${contrast[0]}%)`,
-    transition: 'transform 0.3s ease, filter 0.3s ease'
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === "user" ? "environment" : "user");
   };
+
+  const retryCamera = () => {
+    setError("");
+    startCamera();
+  };
+
+  if (error) {
+    return (
+      <Card className="w-full max-w-md mx-auto">
+        <CardContent className="pt-6">
+          <div className="text-center space-y-4">
+            <div className="text-red-500">
+              <Camera className="w-12 h-12 mx-auto mb-2" />
+              <p className="text-sm">{error}</p>
+            </div>
+            <div className="flex space-x-2">
+              <Button onClick={retryCamera} variant="outline" size="sm">
+                <RotateCcw className="w-4 h-4 mr-2" />
+                {t("retry") || "Retry"}
+              </Button>
+              <Button onClick={onClose} variant="outline" size="sm">
+                <X className="w-4 h-4 mr-2" />
+                {t("close") || "Close"}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
       {/* Header */}
-      <div className="flex justify-between items-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="flex items-center justify-between p-4 bg-black/80 text-white">
+        <h1 className="text-lg font-medium">{t("scanMedication") || "Scan Medication"}</h1>
         <Button
           onClick={onClose}
           variant="ghost"
-          size="icon"
+          size="sm"
           className="text-white hover:bg-white/20"
         >
-          <X className="h-6 w-6" />
+          <X className="w-5 h-5" />
         </Button>
+      </div>
 
-        <div className="flex items-center space-x-2">
-          <Badge variant="secondary" className="bg-white/20 text-white">
-            {resolution}
-          </Badge>
-          {flashEnabled && hasFlash && (
-            <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-200">
-              Flash On
-            </Badge>
-          )}
+      {/* Camera viewport */}
+      <div className="flex-1 relative overflow-hidden">
+        <video
+          ref={videoRef}
+          className="w-full h-full object-cover"
+          playsInline
+          muted
+        />
+        
+        {/* Overlay guide */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="border-2 border-white/50 rounded-lg w-64 h-32 flex items-center justify-center">
+            <p className="text-white text-sm text-center px-4">
+              {t("alignDrugBox") || "Align medication label here"}
+            </p>
+          </div>
         </div>
 
+        {/* Processing overlay */}
+        {(isProcessing || isCapturing || processingStageLocal) && (
+          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white">
+            <Loader2 className="w-8 h-8 animate-spin mb-4" />
+            <p className="text-center px-4">
+              {processingStageLocal || processingStage || t("processing") || "Processing..."}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Controls */}
+      <div className="bg-black/80 p-4 flex items-center justify-center space-x-6">
         <Button
-          onClick={() => setShowSettings(!showSettings)}
+          onClick={toggleCamera}
           variant="ghost"
-          size="icon"
+          size="lg"
           className="text-white hover:bg-white/20"
+          disabled={isCapturing || isProcessing}
         >
-          <Settings className="h-6 w-6" />
+          <FlipHorizontal className="w-6 h-6" />
         </Button>
+
+        <Button
+          onClick={capturePhoto}
+          size="lg"
+          className="w-16 h-16 rounded-full bg-white hover:bg-gray-200"
+          disabled={!isCameraReady || isCapturing || isProcessing}
+        >
+          {(isCapturing || isProcessing) ? (
+            <Loader2 className="w-6 h-6 animate-spin text-black" />
+          ) : (
+            <Camera className="w-6 h-6 text-black" />
+          )}
+        </Button>
+
+        <div className="w-6" /> {/* Spacer for symmetry */}
       </div>
 
-      {/* Settings Panel */}
-      {showSettings && (
-        <Card className="absolute top-16 right-4 w-80 bg-black/80 backdrop-blur-md text-white border-gray-600 z-10">
-          <CardContent className="p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <Label>Resolution</Label>
-              <select
-                value={resolution}
-                onChange={(e) => setResolution(e.target.value as 'HD' | 'FHD' | '4K')}
-                className="bg-gray-700 border border-gray-600 rounded px-2 py-1"
-              >
-                <option value="HD">HD (720p)</option>
-                <option value="FHD">FHD (1080p)</option>
-                <option value="4K">4K (2160p)</option>
-              </select>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label>Auto Focus</Label>
-              <Switch checked={autoFocus} onCheckedChange={setAutoFocus} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Zoom: {zoom[0]}x</Label>
-              <Slider
-                value={zoom}
-                onValueChange={setZoom}
-                max={5}
-                min={1}
-                step={0.1}
-                className="w-full"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Brightness: {brightness[0]}%</Label>
-              <Slider
-                value={brightness}
-                onValueChange={setBrightness}
-                max={200}
-                min={50}
-                step={5}
-                className="w-full"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Contrast: {contrast[0]}%</Label>
-              <Slider
-                value={contrast}
-                onValueChange={setContrast}
-                max={200}
-                min={50}
-                step={5}
-                className="w-full"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Camera View */}
-      <div className="flex-1 relative overflow-hidden">
-        {isProcessing ? (
-          /* Processing Overlay */
-          <div className="w-full h-full flex flex-col items-center justify-center bg-black/90">
-            <div className="text-center text-white p-8">
-              <div className="animate-spin w-16 h-16 border-4 border-white border-t-transparent rounded-full mx-auto mb-6"></div>
-              <h2 className="text-2xl font-semibold mb-2">{t("processingImage") || "Processing Image"}</h2>
-              <p className="text-lg opacity-90 mb-4">{processingStage}</p>
-              <div className="w-64 bg-gray-700 rounded-full h-2 mx-auto">
-                <div className="bg-primary h-2 rounded-full animate-pulse" style={{width: '60%'}}></div>
-              </div>
-              <p className="text-sm opacity-75 mt-4">{t("pleaseWait") || "Please wait while we analyze your image..."}</p>
-            </div>
-          </div>
-        ) : !capturedImage ? (
-          <>
-            <video
-              ref={videoRef}
-              className="w-full h-full object-cover"
-              style={videoStyle}
-              playsInline
-              muted
-            />
-
-            {/* Medication Capture Guide */}
-            <div className="absolute inset-0 pointer-events-none">
-              {/* Center focus area for medication */}
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-48 border-2 border-yellow-400 bg-yellow-400/10 rounded-lg">
-                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1 rounded-full">
-                  {t('alignDrugBox') || 'Align medication label here'}
-                </div>
-                {/* Corner markers */}
-                <div className="absolute -top-2 -left-2 w-4 h-4 border-l-2 border-t-2 border-yellow-400"></div>
-                <div className="absolute -top-2 -right-2 w-4 h-4 border-r-2 border-t-2 border-yellow-400"></div>
-                <div className="absolute -bottom-2 -left-2 w-4 h-4 border-l-2 border-b-2 border-yellow-400"></div>
-                <div className="absolute -bottom-2 -right-2 w-4 h-4 border-r-2 border-b-2 border-yellow-400"></div>
-              </div>
-
-              {/* Instructions */}
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white text-xs px-4 py-2 rounded-lg text-center">
-                <div className="mb-1">📱 {t('ensureGoodLighting') || 'Ensure good lighting and focus'}</div>
-                <div>🔍 Focus on drug name and dosage information</div>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <img
-              src={capturedImage}
-              alt="Captured"
-              className="max-w-full max-h-full object-contain"
-            />
-          </div>
-        )}
-
-        <canvas ref={canvasRef} className="hidden" />
-      </div>
-
-      {/* Bottom Controls */}
-      <div className="p-6 bg-black/50 backdrop-blur-sm">
-        {isProcessing ? (
-          /* Processing Controls - Show cancel option */
-          <div className="flex justify-center">
-            <Button
-              onClick={() => {
-                setIsProcessing(false);
-                setProcessingStageLocal('');
-                onClose();
-              }}
-              variant="outline"
-              size="lg"
-              className="text-white border-white hover:bg-white/20"
-            >
-              {t("cancel") || "Cancel"}
-            </Button>
-          </div>
-        ) : !capturedImage ? (
-          <div className="flex justify-center items-center space-x-8">
-            {/* Flash Toggle */}
-            {hasFlash && (
-              <Button
-                onClick={toggleFlash}
-                variant="ghost"
-                size="icon"
-                className={`text-white hover:bg-white/20 ${flashEnabled ? 'bg-yellow-500/20' : ''}`}
-              >
-                {flashEnabled ? <Zap className="h-6 w-6" /> : <ZapOff className="h-6 w-6" />}
-              </Button>
-            )}
-
-            {/* Capture Button */}
-            <Button
-              onClick={capturePhoto}
-              disabled={!isActive || isProcessing}
-              size="lg"
-              className="w-20 h-20 rounded-full bg-white hover:bg-gray-200 text-black"
-            >
-              {isProcessing ? (
-                <RefreshCw className="h-8 w-8 animate-spin" />
-              ) : (
-                <Camera className="h-8 w-8" />
-              )}
-            </Button>
-
-            {/* Switch Camera */}
-            <Button
-              onClick={switchCamera}
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-white/20"
-            >
-              <SwitchCamera className="h-6 w-6" />
-            </Button>
-          </div>
-        ) : (
-          <div className="flex justify-center items-center space-x-4">
-            <Button
-              onClick={retakePhoto}
-              variant="outline"
-              size="lg"
-              className="flex items-center space-x-2"
-            >
-              <RefreshCw className="h-5 w-5" />
-              <span>{t('retakePhoto') || 'Retake'}</span>
-            </Button>
-
-            <Button
-              onClick={downloadImage}
-              variant="outline"
-              size="lg"
-              className="flex items-center space-x-2"
-            >
-              <Download className="h-5 w-5" />
-              <span>{t('downloadImage') || 'Download'}</span>
-            </Button>
-
-            <Button
-              onClick={confirmCapture}
-              size="lg"
-              className="flex items-center space-x-2 bg-green-600 hover:bg-green-700"
-            >
-              <Check className="h-5 w-5" />
-              <span>{t('confirmCapture') || 'Confirm'}</span>
-            </Button>
-          </div>
-        )}
-      </div>
+      {/* Hidden canvas for capturing */}
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }

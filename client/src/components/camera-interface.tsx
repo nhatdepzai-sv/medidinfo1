@@ -109,16 +109,26 @@ export default function CameraInterface({ onCapture, onClose }: CameraInterfaceP
     const brightnessValue = brightness[0] / 100;
     const contrastValue = contrast[0] / 100;
 
+    // Enhanced image preprocessing for better OCR
     for (let i = 0; i < data.length; i += 4) {
+      // Convert to grayscale first for better text recognition
+      const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+      
       // Apply brightness
-      data[i] = Math.min(255, data[i] * brightnessValue);     // Red
-      data[i + 1] = Math.min(255, data[i + 1] * brightnessValue); // Green
-      data[i + 2] = Math.min(255, data[i + 2] * brightnessValue); // Blue
-
-      // Apply contrast
-      data[i] = Math.min(255, Math.max(0, ((data[i] - 128) * contrastValue) + 128));
-      data[i + 1] = Math.min(255, Math.max(0, ((data[i + 1] - 128) * contrastValue) + 128));
-      data[i + 2] = Math.min(255, Math.max(0, ((data[i + 2] - 128) * contrastValue) + 128));
+      let processedValue = Math.min(255, gray * brightnessValue);
+      
+      // Apply contrast with enhanced text enhancement
+      processedValue = Math.min(255, Math.max(0, ((processedValue - 128) * contrastValue) + 128));
+      
+      // Sharpen text by increasing contrast for text-like regions
+      if (contrastValue > 1.2) {
+        processedValue = processedValue > 128 ? Math.min(255, processedValue * 1.1) : Math.max(0, processedValue * 0.9);
+      }
+      
+      // Apply processed value to all RGB channels
+      data[i] = processedValue;     // Red
+      data[i + 1] = processedValue; // Green  
+      data[i + 2] = processedValue; // Blue
     }
 
     ctx.putImageData(imageData, 0, 0);
@@ -134,26 +144,47 @@ export default function CameraInterface({ onCapture, onClose }: CameraInterfaceP
 
     if (!ctx) return;
 
-    // Set canvas dimensions to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    // Set canvas dimensions for optimal OCR (higher resolution)
+    const optimalWidth = Math.min(video.videoWidth, 1920);
+    const optimalHeight = Math.min(video.videoHeight, 1080);
+    canvas.width = optimalWidth;
+    canvas.height = optimalHeight;
 
-    // Apply zoom
+    // Apply zoom with better quality
     const zoomLevel = zoom[0];
     const scaledWidth = canvas.width / zoomLevel;
     const scaledHeight = canvas.height / zoomLevel;
     const offsetX = (canvas.width - scaledWidth) / 2;
     const offsetY = (canvas.height - scaledHeight) / 2;
 
+    // Enable smoothing for better quality
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
     // Draw video frame with zoom
     ctx.drawImage(video, offsetX, offsetY, scaledWidth, scaledHeight, 0, 0, canvas.width, canvas.height);
 
-    // Apply image filters
+    // Apply enhanced image filters for OCR
     applyImageFilters(ctx, canvas);
 
-    // Convert to high-quality image
-    const imageData = canvas.toDataURL('image/jpeg', 0.95);
-    setCapturedImage(imageData);
+    // Additional text enhancement
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    
+    // Edge enhancement for text clarity
+    for (let i = 0; i < data.length; i += 4) {
+      const current = data[i];
+      if (current > 200 || current < 55) {
+        // Enhance high contrast areas (likely text)
+        data[i] = data[i + 1] = data[i + 2] = current > 128 ? 255 : 0;
+      }
+    }
+    
+    ctx.putImageData(imageData, 0, 0);
+
+    // Convert to high-quality image with better compression for OCR
+    const imageData64 = canvas.toDataURL('image/png');
+    setCapturedImage(imageData64);
     setIsProcessing(false);
   }, [zoom, applyImageFilters]);
 
@@ -301,17 +332,26 @@ export default function CameraInterface({ onCapture, onClose }: CameraInterfaceP
               muted
             />
             
-            {/* Camera Overlay Grid */}
+            {/* Medication Capture Guide */}
             <div className="absolute inset-0 pointer-events-none">
-              <div className="w-full h-full border-2 border-white/30 grid grid-cols-3 grid-rows-3">
-                {Array.from({ length: 9 }).map((_, i) => (
-                  <div key={i} className="border border-white/20" />
-                ))}
+              {/* Center focus area for medication */}
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-48 border-2 border-yellow-400 bg-yellow-400/10 rounded-lg">
+                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1 rounded-full">
+                  {t('alignDrugBox') || 'Align medication label here'}
+                </div>
+                {/* Corner markers */}
+                <div className="absolute -top-2 -left-2 w-4 h-4 border-l-2 border-t-2 border-yellow-400"></div>
+                <div className="absolute -top-2 -right-2 w-4 h-4 border-r-2 border-t-2 border-yellow-400"></div>
+                <div className="absolute -bottom-2 -left-2 w-4 h-4 border-l-2 border-b-2 border-yellow-400"></div>
+                <div className="absolute -bottom-2 -right-2 w-4 h-4 border-r-2 border-b-2 border-yellow-400"></div>
+              </div>
+              
+              {/* Instructions */}
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white text-xs px-4 py-2 rounded-lg text-center">
+                <div className="mb-1">📱 {t('ensureGoodLighting') || 'Ensure good lighting and focus'}</div>
+                <div>🔍 Focus on drug name and dosage information</div>
               </div>
             </div>
-
-            {/* Focus Indicator */}
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 border-2 border-green-400 rounded-full animate-pulse" />
           </>
         ) : (
           <div className="w-full h-full flex items-center justify-center">

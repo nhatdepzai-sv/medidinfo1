@@ -91,8 +91,22 @@ export default function Home() {
     searchMutation.mutate(searchQuery.trim());
   };
 
-  const handlePhotoCapture = (file: File) => {
-    photoMutation.mutate(file);
+  const handlePhotoCapture = (imageData: string) => {
+    // Convert base64 to File object
+    fetch(imageData)
+      .then(res => res.blob())
+      .then(blob => {
+        const file = new File([blob], 'medication.png', { type: 'image/png' });
+        photoMutation.mutate(file);
+      })
+      .catch(error => {
+        console.error('Error converting image:', error);
+        toast({
+          variant: "destructive",
+          title: t("captureError"),
+          description: "Failed to process captured image",
+        });
+      });
   };
 
   const handleQuickCamera = () => {
@@ -104,9 +118,8 @@ export default function Home() {
   if (showCamera) {
     return (
       <CameraInterface
-        onPhotoCapture={handlePhotoCapture}
-        onCancel={() => setShowCamera(false)}
-        isLoading={photoMutation.isPending}
+        onCapture={handlePhotoCapture}
+        onClose={() => setShowCamera(false)}
       />
     );
   }

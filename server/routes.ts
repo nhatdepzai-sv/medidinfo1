@@ -21,36 +21,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No image file provided" });
       }
 
-      // Initialize Tesseract worker
-      const worker = await createWorker();
+      // Initialize Tesseract worker with enhanced options
+      const worker = await createWorker({
+        logger: m => console.log(m)
+      });
+
+      // Configure Tesseract for better text recognition
+      await worker.setParameters({
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .-',
+        tessedit_pageseg_mode: 6, // Assume uniform block of text
+        preserve_interword_spaces: 1
+      });
 
       // Perform OCR on the uploaded image
-      const { data: { text } } = await worker.recognize(req.file.buffer);
+      const { data: { text, confidence } } = await worker.recognize(req.file.buffer);
       await worker.terminate();
 
-      if (!text.trim()) {
-        return res.status(400).json({ message: "No text could be extracted from the image" });
+      console.log(`OCR confidence: ${confidence}%, extracted text: "${text}"`);
+
+      if (!text.trim() || confidence < 30) {
+        return res.status(400).json({ 
+          message: "Could not extract clear text from image. Please ensure good lighting and focus on the medication label.",
+          extractedText: text,
+          confidence 
+        });
       }
 
-      // Extract potential drug names from OCR text
-      const extractedText = text.replace(/\n/g, " ").trim();
-      
-      // Try to find medication in local storage first
-      let medication = await storage.getMedicationByName(extractedText);
+      // Enhanced text processing and drug name extraction
+      const cleanedText = text
+        .replace(/\n/g, " ")
+        .replace(/[^\w\s.-]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 
-      if (!medication) {
-        // Search using OpenFDA API
-        const drugInfo = await searchDrugInfo(extractedText);
-        if (drugInfo) {
-          // Store the found medication
-          medication = await storage.createMedication(drugInfo);
+      // Extract potential drug names using multiple strategies
+      const words = cleanedText.split(" ");
+      const potentialDrugNames = [];
+      
+      // Strategy 1: Look for capitalized words (brand names)
+      for (const word of words) {
+        if (word.length > 3 && /^[A-Z][a-z]+/.test(word)) {
+          potentialDrugNames.push(word);
+        }
+      }
+      
+      // Strategy 2: Look for common drug suffixes
+      const drugSuffixes = ['ine', 'ole', 'ate', 'ide', 'ant', 'ase', 'cin', 'fen', 'pam', 'zam', 'tine', 'pine'];
+      for (const word of words) {
+        if (word.length > 4 && drugSuffixes.some(suffix => word.toLowerCase().endsWith(suffix))) {
+          potentialDrugNames.push(word);
+        }
+      }
+
+      // Strategy 3: Try the full text and common fragments
+      potentialDrugNames.push(cleanedText);
+      potentialDrugNames.push(...words.filter(w => w.length > 4));
+
+      let medication = null;
+      let matchedText = "";
+
+      // Try each potential drug name
+      for (const drugName of potentialDrugNames) {
+        if (drugName.length < 3) continue;
+        
+        // Try exact match first
+        medication = await storage.getMedicationByName(drugName);
+        if (medication) {
+          matchedText = drugName;
+          break;
+        }
+        
+        // Try partial match
+        medication = await storage.getMedicationByPartialName(drugName);
+        if (medication) {
+          matchedText = drugName;
+          break;
         }
       }
 
       if (!medication) {
         return res.status(404).json({ 
-          message: "Could not identify this medication",
-          extractedText 
+          message: "Could not identify this medication. Try focusing on the drug name or search manually.",
+          extractedText: cleanedText,
+          potentialNames: potentialDrugNames.slice(0, 5),
+          confidence
         });
       }
 

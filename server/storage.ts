@@ -1,17 +1,20 @@
 import { type User, type InsertUser, type Medication, type InsertMedication, type SearchHistory, type InsertSearchHistory } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { medicationsDatabase } from "./medications-database";
+import { db } from "./db";
+import { eq, desc, or, sql } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   getMedication(id: string): Promise<Medication | undefined>;
   getMedicationByName(name: string): Promise<Medication | undefined>;
+  getMedicationByPartialName(partialName: string): Promise<Medication | undefined>;
   createMedication(medication: InsertMedication): Promise<Medication>;
   searchMedications(query: string): Promise<Medication[]>;
-  
+
   getSearchHistory(userId?: string): Promise<SearchHistory[]>;
   createSearchHistory(searchHistory: InsertSearchHistory): Promise<SearchHistory>;
 }
@@ -65,6 +68,18 @@ export class MemStorage implements IStorage {
         (med.genericName && med.genericName.toLowerCase().includes(lowerName)) ||
         (med.genericNameVi && med.genericNameVi.toLowerCase().includes(lowerName))
     );
+  }
+
+  async getMedicationByPartialName(partialName: string): Promise<Medication | undefined> {
+    const searchTerm = `%${partialName.toLowerCase()}%`;
+    const medications = Array.from(this.medications.values()).filter(
+      (med) =>
+        med.name.toLowerCase().includes(partialName.toLowerCase()) ||
+        (med.nameVi && med.nameVi.toLowerCase().includes(partialName.toLowerCase())) ||
+        (med.genericName && med.genericName.toLowerCase().includes(partialName.toLowerCase())) ||
+        (med.genericNameVi && med.genericNameVi.toLowerCase().includes(partialName.toLowerCase()))
+    );
+    return medications[0] || undefined;
   }
 
   async createMedication(insertMedication: InsertMedication): Promise<Medication> {

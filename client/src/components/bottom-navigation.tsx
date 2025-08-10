@@ -4,8 +4,7 @@ import { Home, History, User, Languages } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 
 export default function BottomNavigation() {
-  const navigate = useLocation()[2]; // wouter uses useLocation()[2] for navigate
-  const location = useLocation()[1]; // wouter uses useLocation()[1] for location
+  const [location, setLocation] = useLocation();
   const { t } = useLanguage();
 
   const tabs = [
@@ -31,7 +30,7 @@ export default function BottomNavigation() {
                   ? "text-primary"
                   : "text-gray-400 hover:text-gray-600"
               }`}
-              onClick={() => navigate(path)}
+              onClick={() => setLocation(path)}
             >
               <Icon className="w-5 h-5 mb-1" />
               <span className="text-xs font-medium">{label}</span>

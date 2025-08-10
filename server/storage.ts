@@ -1,225 +1,142 @@
-
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import { eq, like, or, sql } from "drizzle-orm";
-import * as schema from "@shared/schema";
+import { type User, type InsertUser, type Medication, type InsertMedication, type SearchHistory, type InsertSearchHistory } from "@shared/schema";
+import { randomUUID } from "crypto";
 import { medicationsDatabase } from "./medications-database";
+import { db } from "./db";
+import { eq, desc, or, sql } from "drizzle-orm";
 
-const sqlite = new Database("database.sqlite");
-export const db = drizzle(sqlite, { schema });
+export interface IStorage {
+  getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
 
-// Enable WAL mode for better performance
-sqlite.pragma('journal_mode = WAL');
+  getMedication(id: string): Promise<Medication | undefined>;
+  getMedicationByName(name: string): Promise<Medication | undefined>;
+  getMedicationByPartialName(partialName: string): Promise<Medication | undefined>;
+  createMedication(medication: InsertMedication): Promise<Medication>;
+  searchMedications(query: string): Promise<Medication[]>;
 
-// Initialize database and seed with medications
-async function initializeDatabase() {
-  try {
-    // Run migrations if needed
-    console.log("Initializing database...");
+  getSearchHistory(userId?: string): Promise<SearchHistory[]>;
+  createSearchHistory(searchHistory: InsertSearchHistory): Promise<SearchHistory>;
+}
 
-    // Check if medications table exists and has data
-    const medicationCount = db.select({ count: sql<number>`count(*)` })
-      .from(schema.medications)
-      .get()?.count || 0;
+export class MemStorage implements IStorage {
+  private users: Map<string, User>;
+  private medications: Map<string, Medication>;
+  private searchHistory: Map<string, SearchHistory>;
 
-    if (medicationCount === 0) {
-      console.log("Seeding database with comprehensive medication data...");
-      
-      // Insert medications in batches for better performance
-      const batchSize = 100;
-      for (let i = 0; i < medicationsDatabase.length; i += batchSize) {
-        const batch = medicationsDatabase.slice(i, i + batchSize);
-        try {
-          db.insert(schema.medications).values(batch).run();
-          console.log(`Inserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(medicationsDatabase.length / batchSize)}`);
-        } catch (error) {
-          console.error(`Error inserting batch ${Math.floor(i / batchSize) + 1}:`, error);
-        }
-      }
-      
-      console.log(`Successfully seeded ${medicationsDatabase.length} medications`);
-    } else {
-      console.log(`Database already contains ${medicationCount} medications`);
-    }
-  } catch (error) {
-    console.error("Database initialization error:", error);
+  constructor() {
+    this.users = new Map();
+    this.medications = new Map();
+    this.searchHistory = new Map();
+    this.initializeMedications();
   }
-}
 
-// Simple text similarity function
-function calculateSimilarity(str1: string, str2: string): number {
-  const longer = str1.length > str2.length ? str1 : str2;
-  const shorter = str1.length > str2.length ? str2 : str1;
-  
-  if (longer.length === 0) return 1.0;
-  
-  const editDistance = levenshteinDistance(longer, shorter);
-  return (longer.length - editDistance) / longer.length;
-}
-
-function levenshteinDistance(str1: string, str2: string): number {
-  const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
-
-  for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
-  for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
-
-  for (let j = 1; j <= str2.length; j++) {
-    for (let i = 1; i <= str1.length; i++) {
-      const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
-      matrix[j][i] = Math.min(
-        matrix[j][i - 1] + 1,
-        matrix[j - 1][i] + 1,
-        matrix[j - 1][i - 1] + indicator
-      );
+  private async initializeMedications() {
+    // Populate the database with initial medications
+    for (const med of medicationsDatabase) {
+      await this.createMedication(med);
     }
   }
 
-  return matrix[str2.length][str1.length];
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.username === username,
+    );
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = randomUUID();
+    const user: User = { ...insertUser, id };
+    this.users.set(id, user);
+    return user;
+  }
+
+  async getMedication(id: string): Promise<Medication | undefined> {
+    return this.medications.get(id);
+  }
+
+  async getMedicationByName(name: string): Promise<Medication | undefined> {
+    const lowerName = name.toLowerCase();
+    return Array.from(this.medications.values()).find(
+      (med) => 
+        med.name.toLowerCase().includes(lowerName) ||
+        (med.nameVi && med.nameVi.toLowerCase().includes(lowerName)) ||
+        (med.genericName && med.genericName.toLowerCase().includes(lowerName)) ||
+        (med.genericNameVi && med.genericNameVi.toLowerCase().includes(lowerName))
+    );
+  }
+
+  async getMedicationByPartialName(partialName: string): Promise<Medication | undefined> {
+    const searchTerm = `%${partialName.toLowerCase()}%`;
+    const medications = Array.from(this.medications.values()).filter(
+      (med) =>
+        med.name.toLowerCase().includes(partialName.toLowerCase()) ||
+        (med.nameVi && med.nameVi.toLowerCase().includes(partialName.toLowerCase())) ||
+        (med.genericName && med.genericName.toLowerCase().includes(partialName.toLowerCase())) ||
+        (med.genericNameVi && med.genericNameVi.toLowerCase().includes(partialName.toLowerCase()))
+    );
+    return medications[0] || undefined;
+  }
+
+  async createMedication(insertMedication: InsertMedication): Promise<Medication> {
+    const id = randomUUID();
+    const medication: Medication = {
+      id,
+      name: insertMedication.name,
+      genericName: insertMedication.genericName || null,
+      category: insertMedication.category || null,
+      primaryUse: insertMedication.primaryUse || null,
+      adultDosage: insertMedication.adultDosage || null,
+      maxDosage: insertMedication.maxDosage || null,
+      warnings: insertMedication.warnings || null,
+      createdAt: new Date(),
+    };
+    this.medications.set(id, medication);
+    return medication;
+  }
+
+  async searchMedications(query: string): Promise<Medication[]> {
+    const lowerQuery = query.toLowerCase();
+    return Array.from(this.medications.values()).filter(
+      (med) =>
+        med.name.toLowerCase().includes(lowerQuery) ||
+        (med.nameVi && med.nameVi.toLowerCase().includes(lowerQuery)) ||
+        (med.genericName && med.genericName.toLowerCase().includes(lowerQuery)) ||
+        (med.genericNameVi && med.genericNameVi.toLowerCase().includes(lowerQuery)) ||
+        (med.category && med.category.toLowerCase().includes(lowerQuery)) ||
+        (med.categoryVi && med.categoryVi.toLowerCase().includes(lowerQuery)) ||
+        (med.primaryUse && med.primaryUse.toLowerCase().includes(lowerQuery)) ||
+        (med.primaryUseVi && med.primaryUseVi.toLowerCase().includes(lowerQuery))
+    );
+  }
+
+  async getSearchHistory(userId?: string): Promise<SearchHistory[]> {
+    let history = Array.from(this.searchHistory.values());
+    if (userId) {
+      history = history.filter(h => h.userId === userId);
+    }
+    return history.sort((a, b) => 
+      new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+  }
+
+  async createSearchHistory(insertSearchHistory: InsertSearchHistory): Promise<SearchHistory> {
+    const id = randomUUID();
+    const searchHistory: SearchHistory = {
+      id,
+      userId: insertSearchHistory.userId || null,
+      medicationId: insertSearchHistory.medicationId || null,
+      searchQuery: insertSearchHistory.searchQuery || null,
+      searchMethod: insertSearchHistory.searchMethod || null,
+      createdAt: new Date(),
+    };
+    this.searchHistory.set(id, searchHistory);
+    return searchHistory;
+  }
 }
 
-export const storage = {
-  // Initialize database
-  async init() {
-    await initializeDatabase();
-  },
-
-  // Medication operations
-  async getMedication(id: string) {
-    return db.select().from(schema.medications).where(eq(schema.medications.id, id)).get();
-  },
-
-  async getMedicationByName(name: string) {
-    const searchTerm = name.toLowerCase().trim();
-    
-    // Try exact matches first
-    const exactMatch = db.select()
-      .from(schema.medications)
-      .where(
-        or(
-          eq(sql`lower(${schema.medications.name})`, searchTerm),
-          eq(sql`lower(${schema.medications.genericName})`, searchTerm),
-          eq(sql`lower(${schema.medications.nameVi})`, searchTerm),
-          eq(sql`lower(${schema.medications.genericNameVi})`, searchTerm)
-        )
-      )
-      .get();
-
-    if (exactMatch) return exactMatch;
-
-    // Try partial matches
-    return db.select()
-      .from(schema.medications)
-      .where(
-        or(
-          like(sql`lower(${schema.medications.name})`, `%${searchTerm}%`),
-          like(sql`lower(${schema.medications.genericName})`, `%${searchTerm}%`),
-          like(sql`lower(${schema.medications.nameVi})`, `%${searchTerm}%`),
-          like(sql`lower(${schema.medications.genericNameVi})`, `%${searchTerm}%`)
-        )
-      )
-      .get();
-  },
-
-  async getMedicationByPartialName(name: string) {
-    const searchTerm = name.toLowerCase().trim();
-    
-    if (searchTerm.length < 3) return null;
-
-    return db.select()
-      .from(schema.medications)
-      .where(
-        or(
-          like(sql`lower(${schema.medications.name})`, `%${searchTerm}%`),
-          like(sql`lower(${schema.medications.genericName})`, `%${searchTerm}%`),
-          like(sql`lower(${schema.medications.nameVi})`, `%${searchTerm}%`),
-          like(sql`lower(${schema.medications.genericNameVi})`, `%${searchTerm}%`)
-        )
-      )
-      .get();
-  },
-
-  async searchMedications(query: string) {
-    const searchTerm = query.toLowerCase().trim();
-    
-    if (searchTerm.length < 2) return [];
-
-    // Get all potential matches
-    const allMedications = db.select().from(schema.medications).all();
-    
-    // Score and filter medications
-    const scoredMedications = allMedications
-      .map(med => {
-        const names = [
-          med.name,
-          med.genericName,
-          med.nameVi,
-          med.genericNameVi
-        ].filter(Boolean).map(n => n!.toLowerCase());
-
-        let bestScore = 0;
-        for (const name of names) {
-          // Exact match gets highest score
-          if (name === searchTerm) {
-            bestScore = 1.0;
-            break;
-          }
-          
-          // Starts with search term gets high score
-          if (name.startsWith(searchTerm)) {
-            bestScore = Math.max(bestScore, 0.9);
-            continue;
-          }
-          
-          // Contains search term gets medium score
-          if (name.includes(searchTerm)) {
-            bestScore = Math.max(bestScore, 0.7);
-            continue;
-          }
-          
-          // Similarity score for fuzzy matching
-          const similarity = calculateSimilarity(name, searchTerm);
-          bestScore = Math.max(bestScore, similarity);
-        }
-
-        return { medication: med, score: bestScore };
-      })
-      .filter(item => item.score > 0.3) // Only keep reasonably similar matches
-      .sort((a, b) => b.score - a.score) // Sort by score descending
-      .slice(0, 10); // Limit to top 10 results
-
-    return scoredMedications.map(item => item.medication);
-  },
-
-  async createMedication(medicationData: schema.InsertMedication) {
-    const result = db.insert(schema.medications).values(medicationData).returning().get();
-    return result;
-  },
-
-  // Search history operations
-  async getSearchHistory(limit: number = 50) {
-    return db.select()
-      .from(schema.searchHistory)
-      .orderBy(sql`${schema.searchHistory.createdAt} DESC`)
-      .limit(limit)
-      .all();
-  },
-
-  async createSearchHistory(historyData: schema.InsertSearchHistory) {
-    const result = db.insert(schema.searchHistory).values(historyData).returning().get();
-    return result;
-  },
-
-  // User operations (if needed)
-  async createUser(userData: schema.InsertUser) {
-    const result = db.insert(schema.users).values(userData).returning().get();
-    return result;
-  },
-
-  async getUserByUsername(username: string) {
-    return db.select().from(schema.users).where(eq(schema.users.username, username)).get();
-  }
-};
-
-// Initialize on import
-storage.init().catch(console.error);
+export const storage = new MemStorage();

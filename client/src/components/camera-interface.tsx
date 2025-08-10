@@ -137,21 +137,23 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
 
     // Enhanced image preprocessing for better OCR
     for (let i = 0; i < data.length; i += 4) {
-      // Convert to grayscale first for better text recognition
-      const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+      // Convert to grayscale with optimized weights for text
+      const gray = Math.round(0.3 * data[i] + 0.59 * data[i + 1] + 0.11 * data[i + 2]);
 
       // Apply brightness
-      let processedValue = Math.min(255, gray * brightnessValue);
+      let processedValue = Math.min(255, Math.max(0, gray * brightnessValue));
 
-      // Apply contrast with enhanced text enhancement
+      // Apply adaptive contrast enhancement
       processedValue = Math.min(255, Math.max(0, ((processedValue - 128) * contrastValue) + 128));
 
-      // Sharpen text by increasing contrast for text-like regions
-      if (contrastValue > 1.2) {
-        processedValue = processedValue > 128 ? Math.min(255, processedValue * 1.1) : Math.max(0, processedValue * 0.9);
+      // Apply adaptive threshold for text enhancement
+      const threshold = 128;
+      if (Math.abs(processedValue - threshold) < 30) {
+        // Enhance text edges
+        processedValue = processedValue > threshold ? Math.min(255, processedValue + 50) : Math.max(0, processedValue - 50);
       }
 
-      // Apply processed value to all RGB channels
+      // Apply processed value to all RGB channels (grayscale)
       data[i] = processedValue;     // Red
       data[i + 1] = processedValue; // Green  
       data[i + 2] = processedValue; // Blue
@@ -193,16 +195,46 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
     // Apply enhanced image filters for OCR
     applyImageFilters(ctx, canvas);
 
-    // Additional text enhancement
+    // Advanced text enhancement for better OCR
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
+    const width = canvas.width;
+    const height = canvas.height;
 
-    // Edge enhancement for text clarity
-    for (let i = 0; i < data.length; i += 4) {
-      const current = data[i];
-      if (current > 200 || current < 55) {
-        // Enhance high contrast areas (likely text)
-        data[i] = data[i + 1] = data[i + 2] = current > 128 ? 255 : 0;
+    // Create a copy for edge detection
+    const originalData = new Uint8ClampedArray(data);
+
+    // Apply Sobel edge detection to enhance text boundaries
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = (y * width + x) * 4;
+        
+        // Get surrounding pixels for edge detection
+        const topLeft = originalData[((y-1) * width + (x-1)) * 4];
+        const top = originalData[((y-1) * width + x) * 4];
+        const topRight = originalData[((y-1) * width + (x+1)) * 4];
+        const left = originalData[(y * width + (x-1)) * 4];
+        const center = originalData[idx];
+        const right = originalData[(y * width + (x+1)) * 4];
+        const bottomLeft = originalData[((y+1) * width + (x-1)) * 4];
+        const bottom = originalData[((y+1) * width + x) * 4];
+        const bottomRight = originalData[((y+1) * width + (x+1)) * 4];
+
+        // Sobel X and Y gradients
+        const sobelX = (topRight + 2*right + bottomRight) - (topLeft + 2*left + bottomLeft);
+        const sobelY = (bottomLeft + 2*bottom + bottomRight) - (topLeft + 2*top + topRight);
+        const magnitude = Math.sqrt(sobelX*sobelX + sobelY*sobelY);
+
+        // Enhance edges (likely text boundaries)
+        let enhanced = center;
+        if (magnitude > 30) {
+          enhanced = center > 128 ? Math.min(255, center + magnitude/4) : Math.max(0, center - magnitude/4);
+        }
+
+        // Apply binary threshold for cleaner text
+        enhanced = enhanced > 140 ? 255 : enhanced < 115 ? 0 : enhanced;
+
+        data[idx] = data[idx + 1] = data[idx + 2] = enhanced;
       }
     }
 
@@ -267,22 +299,30 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
 
       setProcessingStage(t("extractingText"));
 
-      // Perform OCR with multiple configurations for better results
+      // Perform OCR with optimized configurations for medication names
       const ocrConfigs = [
         {
           language: 'eng',
-          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,-()/',
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,-()mg',
           tessedit_pageseg_mode: 6, // Single uniform block
+          tessedit_ocr_engine_mode: 1, // Neural nets LSTM engine
         },
         {
           language: 'eng',
-          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,-()/',
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
           tessedit_pageseg_mode: 8, // Single word
+          tessedit_ocr_engine_mode: 1,
         },
         {
           language: 'eng',
-          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,-()/',
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .-',
+          tessedit_pageseg_mode: 13, // Raw line. Treat the image as a single text line
+          tessedit_ocr_engine_mode: 1,
+        },
+        {
+          language: 'eng',
           tessedit_pageseg_mode: 7, // Single text line
+          tessedit_ocr_engine_mode: 2, // Legacy + LSTM engines
         }
       ];
 
@@ -305,21 +345,29 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
 
       console.log('Best OCR Result:', bestResult, 'Confidence:', bestConfidence);
 
-      if (!bestResult || bestResult.length < 2) {
-        throw new Error('No readable text detected in image. Please ensure the medication name is clearly visible.');
+      if (!bestResult || bestResult.length < 2 || bestConfidence < 10) {
+        throw new Error('No clear text detected. Please ensure good lighting and focus on the medication name.');
       }
 
       setProcessingStage(t("searchingDatabase"));
 
-      // Clean and process the extracted text
+      // Advanced text cleaning for medication names
       const cleanedText = bestResult
         .replace(/[^\w\s.-]/g, ' ') // Remove special chars except dots and hyphens
         .replace(/\s+/g, ' ') // Normalize whitespace
+        .replace(/\b\d+mg?\b/gi, '') // Remove dosage information
+        .replace(/\b(tablet|capsule|pill|mg|mcg|ml|cap|tab)\b/gi, '') // Remove common medication terms
         .trim();
 
-      // Extract potential drug names (words longer than 2 characters)
-      const words = cleanedText.split(' ').filter(word => word.length > 2);
-      const searchQueries = [cleanedText, ...words];
+      // Extract potential drug names with better filtering
+      const words = cleanedText.split(' ')
+        .filter(word => word.length >= 3) // At least 3 characters
+        .filter(word => /^[A-Za-z]/.test(word)) // Starts with a letter
+        .filter(word => !/^\d+$/.test(word)); // Not just numbers
+
+      // Prioritize longer words (likely drug names)
+      const sortedWords = words.sort((a, b) => b.length - a.length);
+      const searchQueries = [cleanedText, ...sortedWords.slice(0, 5)];
 
       // Search for medication with multiple queries
       const response = await fetch('/api/identify-medication', {

@@ -160,6 +160,18 @@ const translations = {
     translateMedicalInfo: "Translate medical information between English and Vietnamese to better understand medication details.",
     translationFailed: "Translation Failed",
     couldNotTranslateText: "Could not translate text. Please try again.",
+    // OCR and processing
+    analyzingImage: "Analyzing image...",
+    extractingText: "Extracting text and identifying medication...",
+    searchingDatabase: "Searching database...",
+    ocrNotReady: "OCR engine not ready",
+    tesseractInitializationError: "Error initializing OCR engine",
+    noMedicationFound: "No medication found",
+    failedToProcessImage: "Failed to process image",
+    processing: "Processing...",
+    searchingFor: "Searching for medication...",
+    ensureGoodLighting: "Ensure good lighting and focus",
+    alignDrugBox: "Align medication label here",
   },
   vi: {
     // App
@@ -322,7 +334,7 @@ const translations = {
     importantWarningsLabel: "Cảnh Báo Quan Trọng",
     commonWarnings: [
       "Chảy máu đường tiêu hóa",
-      "Rủi ro tim mạch", 
+      "Rủi ro tim mạch",
       "Các vấn đề về thận",
       "Uống cùng thức ăn"
     ],
@@ -336,15 +348,27 @@ const translations = {
     liverProtection: "Bảo vệ gan",
     // Camera interface
     cameraAccessError: "Lỗi truy cập camera. Vui lòng kiểm tra quyền.",
-    retake: "Chụp lại",
-    download: "Tải xuống",
-    confirm: "Xác nhận",
+    retakePhoto: "Chụp lại",
+    downloadImage: "Tải xuống",
+    confirmCapture: "Xác nhận",
     settings: "Cài đặt",
     resolution: "Độ phân giải",
     autoFocus: "Lấy nét tự động",
     zoom: "Phóng to",
     brightness: "Độ sáng",
-    contrast: "Độ tương phản"
+    contrast: "Độ tương phản",
+    // OCR and processing
+    analyzingImage: "Đang phân tích hình ảnh...",
+    extractingText: "Đang trích xuất văn bản và nhận dạng thuốc...",
+    searchingDatabase: "Đang tìm kiếm cơ sở dữ liệu...",
+    ocrNotReady: "Công cụ OCR chưa sẵn sàng",
+    tesseractInitializationError: "Lỗi khởi tạo công cụ OCR",
+    noMedicationFound: "Không tìm thấy thuốc",
+    failedToProcessImage: "Không thể xử lý hình ảnh",
+    processing: "Đang xử lý...",
+    searchingFor: "Đang tìm kiếm thuốc...",
+    ensureGoodLighting: "Đảm bảo ánh sáng tốt và lấy nét",
+    alignDrugBox: "Căn chỉnh nhãn thuốc tại đây",
   }
 };
 

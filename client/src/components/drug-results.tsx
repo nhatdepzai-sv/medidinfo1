@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Share2, Bookmark, Target, PillBottle, AlertTriangle, Languages, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/language-context";
+import { translateDrugCategory } from "@/lib/translation-utils";
 import type { Medication } from "@shared/schema";
 
 interface DrugResultsProps {
@@ -79,7 +80,7 @@ export default function DrugResults({ medication }: DrugResultsProps) {
             <div className="ml-3">
               {category && (
                 <span className="bg-white bg-opacity-20 text-xs px-2 py-1 rounded-full">
-                  {category}
+                  {translateDrugCategory(category, language)}
                 </span>
               )}
             </div>

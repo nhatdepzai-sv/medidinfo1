@@ -18,7 +18,7 @@ export const medicationsDatabase: InsertMedication[] = [
     category: "NSAID Pain Reliever",
     categoryVi: "Thuốc giảm đau chống viêm NSAID",
     primaryUse: "Reduces pain, inflammation, and fever. Used for headaches, muscle aches, arthritis, menstrual cramps, and minor injuries.",
-    primaryUseVi: "Giảm đau, viêm và sốt. Dùng cho đau đầu, đau cơ, viêm khớp, đau bụng kinh và các chấn thương nhỏ.",
+    primaryUseVi: "Giảm đau, chống viêm và hạ sốt. Dùng điều trị đau đầu, đau cơ, viêm khớp, đau bụng kinh và các chấn thương nhẹ.",
     adultDosage: "200-400mg every 4-6 hours as needed",
     adultDosageVi: "200-400mg mỗi 4-6 giờ khi cần",
     maxDosage: "1200mg per day (without medical supervision)",

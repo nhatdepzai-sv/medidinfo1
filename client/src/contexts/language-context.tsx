@@ -141,6 +141,17 @@ const translations = {
     // Translator
     translator: "Translator",
     translate: "Translate",
+    // Camera interface
+    cameraAccessError: "Camera access error. Please check permissions.",
+    retake: "Retake",
+    download: "Download", 
+    confirm: "Confirm",
+    settings: "Settings",
+    resolution: "Resolution",
+    autoFocus: "Auto Focus",
+    zoom: "Zoom",
+    brightness: "Brightness",
+    contrast: "Contrast",
     translating: "Translating...",
     sourceText: "Source Text",
     translation: "Translation",
@@ -294,17 +305,36 @@ const translations = {
     couldNotTranslateText: "Không thể dịch văn bản. Vui lòng thử lại.",
     // Additions based on user request
     treatsArthritisPainAndInflammation: "Điều trị cơn đau và viêm khớp",
-    typicalDosageAdults: "Người lớn:",
-    adults: "7.5-15mg mỗi ngày",
-    maxDaily: "Tối đa hàng ngày:",
-    maxDailyDose: "15mg mỗi ngày",
-    importantWarnings: "Cảnh Báo Quan Trọng",
-    warnings: [
+    typicalDosageForAdults: "Người lớn:",
+    adultDosageRange: "7.5-15mg mỗi ngày",
+    maximumDaily: "Tối đa hàng ngày:",
+    maxDailyDosage: "15mg mỗi ngày",
+    importantWarningsLabel: "Cảnh Báo Quan Trọng",
+    commonWarnings: [
       "Chảy máu đường tiêu hóa",
-      "Rủi ro tim mạch",
+      "Rủi ro tim mạch", 
       "Các vấn đề về thận",
       "Uống cùng thức ăn"
-    ]
+    ],
+    // Gout treatment
+    goutTreatment: "Điều trị bệnh gout",
+    reducesUricAcid: "Giảm acid uric trong máu",
+    preventGoutAttacks: "Ngăn ngừa cơn gout",
+    // Hepatitis treatment
+    hepatitisTreatment: "Điều trị viêm gan",
+    antiviralTherapy: "Liệu pháp kháng virus",
+    liverProtection: "Bảo vệ gan",
+    // Camera interface
+    cameraAccessError: "Lỗi truy cập camera. Vui lòng kiểm tra quyền.",
+    retake: "Chụp lại",
+    download: "Tải xuống",
+    confirm: "Xác nhận",
+    settings: "Cài đặt",
+    resolution: "Độ phân giải",
+    autoFocus: "Lấy nét tự động",
+    zoom: "Phóng to",
+    brightness: "Độ sáng",
+    contrast: "Độ tương phản"
   }
 };
 

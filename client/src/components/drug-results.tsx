@@ -158,8 +158,25 @@ export default function DrugResults({ medication }: DrugResultsProps) {
             </Button>
             <Button
               onClick={() => {
-                const textToTranslate = `Công Dụng Chính\n${primaryUse}\n\nLiều Lượng Thông Thường\nNgười lớn:\n${adultDosage}\nTối đa hàng ngày:\n${maxDosage}\nCảnh Báo Quan Trọng\n${warnings.map(warning => `• ${warning}`).join('\n')}`;
-                const googleTranslateUrl = `https://translate.google.com/?sl=en&tl=vi&text=${encodeURIComponent(textToTranslate)}`;
+                // Format medication information for translation
+                const medicationInfo = `
+Tên thuốc: ${medicationName}
+
+Công Dụng Chính:
+${primaryUse}
+
+Liều Lượng Thông Thường:
+Người lớn: ${adultDosage}
+Tối đa hàng ngày: ${maxDosage}
+
+Cảnh Báo Quan Trọng:
+${warnings.map(warning => `• ${warning}`).join('\n')}
+
+Loại thuốc: ${medication.category}
+Tên khoa học: ${medication.genericName}
+                `.trim();
+                
+                const googleTranslateUrl = `https://translate.google.com/?sl=auto&tl=vi&text=${encodeURIComponent(medicationInfo)}`;
                 window.open(googleTranslateUrl, '_blank');
               }}
               variant="outline"

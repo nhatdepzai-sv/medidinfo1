@@ -141,11 +141,10 @@ const translations = {
     // Translator
     translator: "Translator",
     translate: "Translate",
-    // Camera interface
-    cameraAccessError: "Camera access error. Please check permissions.",
-    retake: "Retake",
-    download: "Download", 
-    confirm: "Confirm",
+    // Camera interface - moved to avoid duplicates
+    retakePhoto: "Retake",
+    downloadImage: "Download",
+    confirmCapture: "Confirm",
     settings: "Settings",
     resolution: "Resolution",
     autoFocus: "Auto Focus",
@@ -294,6 +293,17 @@ const translations = {
     // Translator
     translator: "Trình Dịch",
     translate: "Dịch",
+    // Camera interface - moved to avoid duplicates
+    cameraAccessError: "Lỗi truy cập camera. Vui lòng kiểm tra quyền.",
+    retake: "Chụp lại",
+    download: "Tải xuống",
+    confirm: "Xác nhận",
+    settings: "Cài đặt",
+    resolution: "Độ phân giải",
+    autoFocus: "Lấy nét tự động",
+    zoom: "Phóng to",
+    brightness: "Độ sáng",
+    contrast: "Độ tương phản",
     translating: "Đang dịch...",
     sourceText: "Văn Bản Gốc",
     translation: "Bản Dịch",

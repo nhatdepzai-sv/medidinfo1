@@ -41,9 +41,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
   useEffect(() => {
     const initializeWorker = async () => {
       try {
-        workerRef.current = await Tesseract.createWorker('eng', {
-          logger: m => console.log(m), // Log progress
-        });
+        workerRef.current = await Tesseract.createWorker('eng');
         await workerRef.current.load();
         await workerRef.current.loadLanguage('eng');
         await workerRef.current.initialize('eng');
@@ -581,7 +579,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
               className="flex items-center space-x-2"
             >
               <RefreshCw className="h-5 w-5" />
-              <span>{t('retake') || 'Retake'}</span>
+              <span>{t('retakePhoto') || 'Retake'}</span>
             </Button>
 
             <Button
@@ -591,7 +589,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
               className="flex items-center space-x-2"
             >
               <Download className="h-5 w-5" />
-              <span>{t('download') || 'Download'}</span>
+              <span>{t('downloadImage') || 'Download'}</span>
             </Button>
 
             <Button
@@ -600,7 +598,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
               className="flex items-center space-x-2 bg-green-600 hover:bg-green-700"
             >
               <Check className="h-5 w-5" />
-              <span>{t('confirm') || 'Confirm'}</span>
+              <span>{t('confirmCapture') || 'Confirm'}</span>
             </Button>
           </div>
         )}

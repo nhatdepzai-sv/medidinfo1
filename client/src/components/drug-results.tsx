@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Share2, Bookmark, Target, PillBottle, AlertTriangle } from "lucide-react";
+import { Share2, Bookmark, Target, PillBottle, AlertTriangle, Languages, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/language-context";
 import type { Medication } from "@shared/schema";
@@ -26,7 +26,7 @@ export default function DrugResults({ medication }: DrugResultsProps) {
     const medicationName = language === "vi" && medication.nameVi ? medication.nameVi : medication.name;
     const primaryUse = language === "vi" && medication.primaryUseVi ? medication.primaryUseVi : medication.primaryUse;
     const dosage = language === "vi" && medication.adultDosageVi ? medication.adultDosageVi : medication.adultDosage;
-    
+
     const shareData = {
       title: `${medicationName} - Medication Information`,
       text: `${medicationName}: ${primaryUse}`,
@@ -146,21 +146,25 @@ export default function DrugResults({ medication }: DrugResultsProps) {
           )}
 
           {/* Action buttons */}
-          <div className="border-t border-gray-100 pt-4 flex space-x-3">
-            <Button
-              variant="outline"
-              className="flex-1 border-primary text-primary hover:bg-medical-50"
-              onClick={handleSave}
-            >
-              <Bookmark className="w-4 h-4 mr-2" />
+          <div className="flex gap-2 pt-4 border-t">
+            <Button onClick={handleSave} className="flex-1">
+              <Heart className="w-4 h-4 mr-2" />
               {t("save")}
             </Button>
-            <Button
-              className="flex-1"
-              onClick={handleShare}
-            >
+            <Button onClick={handleShare} variant="outline" className="flex-1">
               <Share2 className="w-4 h-4 mr-2" />
               {t("share")}
+            </Button>
+            <Button
+              onClick={() => {
+                const textToTranslate = `${medicationName}\n\n${primaryUse}\n\n${adultDosage}`;
+                window.open(`/translator?text=${encodeURIComponent(textToTranslate)}`, '_blank');
+              }}
+              variant="outline"
+              className="flex-1"
+            >
+              <Languages className="w-4 h-4 mr-2" />
+              Translate
             </Button>
           </div>
         </CardContent>

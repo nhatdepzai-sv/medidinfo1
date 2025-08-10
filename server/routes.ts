@@ -181,3 +181,79 @@ async function searchDrugInfo(drugName: string) {
     return null;
   }
 }
+// Translation endpoint
+app.post("/api/translate", async (req, res) => {
+  try {
+    const { text, from, to } = req.body;
+    
+    if (!text || !from || !to) {
+      return res.json({ success: false, error: "Missing required parameters" });
+    }
+
+    // Simple translation mapping for common medical terms
+    const translations = {
+      'en-vi': {
+        'medication': 'thuốc',
+        'dosage': 'liều lượng',
+        'adults': 'người lớn',
+        'children': 'trẻ em',
+        'take with food': 'uống cùng thức ăn',
+        'before meals': 'trước bữa ăn',
+        'after meals': 'sau bữa ăn',
+        'daily': 'hàng ngày',
+        'twice daily': 'hai lần mỗi ngày',
+        'three times daily': 'ba lần mỗi ngày',
+        'as needed': 'khi cần',
+        'warning': 'cảnh báo',
+        'side effects': 'tác dụng phụ',
+        'consult doctor': 'tham khảo bác sĩ',
+        'pregnancy': 'mang thai',
+        'breastfeeding': 'cho con bú'
+      },
+      'vi-en': {
+        'thuốc': 'medication',
+        'liều lượng': 'dosage',
+        'người lớn': 'adults',
+        'trẻ em': 'children',
+        'uống cùng thức ăn': 'take with food',
+        'trước bữa ăn': 'before meals',
+        'sau bữa ăn': 'after meals',
+        'hàng ngày': 'daily',
+        'hai lần mỗi ngày': 'twice daily',
+        'ba lần mỗi ngày': 'three times daily',
+        'khi cần': 'as needed',
+        'cảnh báo': 'warning',
+        'tác dụng phụ': 'side effects',
+        'tham khảo bác sĩ': 'consult doctor',
+        'mang thai': 'pregnancy',
+        'cho con bú': 'breastfeeding'
+      }
+    };
+
+    let translatedText = text;
+    const translationMap = translations[`${from}-${to}`];
+    
+    if (translationMap) {
+      Object.entries(translationMap).forEach(([original, translation]) => {
+        const regex = new RegExp(original, 'gi');
+        translatedText = translatedText.replace(regex, translation);
+      });
+    }
+
+    // If no translation was found, return a message
+    if (translatedText === text) {
+      translatedText = `[Translation from ${from} to ${to}]: ${text}`;
+    }
+
+    res.json({ 
+      success: true, 
+      translatedText,
+      originalText: text,
+      fromLanguage: from,
+      toLanguage: to
+    });
+  } catch (error) {
+    console.error("Translation error:", error);
+    res.json({ success: false, error: "Translation failed" });
+  }
+});

@@ -125,6 +125,19 @@ const translations = {
 
     // Generic
     generic: "Generic:",
+    
+    // Translator
+    translator: "Translator",
+    translate: "Translate",
+    translating: "Translating...",
+    sourceText: "Source Text",
+    translation: "Translation",
+    enterTextToTranslate: "Enter text to translate...",
+    translationWillAppearHere: "Translation will appear here...",
+    medicalTextTranslator: "Medical Text Translator",
+    translateMedicalInfo: "Translate medical information between English and Vietnamese to better understand medication details.",
+    translationFailed: "Translation Failed",
+    couldNotTranslateText: "Could not translate text. Please try again.",
   },
   vi: {
     // App
@@ -242,6 +255,19 @@ const translations = {
 
     // Generic
     generic: "Hoạt chất:",
+    
+    // Translator
+    translator: "Trình Dịch",
+    translate: "Dịch",
+    translating: "Đang dịch...",
+    sourceText: "Văn Bản Gốc",
+    translation: "Bản Dịch",
+    enterTextToTranslate: "Nhập văn bản để dịch...",
+    translationWillAppearHere: "Bản dịch sẽ xuất hiện ở đây...",
+    medicalTextTranslator: "Trình Dịch Văn Bản Y Khoa",
+    translateMedicalInfo: "Dịch thông tin y khoa giữa tiếng Anh và tiếng Việt để hiểu rõ hơn về chi tiết thuốc.",
+    translationFailed: "Dịch Thất Bại",
+    couldNotTranslateText: "Không thể dịch văn bản. Vui lòng thử lại.",
   }
 };
 

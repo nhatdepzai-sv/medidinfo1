@@ -240,7 +240,7 @@ const translations = {
     anxietyMedication: "Thuốc Chống Lo Âu",
     sleepAid: "Thuốc Ngủ",
     stomachMedication: "Thuốc Dạ Dày",
-    generic: "Tên gốc:"ào clipboard của bạn.",
+    generic: "Tên gốc:",
     ginkgoBiloba: "Ginkgo Biloba",
     ginkgoBilobaUsage: "Ginkgo Biloba được sử dụng để điều trị các tình trạng liên quan đến suy giảm nhận thức hoặc trí nhớ, như có thể xảy ra trong bệnh sa sút trí tuệ. Nó cũng được sử dụng cho chứng đau chân do lưu thông máu kém (hẹp động mạch ngoại biên) và hội chứng tiền kinh nguyệt (PMS).",
     ginkgoBilobaDosage: "Người lớn: Uống 40-80 mg ba lần mỗi ngày, hoặc theo chỉ dẫn của chuyên gia y tế. Liều tối đa hàng ngày: 240 mg.",

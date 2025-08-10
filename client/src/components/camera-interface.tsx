@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, SwitchCamera, Zap, ZapOff, Download, RefreshCw, Settings, X, Check } from 'lucide-react';
 import { Button } from './ui/button';
@@ -8,18 +7,23 @@ import { Badge } from './ui/badge';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
+import * as Tesseract from 'tesseract.js';
 
 interface CameraInterfaceProps {
   onCapture: (imageData: string) => void;
   onClose: () => void;
+  onMedicationFound: (medication: any) => void; // Assuming medication is an object
+  setError: (error: string) => void;
+  setProcessingStage: (stage: string) => void;
 }
 
-export default function CameraInterface({ onCapture, onClose }: CameraInterfaceProps) {
+export default function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setProcessingStage }: CameraInterfaceProps) {
   const { t } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  
+  const workerRef = useRef<Tesseract.Worker | null>(null);
+
   const [isActive, setIsActive] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const [hasFlash, setHasFlash] = useState(false);
@@ -32,6 +36,30 @@ export default function CameraInterface({ onCapture, onClose }: CameraInterfaceP
   const [isProcessing, setIsProcessing] = useState(false);
   const [autoFocus, setAutoFocus] = useState(true);
   const [resolution, setResolution] = useState<'HD' | 'FHD' | '4K'>('FHD');
+
+  // Initialize Tesseract worker
+  useEffect(() => {
+    const initializeWorker = async () => {
+      try {
+        workerRef.current = await Tesseract.createWorker('eng', {
+          logger: m => console.log(m), // Log progress
+        });
+        await workerRef.current.load();
+        await workerRef.current.loadLanguage('eng');
+        await workerRef.current.initialize('eng');
+      } catch (err) {
+        console.error("Failed to initialize Tesseract worker:", err);
+        setError(t("tesseractInitializationError") || "Error initializing OCR engine.");
+      }
+    };
+    initializeWorker();
+
+    return () => {
+      if (workerRef.current) {
+        workerRef.current.terminate();
+      }
+    };
+  }, [setError, t]);
 
   const getConstraints = useCallback(() => {
     const constraints: MediaStreamConstraints = {
@@ -113,18 +141,18 @@ export default function CameraInterface({ onCapture, onClose }: CameraInterfaceP
     for (let i = 0; i < data.length; i += 4) {
       // Convert to grayscale first for better text recognition
       const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-      
+
       // Apply brightness
       let processedValue = Math.min(255, gray * brightnessValue);
-      
+
       // Apply contrast with enhanced text enhancement
       processedValue = Math.min(255, Math.max(0, ((processedValue - 128) * contrastValue) + 128));
-      
+
       // Sharpen text by increasing contrast for text-like regions
       if (contrastValue > 1.2) {
         processedValue = processedValue > 128 ? Math.min(255, processedValue * 1.1) : Math.max(0, processedValue * 0.9);
       }
-      
+
       // Apply processed value to all RGB channels
       data[i] = processedValue;     // Red
       data[i + 1] = processedValue; // Green  
@@ -170,7 +198,7 @@ export default function CameraInterface({ onCapture, onClose }: CameraInterfaceP
     // Additional text enhancement
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
-    
+
     // Edge enhancement for text clarity
     for (let i = 0; i < data.length; i += 4) {
       const current = data[i];
@@ -179,7 +207,7 @@ export default function CameraInterface({ onCapture, onClose }: CameraInterfaceP
         data[i] = data[i + 1] = data[i + 2] = current > 128 ? 255 : 0;
       }
     }
-    
+
     ctx.putImageData(imageData, 0, 0);
 
     // Convert to high-quality image with better compression for OCR
@@ -188,12 +216,150 @@ export default function CameraInterface({ onCapture, onClose }: CameraInterfaceP
     setIsProcessing(false);
   }, [zoom, applyImageFilters]);
 
+  const processImage = useCallback(async (imageSrc: string) => {
+    if (!workerRef.current) {
+      setError(t("ocrNotReady") || "OCR engine is not ready yet.");
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      setProcessingStage(t("analyzingImage"));
+
+      // Create image element
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = imageSrc;
+      });
+
+      // Create canvas and preprocess image
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas context not available');
+
+      // Scale image for better OCR results
+      const scale = Math.min(1920 / img.width, 1080 / img.height);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      // Apply advanced image preprocessing for better OCR
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      // Convert to grayscale with better weights
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+
+        // Apply adaptive thresholding for better text extraction
+        const threshold = 128;
+        const enhanced = gray > threshold ? 255 : 0;
+
+        data[i] = enhanced;
+        data[i + 1] = enhanced;
+        data[i + 2] = enhanced;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+
+      setProcessingStage(t("extractingText"));
+
+      // Perform OCR with multiple configurations for better results
+      const ocrConfigs = [
+        {
+          language: 'eng',
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,-()/',
+          tessedit_pageseg_mode: 6, // Single uniform block
+        },
+        {
+          language: 'eng',
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,-()/',
+          tessedit_pageseg_mode: 8, // Single word
+        },
+        {
+          language: 'eng',
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,-()/',
+          tessedit_pageseg_mode: 7, // Single text line
+        }
+      ];
+
+      let bestResult = '';
+      let bestConfidence = 0;
+
+      for (const config of ocrConfigs) {
+        try {
+          const result = await workerRef.current.recognize(canvas, config);
+          const confidence = result.data.confidence;
+
+          if (confidence > bestConfidence && result.data.text.trim().length > 0) {
+            bestResult = result.data.text.trim();
+            bestConfidence = confidence;
+          }
+        } catch (err) {
+          console.warn('OCR config failed:', err);
+        }
+      }
+
+      console.log('Best OCR Result:', bestResult, 'Confidence:', bestConfidence);
+
+      if (!bestResult || bestResult.length < 2) {
+        throw new Error('No readable text detected in image. Please ensure the medication name is clearly visible.');
+      }
+
+      setProcessingStage(t("searchingDatabase"));
+
+      // Clean and process the extracted text
+      const cleanedText = bestResult
+        .replace(/[^\w\s.-]/g, ' ') // Remove special chars except dots and hyphens
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim();
+
+      // Extract potential drug names (words longer than 2 characters)
+      const words = cleanedText.split(' ').filter(word => word.length > 2);
+      const searchQueries = [cleanedText, ...words];
+
+      // Search for medication with multiple queries
+      const response = await fetch('/api/identify-medication', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: cleanedText,
+          alternativeQueries: searchQueries,
+          searchMethod: 'photo',
+          confidence: bestConfidence
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to identify medication');
+      }
+
+      const responseData = await response.json();
+
+      if (responseData.medication) {
+        onMedicationFound(responseData.medication);
+      } else {
+        setError(t("noMedicationFound") + ` Detected text: "${cleanedText}"`);
+      }
+
+    } catch (err) {
+      console.error('Error processing image:', err);
+      setError(err instanceof Error ? err.message : t("failedToProcessImage"));
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [t, onMedicationFound, setError, setProcessingStage]);
+
   const confirmCapture = useCallback(() => {
     if (capturedImage) {
-      onCapture(capturedImage);
-      onClose();
+      processImage(capturedImage);
     }
-  }, [capturedImage, onCapture, onClose]);
+  }, [capturedImage, processImage]);
 
   const retakePhoto = useCallback(() => {
     setCapturedImage(null);
@@ -237,7 +403,7 @@ export default function CameraInterface({ onCapture, onClose }: CameraInterfaceP
         >
           <X className="h-6 w-6" />
         </Button>
-        
+
         <div className="flex items-center space-x-2">
           <Badge variant="secondary" className="bg-white/20 text-white">
             {resolution}
@@ -265,8 +431,8 @@ export default function CameraInterface({ onCapture, onClose }: CameraInterfaceP
           <CardContent className="p-4 space-y-4">
             <div className="flex items-center justify-between">
               <Label>Resolution</Label>
-              <select 
-                value={resolution} 
+              <select
+                value={resolution}
                 onChange={(e) => setResolution(e.target.value as 'HD' | 'FHD' | '4K')}
                 className="bg-gray-700 border border-gray-600 rounded px-2 py-1"
               >
@@ -275,7 +441,7 @@ export default function CameraInterface({ onCapture, onClose }: CameraInterfaceP
                 <option value="4K">4K (2160p)</option>
               </select>
             </div>
-            
+
             <div className="flex items-center justify-between">
               <Label>Auto Focus</Label>
               <Switch checked={autoFocus} onCheckedChange={setAutoFocus} />
@@ -331,7 +497,7 @@ export default function CameraInterface({ onCapture, onClose }: CameraInterfaceP
               playsInline
               muted
             />
-            
+
             {/* Medication Capture Guide */}
             <div className="absolute inset-0 pointer-events-none">
               {/* Center focus area for medication */}
@@ -345,7 +511,7 @@ export default function CameraInterface({ onCapture, onClose }: CameraInterfaceP
                 <div className="absolute -bottom-2 -left-2 w-4 h-4 border-l-2 border-b-2 border-yellow-400"></div>
                 <div className="absolute -bottom-2 -right-2 w-4 h-4 border-r-2 border-b-2 border-yellow-400"></div>
               </div>
-              
+
               {/* Instructions */}
               <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white text-xs px-4 py-2 rounded-lg text-center">
                 <div className="mb-1">📱 {t('ensureGoodLighting') || 'Ensure good lighting and focus'}</div>

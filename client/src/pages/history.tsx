@@ -3,8 +3,10 @@ import { useLocation } from "wouter";
 import BottomNavigation from "@/components/bottom-navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Clock, Camera, Edit } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Clock, Camera, Edit, Search } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
+import { useState } from "react";
 import type { SearchHistory, Medication } from "@shared/schema";
 
 interface EnrichedSearchHistory extends SearchHistory {
@@ -14,10 +16,17 @@ interface EnrichedSearchHistory extends SearchHistory {
 export default function History() {
   const [, setLocation] = useLocation();
   const { t, language } = useLanguage();
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: history, isLoading, error } = useQuery<EnrichedSearchHistory[]>({
     queryKey: ["/api/search-history"],
   });
+
+  const filteredHistory = history?.filter(item => 
+    item.searchQuery?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.medication?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.medication?.nameVi?.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
 
   if (isLoading) {
     return (
@@ -108,16 +117,32 @@ export default function History() {
         </div>
       </header>
 
+      {/* Search */}
+      <div className="p-4 border-b">
+        <div className="relative">
+          <Input
+            type="text"
+            placeholder={t("searchHistory") || "Search history..."}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pr-10"
+          />
+          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+        </div>
+      </div>
+
       {/* History Content */}
       <div className="flex-1 p-4 pb-20">
-        {!history || history.length === 0 ? (
+        {!filteredHistory || filteredHistory.length === 0 ? (
           <div className="flex items-center justify-center min-h-[50vh]">
             <Card className="w-full">
               <CardContent className="pt-6 text-center">
                 <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="font-medium text-gray-800 mb-2">{t("noSearchHistory")}</h3>
+                <h3 className="font-medium text-gray-800 mb-2">
+                  {searchQuery ? t("noSearchResults") : t("noSearchHistory")}
+                </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  {t("noSearchHistoryDesc")}
+                  {searchQuery ? t("tryDifferentKeywords") : t("noSearchHistoryDesc")}
                 </p>
                 <Button onClick={() => setLocation("/")}>
                   {t("startScanning")}
@@ -127,8 +152,8 @@ export default function History() {
           </div>
         ) : (
           <div className="space-y-4">
-            {history.map((item) => (
-              <Card key={item.id} className="animate-fade-in">
+            {filteredHistory.map((item) => (
+              <Card key={item.id} className="animate-fade-in hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
@@ -142,7 +167,7 @@ export default function History() {
                           {item.searchMethod === "photo" ? t("photoScan") : t("manualSearch")}
                         </span>
                       </div>
-                      
+
                       {item.medication ? (
                         <div>
                           <h3 className="font-medium text-gray-800">
@@ -170,13 +195,13 @@ export default function History() {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center text-xs text-gray-500">
                       <Clock className="w-3 h-3 mr-1" />
                       {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Unknown"}
                     </div>
-                    
+
                     {item.medication && (
                       <Button
                         size="sm"
@@ -184,7 +209,6 @@ export default function History() {
                         className="text-xs"
                         onClick={() => {
                           // Navigate back to home with the medication data
-                          // This would require state management or URL params
                           setLocation("/");
                         }}
                       >
@@ -195,113 +219,6 @@ export default function History() {
                 </CardContent>
               </Card>
             ))}
-          </div>
-        )}
-      </div>
-
-      <BottomNavigation />
-    </div>
-  );
-}
-import { useState } from "react";
-import { Clock, Search, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import BottomNavigation from "@/components/bottom-navigation";
-import LanguageSwitcher from "@/components/language-switcher";
-import { useLanguage } from "@/contexts/language-context";
-
-interface HistoryItem {
-  id: string;
-  name: string;
-  date: string;
-  category: string;
-}
-
-export default function History() {
-  const { t } = useLanguage();
-  const [searchQuery, setSearchQuery] = useState("");
-  
-  // Mock history data - in real app this would come from storage/API
-  const [historyItems] = useState<HistoryItem[]>([
-    {
-      id: "1",
-      name: "Paracetamol",
-      date: "2024-01-15",
-      category: "Pain Relief"
-    },
-    {
-      id: "2", 
-      name: "Ibuprofen",
-      date: "2024-01-14",
-      category: "Anti-inflammatory"
-    },
-    {
-      id: "3",
-      name: "Amoxicillin",
-      date: "2024-01-13", 
-      category: "Antibiotic"
-    }
-  ]);
-
-  const filteredHistory = historyItems.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  return (
-    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg relative">
-      {/* Header */}
-      <header className="bg-primary text-white p-4 shadow-md">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Clock className="text-2xl" />
-            <h1 className="text-xl font-medium">{t("history")}</h1>
-          </div>
-          <LanguageSwitcher />
-        </div>
-      </header>
-
-      {/* Search */}
-      <div className="p-4 border-b">
-        <div className="relative">
-          <Input
-            type="text"
-            placeholder="Search history..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pr-10"
-          />
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-        </div>
-      </div>
-
-      {/* History List */}
-      <div className="flex-1 p-4 pb-20">
-        {filteredHistory.length > 0 ? (
-          <div className="space-y-3">
-            {filteredHistory.map((item) => (
-              <Card key={item.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium text-gray-900">{item.name}</h3>
-                      <p className="text-sm text-gray-500">{item.category}</p>
-                      <p className="text-xs text-gray-400">{item.date}</p>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      <Search className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No History Yet</h3>
-            <p className="text-gray-500">Your scanned medications will appear here</p>
           </div>
         )}
       </div>

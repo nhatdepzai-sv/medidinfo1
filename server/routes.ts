@@ -13,7 +13,7 @@ interface MulterRequest extends Request {
 const upload = multer({ storage: multer.memoryStorage() });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
+
   // OCR and photo processing endpoint
   app.post("/api/identify-drug", upload.single("image"), async (req: MulterRequest, res) => {
     try {
@@ -57,14 +57,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract potential drug names using multiple strategies
       const words = cleanedText.split(" ");
       const potentialDrugNames = [];
-      
+
       // Strategy 1: Look for capitalized words (brand names)
       for (const word of words) {
         if (word.length > 3 && /^[A-Z][a-z]+/.test(word)) {
           potentialDrugNames.push(word);
         }
       }
-      
+
       // Strategy 2: Look for common drug suffixes
       const drugSuffixes = ['ine', 'ole', 'ate', 'ide', 'ant', 'ase', 'cin', 'fen', 'pam', 'zam', 'tine', 'pine'];
       for (const word of words) {
@@ -83,14 +83,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Try each potential drug name
       for (const drugName of potentialDrugNames) {
         if (drugName.length < 3) continue;
-        
+
         // Try exact match first
         medication = await storage.getMedicationByName(drugName);
         if (medication) {
           matchedText = drugName;
           break;
         }
-        
+
         // Try partial match
         medication = await storage.getMedicationByPartialName(drugName);
         if (medication) {
@@ -127,7 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/search-drug", async (req, res) => {
     try {
       const { query } = req.body;
-      
+
       if (!query || typeof query !== "string") {
         return res.status(400).json({ message: "Search query is required" });
       }
@@ -166,14 +166,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/search-history", async (req, res) => {
     try {
       const history = await storage.getSearchHistory();
-      
+
       // Enrich history with medication details
       const enrichedHistory = await Promise.all(
         history.map(async (item) => {
           const medication = item.medicationId 
             ? await storage.getMedication(item.medicationId)
             : null;
-          
+
           return {
             ...item,
             medication
@@ -192,7 +192,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/translate", async (req, res) => {
     try {
       const { text, from, to } = req.body;
-      
+
       if (!text || !from || !to) {
         return res.json({ success: false, error: "Missing required parameters" });
       }
@@ -251,7 +251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let translatedText = text;
       const translationMap = translations[`${from}-${to}`];
-      
+
       if (translationMap) {
         Object.entries(translationMap).forEach(([original, translation]) => {
           const regex = new RegExp(original, 'gi');
@@ -277,6 +277,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Identify medication endpoint
+  app.post("/api/identify-medication", async (req, res) => {
+    try {
+      const { text, alternativeQueries = [], searchMethod = 'photo', confidence = 0 } = req.body;
+
+      if (!text) {
+        return res.status(400).json({ error: "Text is required" });
+      }
+
+      console.log('Searching for medication:', text, 'alternatives:', alternativeQueries);
+
+      // Try multiple search strategies
+      let medication = null;
+      let bestMatch = null;
+      let searchQuery = text;
+
+      // Strategy 1: Exact match with main text
+      medication = await findMedicationByText(text);
+      if (medication) {
+        bestMatch = { medication, query: text, strategy: 'exact' };
+      }
+
+      // Strategy 2: Try alternative queries if no exact match
+      if (!bestMatch && alternativeQueries.length > 0) {
+        for (const query of alternativeQueries) {
+          const result = await findMedicationByText(query);
+          if (result) {
+            bestMatch = { medication: result, query, strategy: 'alternative' };
+            break;
+          }
+        }
+      }
+
+      // Strategy 3: Fuzzy matching for partial matches
+      if (!bestMatch) {
+        const allQueries = [text, ...alternativeQueries];
+        for (const query of allQueries) {
+          const fuzzyResult = await findMedicationByFuzzyMatch(query);
+          if (fuzzyResult) {
+            bestMatch = { medication: fuzzyResult, query, strategy: 'fuzzy' };
+            break;
+          }
+        }
+      }
+
+      // Use the best match found
+      if (bestMatch) {
+        medication = bestMatch.medication;
+        searchQuery = bestMatch.query;
+        console.log(`Found medication using ${bestMatch.strategy} strategy:`, medication.name);
+      }
+
+      // Store search in history
+      const historyEntry = await storeSearchHistory(text, searchMethod, medication?.id);
+
+      if (medication) {
+        res.json({ 
+          medication,
+          searchHistory: historyEntry,
+          matchStrategy: bestMatch?.strategy,
+          searchQuery: bestMatch?.query
+        });
+      } else {
+        res.json({ 
+          medication: null, 
+          message: "No medication found",
+          searchHistory: historyEntry,
+          extractedText: text,
+          alternativeQueries
+        });
+      }
+    } catch (error) {
+      console.error("Error identifying medication:", error);
+      res.status(500).json({ error: "Failed to identify medication" });
+    }
+  });
+
+
   const httpServer = createServer(app);
   return httpServer;
 }
@@ -286,7 +364,7 @@ async function searchDrugInfo(drugName: string) {
   try {
     const apiKey = process.env.OPENFDA_API_KEY || process.env.FDA_API_KEY || "";
     const searchQuery = encodeURIComponent(drugName.toLowerCase());
-    
+
     // Search in OpenFDA drug labeling database
     const response = await fetch(
       `https://api.fda.gov/drug/label.json?search=openfda.brand_name:"${searchQuery}"+openfda.generic_name:"${searchQuery}"&limit=1${apiKey ? `&api_key=${apiKey}` : ''}`
@@ -298,7 +376,7 @@ async function searchDrugInfo(drugName: string) {
     }
 
     const data = await response.json();
-    
+
     if (!data.results || data.results.length === 0) {
       return null;
     }
@@ -318,9 +396,71 @@ async function searchDrugInfo(drugName: string) {
     };
 
     return drugSearchResponseSchema.parse(medicationInfo);
-    
+
   } catch (error) {
     console.error("OpenFDA API error:", error);
     return null;
   }
+}
+
+// Placeholder for findMedicationByText function - replace with actual implementation
+async function findMedicationByText(text: string): Promise<any | null> {
+  // This is a mock implementation. In a real scenario, this would query the database.
+  console.log(`Mock DB Search: "${text}"`);
+  // Example: If text is "Aspirin", return a mock medication object
+  if (text.toLowerCase().includes("aspirin")) {
+    return {
+      id: "med-123",
+      name: "Aspirin",
+      genericName: "Acetylsalicylic Acid",
+      category: "NSAID",
+      primaryUse: "Pain relief, fever reduction, anti-inflammatory",
+      adultDosage: "325-650 mg every 4 hours as needed",
+      warnings: ["May cause stomach upset.", "Avoid alcohol."],
+    };
+  }
+  if (text.toLowerCase().includes("paracetamol") || text.toLowerCase().includes("acetaminophen")) {
+    return {
+      id: "med-456",
+      name: "Paracetamol",
+      genericName: "Acetaminophen",
+      category: "Analgesic, Antipyretic",
+      primaryUse: "Pain relief, fever reduction",
+      adultDosage: "500-1000 mg every 4-6 hours as needed",
+      warnings: ["May cause liver damage in high doses."],
+    };
+  }
+  return null;
+}
+
+// Placeholder for findMedicationByFuzzyMatch function - replace with actual implementation
+async function findMedicationByFuzzyMatch(text: string): Promise<any | null> {
+  // This is a mock implementation. In a real scenario, this would use fuzzy search.
+  console.log(`Mock Fuzzy Search: "${text}"`);
+  // Example: If text is "asprn", it might still find "Aspirin"
+  if (text.toLowerCase().includes("asprn")) {
+    return {
+      id: "med-123",
+      name: "Aspirin",
+      genericName: "Acetylsalicylic Acid",
+      category: "NSAID",
+      primaryUse: "Pain relief, fever reduction, anti-inflammatory",
+      adultDosage: "325-650 mg every 4 hours as needed",
+      warnings: ["May cause stomach upset.", "Avoid alcohol."],
+    };
+  }
+  return null;
+}
+
+// Placeholder for storeSearchHistory function - replace with actual implementation
+async function storeSearchHistory(query: string, searchMethod: string, medicationId?: string | null): Promise<any> {
+  // This is a mock implementation. In a real scenario, this would save to a database.
+  console.log(`Mock History Store: Query="${query}", Method="${searchMethod}", MedId="${medicationId}"`);
+  return {
+    id: `hist-${Math.random().toString(36).substring(7)}`,
+    query,
+    searchMethod,
+    medicationId,
+    timestamp: new Date().toISOString(),
+  };
 }

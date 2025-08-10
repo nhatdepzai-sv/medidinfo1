@@ -632,3 +632,79 @@ export const medicationsDatabase: InsertMedication[] = [
   // NOTE: Above legacy medications are now supplemented by 5000+ comprehensive FDA-based medications
   // from fullComprehensiveDrugsDatabase imported above
 ];
+
+// Placeholder for the actual medications array, assuming it's defined elsewhere or globally
+// For the purpose of this example, let's define a simple 'medications' array.
+// In a real scenario, this would likely be 'medicationsDatabase' itself or a processed version.
+const medications = medicationsDatabase;
+
+export async function findMedicationByText(searchText: string): Promise<Medication | null> {
+  const normalizedSearch = searchText.toLowerCase().trim();
+
+  return medications.find(med => {
+    const nameMatch = med.name.toLowerCase().includes(normalizedSearch);
+    const genericMatch = med.genericName && med.genericName.toLowerCase().includes(normalizedSearch);
+    const vnNameMatch = med.nameVi && med.nameVi.toLowerCase().includes(normalizedSearch);
+    const vnGenericMatch = med.genericNameVi && med.genericNameVi.toLowerCase().includes(normalizedSearch);
+
+    return nameMatch || genericMatch || vnNameMatch || vnGenericMatch;
+  }) || null;
+}
+
+// Simple Levenshtein distance function
+function levenshteinDistance(str1: string, str2: string): number {
+  const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+
+  for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+
+  for (let j = 1; j <= str2.length; j++) {
+    for (let i = 1; i <= str1.length; i++) {
+      const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1, // deletion
+        matrix[j - 1][i] + 1, // insertion
+        matrix[j - 1][i - 1] + indicator // substitution
+      );
+    }
+  }
+
+  return matrix[str2.length][str1.length];
+}
+
+export async function findMedicationByFuzzyMatch(searchText: string): Promise<Medication | null> {
+  const normalizedSearch = searchText.toLowerCase().trim();
+
+  if (normalizedSearch.length < 3) return null;
+
+  let bestMatch: Medication | null = null;
+  let bestScore = Infinity;
+  const maxDistance = Math.floor(normalizedSearch.length * 0.3); // Allow 30% difference
+
+  for (const med of medications) {
+    const candidates = [
+      med.name.toLowerCase(),
+      med.genericName?.toLowerCase() || '',
+      med.nameVi?.toLowerCase() || '',
+      med.genericNameVi?.toLowerCase() || ''
+    ].filter(name => name.length > 0);
+
+    for (const candidate of candidates) {
+      // Check for partial matches first
+      if (candidate.includes(normalizedSearch) || normalizedSearch.includes(candidate)) {
+        return med;
+      }
+
+      // Calculate edit distance
+      const distance = levenshteinDistance(normalizedSearch, candidate);
+      const similarity = 1 - (distance / Math.max(normalizedSearch.length, candidate.length));
+
+      if (distance <= maxDistance && similarity > 0.6 && distance < bestScore) {
+        bestMatch = med;
+        bestScore = distance;
+      }
+    }
+  }
+
+  return bestMatch;
+}

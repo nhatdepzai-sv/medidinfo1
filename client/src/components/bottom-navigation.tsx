@@ -1,11 +1,11 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Home, History, User, Languages } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 
 export default function BottomNavigation() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate = useLocation()[2]; // wouter uses useLocation()[2] for navigate
+  const location = useLocation()[1]; // wouter uses useLocation()[1] for location
   const { t } = useLanguage();
 
   const tabs = [
@@ -19,7 +19,7 @@ export default function BottomNavigation() {
     <nav className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200 px-4 py-2">
       <div className="flex justify-around items-center">
         {tabs.map(({ path, icon: Icon, label }) => {
-          const isActive = location.pathname === path;
+          const isActive = location === path;
 
           return (
             <Button

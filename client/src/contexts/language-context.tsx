@@ -81,7 +81,7 @@ const translations = {
     savedToFavorites: "{name} has been saved to your favorites.",
     copiedToClipboard: "Copied to clipboard",
     medicationInfoCopied: "Medication information has been copied to your clipboard.",
-    
+
     // Drug categories and types in English
     painReliever: "Pain Reliever",
     antiInflammatory: "Anti-inflammatory",
@@ -137,7 +137,7 @@ const translations = {
     failedToSearchMedication: "Failed to search for medication",
     failedToFetchHistory: "Failed to fetch search history",
     goBack: "Go Back",
-    
+
     // Translator
     translator: "Translator",
     translate: "Translate",
@@ -223,7 +223,7 @@ const translations = {
     savedToFavorites: "{name} đã được lưu vào mục yêu thích của bạn.",
     copiedToClipboard: "Đã sao chép vào clipboard",
     medicationInfoCopied: "Thông tin thuốc đã được sao chép vào clipboard của bạn.",
-    
+
     // Drug categories and types in Vietnamese  
     painReliever: "Thuốc Giảm Đau",
     antiInflammatory: "Thuốc Chống Viêm",
@@ -279,7 +279,7 @@ const translations = {
     failedToSearchMedication: "Không thể tìm kiếm thuốc",
     failedToFetchHistory: "Không thể lấy lịch sử tìm kiếm",
     goBack: "Quay Lại",
-    
+
     // Translator
     translator: "Trình Dịch",
     translate: "Dịch",
@@ -292,6 +292,19 @@ const translations = {
     translateMedicalInfo: "Dịch thông tin y khoa giữa tiếng Anh và tiếng Việt để hiểu rõ hơn về chi tiết thuốc.",
     translationFailed: "Dịch Thất Bại",
     couldNotTranslateText: "Không thể dịch văn bản. Vui lòng thử lại.",
+    // Additions based on user request
+    treatsArthritisPainAndInflammation: "Điều trị cơn đau và viêm khớp",
+    typicalDosageAdults: "Người lớn:",
+    adults: "7.5-15mg mỗi ngày",
+    maxDaily: "Tối đa hàng ngày:",
+    maxDailyDose: "15mg mỗi ngày",
+    importantWarnings: "Cảnh Báo Quan Trọng",
+    warnings: [
+      "Chảy máu đường tiêu hóa",
+      "Rủi ro tim mạch",
+      "Các vấn đề về thận",
+      "Uống cùng thức ăn"
+    ]
   }
 };
 

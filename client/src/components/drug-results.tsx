@@ -158,8 +158,9 @@ export default function DrugResults({ medication }: DrugResultsProps) {
             </Button>
             <Button
               onClick={() => {
-                const textToTranslate = `${medicationName}\n\n${primaryUse}\n\n${adultDosage}`;
-                window.open(`/translator?text=${encodeURIComponent(textToTranslate)}`, '_blank');
+                const textToTranslate = `Công Dụng Chính\n${primaryUse}\n\nLiều Lượng Thông Thường\nNgười lớn:\n${adultDosage}\nTối đa hàng ngày:\n${maxDosage}\nCảnh Báo Quan Trọng\n${warnings.map(warning => `• ${warning}`).join('\n')}`;
+                const googleTranslateUrl = `https://translate.google.com/?sl=en&tl=vi&text=${encodeURIComponent(textToTranslate)}`;
+                window.open(googleTranslateUrl, '_blank');
               }}
               variant="outline"
               className="flex-1"

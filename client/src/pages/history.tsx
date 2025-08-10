@@ -203,3 +203,110 @@ export default function History() {
     </div>
   );
 }
+import { useState } from "react";
+import { Clock, Search, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import BottomNavigation from "@/components/bottom-navigation";
+import LanguageSwitcher from "@/components/language-switcher";
+import { useLanguage } from "@/contexts/language-context";
+
+interface HistoryItem {
+  id: string;
+  name: string;
+  date: string;
+  category: string;
+}
+
+export default function History() {
+  const { t } = useLanguage();
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  // Mock history data - in real app this would come from storage/API
+  const [historyItems] = useState<HistoryItem[]>([
+    {
+      id: "1",
+      name: "Paracetamol",
+      date: "2024-01-15",
+      category: "Pain Relief"
+    },
+    {
+      id: "2", 
+      name: "Ibuprofen",
+      date: "2024-01-14",
+      category: "Anti-inflammatory"
+    },
+    {
+      id: "3",
+      name: "Amoxicillin",
+      date: "2024-01-13", 
+      category: "Antibiotic"
+    }
+  ]);
+
+  const filteredHistory = historyItems.filter(item =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg relative">
+      {/* Header */}
+      <header className="bg-primary text-white p-4 shadow-md">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Clock className="text-2xl" />
+            <h1 className="text-xl font-medium">{t("history")}</h1>
+          </div>
+          <LanguageSwitcher />
+        </div>
+      </header>
+
+      {/* Search */}
+      <div className="p-4 border-b">
+        <div className="relative">
+          <Input
+            type="text"
+            placeholder="Search history..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pr-10"
+          />
+          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+        </div>
+      </div>
+
+      {/* History List */}
+      <div className="flex-1 p-4 pb-20">
+        {filteredHistory.length > 0 ? (
+          <div className="space-y-3">
+            {filteredHistory.map((item) => (
+              <Card key={item.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium text-gray-900">{item.name}</h3>
+                      <p className="text-sm text-gray-500">{item.category}</p>
+                      <p className="text-xs text-gray-400">{item.date}</p>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      <Search className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No History Yet</h3>
+            <p className="text-gray-500">Your scanned medications will appear here</p>
+          </div>
+        )}
+      </div>
+
+      <BottomNavigation />
+    </div>
+  );
+}

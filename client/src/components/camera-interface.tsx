@@ -34,6 +34,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
   const [showSettings, setShowSettings] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStage, setProcessingStageLocal] = useState('');
   const [autoFocus, setAutoFocus] = useState(true);
   const [resolution, setResolution] = useState<'HD' | 'FHD' | '4K'>('FHD');
 
@@ -254,6 +255,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
 
     try {
       setIsProcessing(true);
+      setProcessingStageLocal(t("analyzingImage") || "Analyzing image...");
       setProcessingStage(t("analyzingImage"));
 
       // Create image element
@@ -297,6 +299,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
 
       ctx.putImageData(imageData, 0, 0);
 
+      setProcessingStageLocal(t("extractingText") || "Extracting text...");
       setProcessingStage(t("extractingText"));
 
       // Perform OCR with optimized configurations for medication names
@@ -349,6 +352,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
         throw new Error('No clear text detected. Please ensure good lighting and focus on the medication name.');
       }
 
+      setProcessingStageLocal(t("searchingDatabase") || "Searching database...");
       setProcessingStage(t("searchingDatabase"));
 
       // Advanced text cleaning for medication names
@@ -388,21 +392,27 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
       const responseData = await response.json();
 
       if (responseData.medication) {
-        onMedicationFound(responseData.medication);
+        setProcessingStageLocal(t("medicationFound") || "Medication found!");
+        // Small delay to show success message before closing
+        setTimeout(() => {
+          onMedicationFound(responseData.medication);
+          onClose(); // Close camera interface and return to home
+        }, 1000);
       } else {
         setError(t("noMedicationFound") + ` Detected text: "${cleanedText}"`);
+        setIsProcessing(false);
       }
 
     } catch (err) {
       console.error('Error processing image:', err);
       setError(err instanceof Error ? err.message : t("failedToProcessImage"));
-    } finally {
       setIsProcessing(false);
     }
   }, [t, onMedicationFound, setError, setProcessingStage]);
 
   const confirmCapture = useCallback(() => {
     if (capturedImage) {
+      setCapturedImage(null); // Clear captured image to show processing overlay
       processImage(capturedImage);
     }
   }, [capturedImage, processImage]);
@@ -534,7 +544,20 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
 
       {/* Camera View */}
       <div className="flex-1 relative overflow-hidden">
-        {!capturedImage ? (
+        {isProcessing ? (
+          /* Processing Overlay */
+          <div className="w-full h-full flex flex-col items-center justify-center bg-black/90">
+            <div className="text-center text-white p-8">
+              <div className="animate-spin w-16 h-16 border-4 border-white border-t-transparent rounded-full mx-auto mb-6"></div>
+              <h2 className="text-2xl font-semibold mb-2">{t("processingImage") || "Processing Image"}</h2>
+              <p className="text-lg opacity-90 mb-4">{processingStage}</p>
+              <div className="w-64 bg-gray-700 rounded-full h-2 mx-auto">
+                <div className="bg-primary h-2 rounded-full animate-pulse" style={{width: '60%'}}></div>
+              </div>
+              <p className="text-sm opacity-75 mt-4">{t("pleaseWait") || "Please wait while we analyze your image..."}</p>
+            </div>
+          </div>
+        ) : !capturedImage ? (
           <>
             <video
               ref={videoRef}
@@ -580,7 +603,23 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
 
       {/* Bottom Controls */}
       <div className="p-6 bg-black/50 backdrop-blur-sm">
-        {!capturedImage ? (
+        {isProcessing ? (
+          /* Processing Controls - Show cancel option */
+          <div className="flex justify-center">
+            <Button
+              onClick={() => {
+                setIsProcessing(false);
+                setProcessingStageLocal('');
+                onClose();
+              }}
+              variant="outline"
+              size="lg"
+              className="text-white border-white hover:bg-white/20"
+            >
+              {t("cancel") || "Cancel"}
+            </Button>
+          </div>
+        ) : !capturedImage ? (
           <div className="flex justify-center items-center space-x-8">
             {/* Flash Toggle */}
             {hasFlash && (

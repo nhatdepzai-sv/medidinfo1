@@ -1,35 +1,55 @@
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation } from "wouter";
 import Translator from "@/components/translator";
 import { useLanguage } from "@/contexts/language-context";
+import BottomNavigation from "@/components/bottom-navigation";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function TranslatorPage() {
-  const [searchParams] = useSearchParams();
+  const [location, setLocation] = useLocation();
   const { t } = useLanguage();
   const [initialText, setInitialText] = useState("");
 
   useEffect(() => {
-    const text = searchParams.get("text");
+    // Parse URL parameters manually since we're using wouter
+    const urlParams = new URLSearchParams(window.location.search);
+    const text = urlParams.get("text");
     if (text) {
       setInitialText(decodeURIComponent(text));
     }
-  }, [searchParams]);
+  }, [location]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="container mx-auto py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Medical Text Translator
-          </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Translate medical information between English and Vietnamese to better understand medication details.
+    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+      {/* Header */}
+      <header className="bg-primary text-white p-4 shadow-md">
+        <div className="flex items-center space-x-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-white hover:bg-medical-700 p-2"
+            onClick={() => setLocation("/")}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="text-xl font-medium">{t("translator")}</h1>
+        </div>
+      </header>
+
+      {/* Content */}
+      <div className="flex-1 p-4 pb-20">
+        <div className="text-center mb-6">
+          <p className="text-gray-600 text-sm">
+            {t("translateMedicalInfo")}
           </p>
         </div>
         
         <Translator initialText={initialText} />
       </div>
+
+      <BottomNavigation />
     </div>
   );
 }

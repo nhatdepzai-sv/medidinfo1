@@ -137,9 +137,6 @@ const translations = {
     failedToSearchMedication: "Failed to search for medication",
     failedToFetchHistory: "Failed to fetch search history",
     goBack: "Go Back",
-
-    // Generic
-    generic: "Generic:",
     
     // Translator
     translator: "Translator",
@@ -282,9 +279,6 @@ const translations = {
     failedToSearchMedication: "Không thể tìm kiếm thuốc",
     failedToFetchHistory: "Không thể lấy lịch sử tìm kiếm",
     goBack: "Quay Lại",
-
-    // Generic
-    generic: "Hoạt chất:",
     
     // Translator
     translator: "Trình Dịch",

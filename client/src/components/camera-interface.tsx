@@ -363,25 +363,64 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
         .replace(/\b(tablet|capsule|pill|mg|mcg|ml|cap|tab)\b/gi, '') // Remove common medication terms
         .trim();
 
-      // Extract potential drug names with better filtering
+      // Extract ALL potential drug names with comprehensive filtering
       const words = cleanedText.split(' ')
         .filter(word => word.length >= 3) // At least 3 characters
         .filter(word => /^[A-Za-z]/.test(word)) // Starts with a letter
         .filter(word => !/^\d+$/.test(word)); // Not just numbers
 
-      // Prioritize longer words (likely drug names)
-      const sortedWords = words.sort((a, b) => b.length - a.length);
-      const searchQueries = [cleanedText, ...sortedWords.slice(0, 5)];
+      // Create comprehensive search queries including:
+      // 1. Original full text
+      // 2. All individual words (both as-is and cleaned)
+      // 3. Word combinations (2-word phrases)
+      // 4. Capitalized words (likely brand names)
+      const searchQueries = new Set<string>();
+      
+      // Add original text
+      if (cleanedText.length >= 3) {
+        searchQueries.add(cleanedText);
+      }
+      
+      // Add all individual words
+      words.forEach(word => {
+        if (word.length >= 3) {
+          searchQueries.add(word);
+          searchQueries.add(word.toLowerCase());
+          searchQueries.add(word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+        }
+      });
+      
+      // Add 2-word combinations
+      for (let i = 0; i < words.length - 1; i++) {
+        const combination = `${words[i]} ${words[i + 1]}`;
+        if (combination.length >= 5) {
+          searchQueries.add(combination);
+        }
+      }
+      
+      // Prioritize by length and capitalization (brand names often capitalized)
+      const finalQueries = Array.from(searchQueries)
+        .sort((a, b) => {
+          // First priority: words that start with capital letter (brand names)
+          const aCapital = /^[A-Z]/.test(a);
+          const bCapital = /^[A-Z]/.test(b);
+          if (aCapital && !bCapital) return -1;
+          if (!aCapital && bCapital) return 1;
+          
+          // Second priority: longer words (more specific)
+          return b.length - a.length;
+        });
 
-      // Search for medication with multiple queries
+      // Search for medication with comprehensive query list
       const response = await fetch('/api/identify-medication', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: cleanedText,
-          alternativeQueries: searchQueries,
+          alternativeQueries: finalQueries,
           searchMethod: 'photo',
-          confidence: bestConfidence
+          confidence: bestConfidence,
+          allDetectedText: bestResult // Send original OCR result for debugging
         })
       });
 

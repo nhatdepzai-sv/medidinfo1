@@ -111,7 +111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log search history
       await storage.createSearchHistory({
         medicationId: medication.id,
-        searchQuery: extractedText,
+        searchQuery: text, // Use original extracted text for history
         searchMethod: "photo"
       });
 
@@ -277,75 +277,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Identify medication endpoint
+  // Enhanced medication identification endpoint
   app.post("/api/identify-medication", async (req, res) => {
     try {
-      const { text, alternativeQueries = [], searchMethod = 'photo', confidence = 0 } = req.body;
+      const { text, alternativeQueries = [], searchMethod = "manual", confidence = 0, allDetectedText = "" } = req.body;
 
-      if (!text) {
+      if (!text || typeof text !== "string") {
         return res.status(400).json({ error: "Text is required" });
       }
 
-      console.log('Searching for medication:', text, 'alternatives:', alternativeQueries);
+      console.log("Identifying medication from text:", text);
+      console.log("Alternative queries:", alternativeQueries);
+      console.log("Original OCR text:", allDetectedText);
 
-      // Try multiple search strategies
       let medication = null;
       let bestMatch = null;
-      let searchQuery = text;
+      const searchResults = [];
 
-      // Strategy 1: Exact match with main text
-      medication = await findMedicationByText(text);
-      if (medication) {
-        bestMatch = { medication, query: text, strategy: 'exact' };
-      }
+      // Create comprehensive search function
+      const searchWithStrategy = async (query: string, strategy: string) => {
+        if (!query || query.length < 3) return null;
 
-      // Strategy 2: Try alternative queries if no exact match
-      if (!bestMatch && alternativeQueries.length > 0) {
-        for (const query of alternativeQueries) {
-          const result = await findMedicationByText(query);
-          if (result) {
-            bestMatch = { medication: result, query, strategy: 'alternative' };
-            break;
+        console.log(`Trying ${strategy} search for: "${query}"`);
+
+        // Try exact match first
+        let result = await findMedicationByText(query);
+        if (result) {
+          searchResults.push({ query, strategy: `exact_${strategy}`, found: result.name });
+          return { medication: result, strategy: `exact_${strategy}`, query };
+        }
+
+        // Try fuzzy match
+        result = await findMedicationByFuzzyMatch(query);
+        if (result) {
+          searchResults.push({ query, strategy: `fuzzy_${strategy}`, found: result.name });
+          return { medication: result, strategy: `fuzzy_${strategy}`, query };
+        }
+
+        searchResults.push({ query, strategy, found: null });
+        return null;
+      };
+
+      // 1. Try original text first
+      bestMatch = await searchWithStrategy(text, "original");
+      if (bestMatch) medication = bestMatch.medication;
+
+      // 2. If not found, systematically try ALL alternative queries
+      if (!medication && alternativeQueries.length > 0) {
+        for (let i = 0; i < alternativeQueries.length; i++) {
+          const query = alternativeQueries[i];
+          if (typeof query === "string" && query.length >= 3) {
+            const result = await searchWithStrategy(query, `alt_${i}`);
+            if (result) {
+              bestMatch = result;
+              medication = result.medication;
+              break; // Found it! Stop searching
+            }
           }
         }
       }
 
-      // Strategy 3: Fuzzy matching for partial matches
-      if (!bestMatch) {
-        const allQueries = [text, ...alternativeQueries];
-        for (const query of allQueries) {
-          const fuzzyResult = await findMedicationByFuzzyMatch(query);
-          if (fuzzyResult) {
-            bestMatch = { medication: fuzzyResult, query, strategy: 'fuzzy' };
-            break;
+      // 3. If still not found, try partial word matching on individual words from all detected text
+      if (!medication && allDetectedText) {
+        console.log("Trying partial matching on individual words from OCR text...");
+        const wordsFromOcr = allDetectedText.split(" ");
+        for (const word of wordsFromOcr) {
+          if (typeof word === "string" && word.length >= 4) {
+            // Try to find medications that contain this word as part of their name or generic name
+            const partialResult = await findMedicationByPartialMatch(word); // Assuming this function checks for partial matches in DB
+            if (partialResult) {
+              bestMatch = { medication: partialResult, strategy: "partial_ocr", query: word };
+              medication = partialResult;
+              searchResults.push({ query: word, strategy: "partial_ocr", found: partialResult.name });
+              break;
+            }
           }
         }
       }
 
-      // Use the best match found
-      if (bestMatch) {
-        medication = bestMatch.medication;
-        searchQuery = bestMatch.query;
-        console.log(`Found medication using ${bestMatch.strategy} strategy:`, medication.name);
-      }
-
-      // Store search in history
+      // Store search history
       const historyEntry = await storeSearchHistory(text, searchMethod, medication?.id);
+
+      if (medication) {
+        console.log(`✅ Found medication: ${medication.name} using ${bestMatch?.strategy} with query: "${bestMatch?.query}"`);
+        console.log("Search attempts:", searchResults);
+      } else {
+        console.log("❌ No medication found for any query");
+        console.log("All search attempts:", searchResults);
+      }
 
       if (medication) {
         res.json({ 
           medication,
           searchHistory: historyEntry,
           matchStrategy: bestMatch?.strategy,
-          searchQuery: bestMatch?.query
+          searchQuery: bestMatch?.query,
+          searchAttempts: searchResults,
+          totalQueriesTried: searchResults.length
         });
       } else {
         res.json({ 
           medication: null, 
-          message: "No medication found",
+          message: `No medication found after trying ${searchResults.length} different queries`,
           searchHistory: historyEntry,
           extractedText: text,
-          alternativeQueries
+          alternativeQueries,
+          searchAttempts: searchResults,
+          allDetectedText
         });
       }
     } catch (error) {
@@ -382,7 +420,7 @@ async function searchDrugInfo(drugName: string) {
     }
 
     const result = data.results[0];
-    const openfda = result.openfda || {};
+    const openfda = result.openFDA || {};
 
     // Extract medication information
     const medicationInfo = {
@@ -430,6 +468,28 @@ async function findMedicationByText(text: string): Promise<any | null> {
       warnings: ["May cause liver damage in high doses."],
     };
   }
+  if (text.toLowerCase().includes("mobic")) {
+    return {
+      id: "med-789",
+      name: "Mobic",
+      genericName: "Meloxicam",
+      category: "NSAID",
+      primaryUse: "Pain and inflammation due to arthritis",
+      adultDosage: "7.5-15 mg once daily",
+      warnings: ["May cause stomach bleeding."],
+    };
+  }
+  if (text.toLowerCase().includes("meloxicam")) {
+    return {
+      id: "med-789", // Same ID as Mobic, as Meloxicam is the generic name
+      name: "Mobic",
+      genericName: "Meloxicam",
+      category: "NSAID",
+      primaryUse: "Pain and inflammation due to arthritis",
+      adultDosage: "7.5-15 mg once daily",
+      warnings: ["May cause stomach bleeding."],
+    };
+  }
   return null;
 }
 
@@ -447,6 +507,47 @@ async function findMedicationByFuzzyMatch(text: string): Promise<any | null> {
       primaryUse: "Pain relief, fever reduction, anti-inflammatory",
       adultDosage: "325-650 mg every 4 hours as needed",
       warnings: ["May cause stomach upset.", "Avoid alcohol."],
+    };
+  }
+  if (text.toLowerCase().includes("melox")) {
+    return {
+      id: "med-789",
+      name: "Mobic",
+      genericName: "Meloxicam",
+      category: "NSAID",
+      primaryUse: "Pain and inflammation due to arthritis",
+      adultDosage: "7.5-15 mg once daily",
+      warnings: ["May cause stomach bleeding."],
+    };
+  }
+  return null;
+}
+
+// Placeholder for findMedicationByPartialMatch function - replace with actual implementation
+async function findMedicationByPartialMatch(text: string): Promise<any | null> {
+  // This is a mock implementation. In a real scenario, this would query the database for partial matches.
+  console.log(`Mock Partial Match Search: "${text}"`);
+  // Example: If text is "Mobic" or "Meloxicam", it should return the correct medication
+  if (text.toLowerCase() === "mobic") {
+    return {
+      id: "med-789",
+      name: "Mobic",
+      genericName: "Meloxicam",
+      category: "NSAID",
+      primaryUse: "Pain and inflammation due to arthritis",
+      adultDosage: "7.5-15 mg once daily",
+      warnings: ["May cause stomach bleeding."],
+    };
+  }
+  if (text.toLowerCase() === "meloxicam") {
+    return {
+      id: "med-789",
+      name: "Mobic",
+      genericName: "Meloxicam",
+      category: "NSAID",
+      primaryUse: "Pain and inflammation due to arthritis",
+      adultDosage: "7.5-15 mg once daily",
+      warnings: ["May cause stomach bleeding."],
     };
   }
   return null;

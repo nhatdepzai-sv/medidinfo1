@@ -708,3 +708,53 @@ export async function findMedicationByFuzzyMatch(searchText: string): Promise<Me
 
   return bestMatch;
 }
+
+export async function findMedicationByPartialMatch(searchText: string): Promise<Medication | null> {
+  const normalizedSearch = searchText.toLowerCase().trim();
+
+  if (normalizedSearch.length < 4) return null;
+
+  // Score medications by how well they match
+  const scoredMedications = medications.map(med => {
+    const candidates = [
+      { name: med.name.toLowerCase(), weight: 1.0 },
+      { name: med.genericName?.toLowerCase() || '', weight: 0.9 },
+      { name: med.nameVi?.toLowerCase() || '', weight: 0.8 },
+      { name: med.genericNameVi?.toLowerCase() || '', weight: 0.7 }
+    ].filter(c => c.name.length > 0);
+
+    let bestScore = 0;
+
+    for (const candidate of candidates) {
+      let score = 0;
+      
+      // Exact substring match gets highest score
+      if (candidate.name.includes(normalizedSearch)) {
+        score = 1.0 * candidate.weight;
+      }
+      // Reverse check - search term contains medication name
+      else if (normalizedSearch.includes(candidate.name)) {
+        score = 0.9 * candidate.weight;
+      }
+      // Check if words start with the search term
+      else if (candidate.name.startsWith(normalizedSearch)) {
+        score = 0.8 * candidate.weight;
+      }
+      // Check word boundaries
+      else if (new RegExp(`\\b${normalizedSearch}`, 'i').test(candidate.name)) {
+        score = 0.7 * candidate.weight;
+      }
+
+      bestScore = Math.max(bestScore, score);
+    }
+
+    return { medication: med, score: bestScore };
+  });
+
+  // Return the highest scoring medication if it meets minimum threshold
+  const sorted = scoredMedications
+    .filter(item => item.score > 0.5)
+    .sort((a, b) => b.score - a.score);
+
+  return sorted.length > 0 ? sorted[0].medication : null;
+}

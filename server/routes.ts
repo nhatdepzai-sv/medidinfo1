@@ -277,62 +277,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced medication identification endpoint
+  // Medication identification endpoint with enhanced search
   app.post("/api/identify-medication", async (req, res) => {
+    const { text, alternativeQueries = [], searchMethod = "photo", confidence = 0, allDetectedText } = req.body;
+
     try {
-      const { text, alternativeQueries = [], searchMethod = "manual", confidence = 0, allDetectedText = "" } = req.body;
-
-      if (!text || typeof text !== "string") {
-        return res.status(400).json({ error: "Text is required" });
-      }
-
-      console.log("Identifying medication from text:", text);
+      console.log("🔍 Identifying medication with text:", text);
       console.log("Alternative queries:", alternativeQueries);
-      console.log("Original OCR text:", allDetectedText);
+      console.log("Search method:", searchMethod);
+      console.log("OCR confidence:", confidence);
 
       let medication = null;
       let bestMatch = null;
       const searchResults = [];
 
-      // Create comprehensive search function
-      const searchWithStrategy = async (query: string, strategy: string) => {
-        if (!query || query.length < 3) return null;
-
-        console.log(`Trying ${strategy} search for: "${query}"`);
-
-        // Try exact match first
-        let result = await findMedicationByText(query);
-        if (result) {
-          searchResults.push({ query, strategy: `exact_${strategy}`, found: result.name });
-          return { medication: result, strategy: `exact_${strategy}`, query };
+      // Store search history function
+      const storeSearchHistory = async (query: string, method: string, medicationId?: number) => {
+        try {
+          const historyData = insertSearchHistorySchema.parse({
+            searchQuery: query,
+            searchMethod: method,
+            medicationId: medicationId || null
+          });
+          return await storage.createSearchHistory(historyData);
+        } catch (error) {
+          console.error("Failed to store search history:", error);
+          return null;
         }
-
-        // Try fuzzy match
-        result = await findMedicationByFuzzyMatch(query);
-        if (result) {
-          searchResults.push({ query, strategy: `fuzzy_${strategy}`, found: result.name });
-          return { medication: result, strategy: `fuzzy_${strategy}`, query };
-        }
-
-        searchResults.push({ query, strategy, found: null });
-        return null;
       };
 
-      // 1. Try original text first
-      bestMatch = await searchWithStrategy(text, "original");
-      if (bestMatch) medication = bestMatch.medication;
+      // Enhanced search strategies
+      const searchStrategies = [
+        { name: "exact", fn: storage.getMedicationByName.bind(storage) },
+        { name: "fuzzy", fn: findMedicationByFuzzyMatch },
+        { name: "partial", fn: findMedicationByPartialMatch },
+        { name: "contains", fn: (query: string) => storage.getMedicationByPartialName(query) }
+      ];
 
-      // 2. If not found, systematically try ALL alternative queries
+      // 1. Try main text with all strategies
+      console.log("Searching with main text:", text);
+      for (const strategy of searchStrategies) {
+        try {
+          const result = await strategy.fn(text);
+          searchResults.push({ 
+            query: text, 
+            strategy: strategy.name, 
+            found: result ? result.name : null 
+          });
+          if (result) {
+            bestMatch = { medication: result, strategy: strategy.name, query: text };
+            medication = result;
+            break;
+          }
+        } catch (error) {
+          console.error(`Strategy ${strategy.name} failed for "${text}":`, error);
+        }
+      }
+
+      // 2. Try alternative queries with all strategies
       if (!medication && alternativeQueries.length > 0) {
-        for (let i = 0; i < alternativeQueries.length; i++) {
-          const query = alternativeQueries[i];
-          if (typeof query === "string" && query.length >= 3) {
-            const result = await searchWithStrategy(query, `alt_${i}`);
-            if (result) {
-              bestMatch = result;
-              medication = result.medication;
-              break; // Found it! Stop searching
+        console.log("Trying alternative queries...");
+        for (const query of alternativeQueries) {
+          if (typeof query === "string" && query.length >= 3 && !medication) {
+            for (const strategy of searchStrategies) {
+              try {
+                const result = await strategy.fn(query);
+                searchResults.push({ 
+                  query, 
+                  strategy: `${strategy.name}_alternative`, 
+                  found: result ? result.name : null 
+                });
+                if (result) {
+                  bestMatch = { medication: result, strategy: `${strategy.name}_alternative`, query };
+                  medication = result;
+                  break;
+                }
+              } catch (error) {
+                console.error(`Strategy ${strategy.name} failed for "${query}":`, error);
+              }
             }
+            if (medication) break;
           }
         }
       }
@@ -342,13 +366,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Trying partial matching on individual words from OCR text...");
         const wordsFromOcr = allDetectedText.split(" ");
         for (const word of wordsFromOcr) {
-          if (typeof word === "string" && word.length >= 4) {
+          if (typeof word === "string" && word.length >= 4 && !medication) {
             // Try to find medications that contain this word as part of their name or generic name
-            const partialResult = await findMedicationByPartialMatch(word); // Assuming this function checks for partial matches in DB
+            // Prioritize exact match if the word itself is a medication name
+            const exactMatchFromWord = await storage.getMedicationByName(word);
+            if (exactMatchFromWord) {
+              bestMatch = { medication: exactMatchFromWord, strategy: "exact_ocr_word", query: word };
+              medication = exactMatchFromWord;
+              searchResults.push({ query: word, strategy: "exact_ocr_word", found: exactMatchFromWord.name });
+              break;
+            }
+            
+            // Then try partial match
+            const partialResult = await findMedicationByPartialMatch(word); 
             if (partialResult) {
-              bestMatch = { medication: partialResult, strategy: "partial_ocr", query: word };
+              bestMatch = { medication: partialResult, strategy: "partial_ocr_word", query: word };
               medication = partialResult;
-              searchResults.push({ query: word, strategy: "partial_ocr", found: partialResult.name });
+              searchResults.push({ query: word, strategy: "partial_ocr_word", found: partialResult.name });
               break;
             }
           }

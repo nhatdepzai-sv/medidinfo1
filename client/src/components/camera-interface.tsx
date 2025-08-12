@@ -17,6 +17,172 @@ interface CameraInterfaceProps {
   setProcessingStage: (stage: string) => void;
 }
 
+// Helper function for Gaussian blur
+function applyGaussianBlur(data: Uint8ClampedArray, width: number, height: number, sigma: number): Uint8ClampedArray {
+  const kernelSize = Math.ceil(3 * sigma);
+  const kernel = new Array(kernelSize * 2 + 1).fill(0);
+  let sum = 0;
+  for (let i = 0; i < kernel.length; i++) {
+    const x = i - kernelSize;
+    kernel[i] = Math.exp(-(x * x) / (2 * sigma * sigma));
+    sum += kernel[i];
+  }
+  for (let i = 0; i < kernel.length; i++) {
+    kernel[i] /= sum;
+  }
+
+  const blurredData = new Uint8ClampedArray(data.length);
+  const kernelLen = kernel.length;
+  const kernelRadius = Math.floor(kernelLen / 2);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let r = 0, g = 0, b = 0, a = 0;
+      for (let ky = 0; ky < kernelLen; ky++) {
+        const neighborY = y + ky - kernelRadius;
+        if (neighborY >= 0 && neighborY < height) {
+          const pixelIndex = (neighborY * width + x) * 4;
+          const weight = kernel[ky];
+          r += data[pixelIndex] * weight;
+          g += data[pixelIndex + 1] * weight;
+          b += data[pixelIndex + 2] * weight;
+          a += data[pixelIndex + 3] * weight;
+        }
+      }
+      const currentIndex = (y * width + x) * 4;
+      blurredData[currentIndex] = r;
+      blurredData[currentIndex + 1] = g;
+      blurredData[currentIndex + 2] = b;
+      blurredData[currentIndex + 3] = a;
+    }
+  }
+
+  // Apply kernel horizontally in a second pass
+  const finalBlurredData = new Uint8ClampedArray(data.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let r = 0, g = 0, b = 0, a = 0;
+      for (let kx = 0; kx < kernelLen; kx++) {
+        const neighborX = x + kx - kernelRadius;
+        if (neighborX >= 0 && neighborX < width) {
+          const pixelIndex = (y * width + neighborX) * 4;
+          const weight = kernel[kx];
+          r += blurredData[pixelIndex] * weight;
+          g += blurredData[pixelIndex + 1] * weight;
+          b += blurredData[pixelIndex + 2] * weight;
+          a += blurredData[pixelIndex + 3] * weight;
+        }
+      }
+      const currentIndex = (y * width + x) * 4;
+      finalBlurredData[currentIndex] = r;
+      finalBlurredData[currentIndex + 1] = g;
+      finalBlurredData[currentIndex + 2] = b;
+      finalBlurredData[currentIndex + 3] = a;
+    }
+  }
+  return finalBlurredData;
+}
+
+// Helper function for adaptive thresholding (Otsu's method simplified)
+function applyAdaptiveThreshold(data: Uint8ClampedArray, width: number, height: number, blockSize: number, C: number): Uint8ClampedArray {
+  const binaryData = new Uint8ClampedArray(data.length);
+  const halfBlock = Math.floor(blockSize / 2);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sum = 0;
+      let count = 0;
+
+      // Calculate mean of the block
+      for (let ky = -halfBlock; ky <= halfBlock; ky++) {
+        for (let kx = -halfBlock; kx <= halfBlock; kx++) {
+          const neighborY = y + ky;
+          const neighborX = x + kx;
+          if (neighborY >= 0 && neighborY < height && neighborX >= 0 && neighborX < width) {
+            const pixelIndex = (neighborY * width + neighborX) * 4;
+            sum += data[pixelIndex];
+            count++;
+          }
+        }
+      }
+
+      const mean = count > 0 ? sum / count : 0;
+      const threshold = mean + C;
+
+      const currentIndex = (y * width + x) * 4;
+      const value = data[currentIndex] > threshold ? 255 : 0;
+
+      binaryData[currentIndex] = value;
+      binaryData[currentIndex + 1] = value;
+      binaryData[currentIndex + 2] = value;
+      binaryData[currentIndex + 3] = data[currentIndex + 3]; // Keep alpha channel
+    }
+  }
+  return binaryData;
+}
+
+// Helper function for morphological operations (Dilation then Erosion for opening)
+function applyMorphology(data: Uint8ClampedArray, width: number, height: number): Uint8ClampedArray {
+  const dilatedData = new Uint8ClampedArray(data.length);
+  const kernel = [[0, 1, 0], [1, 1, 1], [0, 1, 0]]; // Cross kernel
+  const kernelRadius = 1;
+
+  // Dilation
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let maxVal = 0;
+      for (let ky = -kernelRadius; ky <= kernelRadius; ky++) {
+        for (let kx = -kernelRadius; kx <= kernelRadius; kx++) {
+          if (kernel[ky + kernelRadius][kx + kernelRadius] === 1) {
+            const neighborY = y + ky;
+            const neighborX = x + kx;
+            if (neighborY >= 0 && neighborY < height && neighborX >= 0 && neighborX < width) {
+              const pixelIndex = (neighborY * width + neighborX) * 4;
+              if (data[pixelIndex] > maxVal) {
+                maxVal = data[pixelIndex];
+              }
+            }
+          }
+        }
+      }
+      const currentIndex = (y * width + x) * 4;
+      dilatedData[currentIndex] = maxVal;
+      dilatedData[currentIndex + 1] = maxVal;
+      dilatedData[currentIndex + 2] = maxVal;
+      dilatedData[currentIndex + 3] = data[currentIndex + 3];
+    }
+  }
+
+  const cleanedData = new Uint8ClampedArray(data.length);
+  // Erosion
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let minVal = 255;
+      for (let ky = -kernelRadius; ky <= kernelRadius; ky++) {
+        for (let kx = -kernelRadius; kx <= kernelRadius; kx++) {
+          if (kernel[ky + kernelRadius][kx + kernelRadius] === 1) {
+            const neighborY = y + ky;
+            const neighborX = x + kx;
+            if (neighborY >= 0 && neighborY < height && neighborX >= 0 && neighborX < width) {
+              const pixelIndex = (neighborY * width + neighborX) * 4;
+              if (dilatedData[pixelIndex] < minVal) {
+                minVal = dilatedData[pixelIndex];
+              }
+            }
+          }
+        }
+      }
+      const currentIndex = (y * width + x) * 4;
+      cleanedData[currentIndex] = minVal;
+      cleanedData[currentIndex + 1] = minVal;
+      cleanedData[currentIndex + 2] = minVal;
+      cleanedData[currentIndex + 3] = dilatedData[currentIndex + 3];
+    }
+  }
+  return cleanedData;
+}
+
+
 export default function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setProcessingStage }: CameraInterfaceProps) {
   const { t } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -42,7 +208,15 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
   useEffect(() => {
     const initializeWorker = async () => {
       try {
-        workerRef.current = await Tesseract.createWorker('eng');
+        workerRef.current = await Tesseract.createWorker('eng', 1, {
+          logger: m => {
+            if (m.status === 'loaded') {
+              setProcessingStageLocal(t('ocrReady') || 'OCR Engine Ready');
+            } else if (m.status === 'initialized') {
+              setProcessingStageLocal(t('ocrInitializing') || 'OCR Engine Initializing...');
+            }
+          }
+        });
         await workerRef.current.load();
         await workerRef.current.loadLanguage('eng');
         await workerRef.current.initialize('eng');
@@ -72,6 +246,8 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
 
     if (autoFocus) {
       (constraints.video as any).focusMode = 'continuous';
+    } else {
+      (constraints.video as any).focusMode = 'manual'; // Or 'off'
     }
 
     return constraints;
@@ -98,9 +274,9 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
       }
     } catch (error) {
       console.error('Error accessing camera:', error);
-      alert(t('cameraAccessError') || 'Camera access error. Please check permissions.');
+      setError(t('cameraAccessError') || 'Camera access error. Please check permissions.');
     }
-  }, [getConstraints, t]);
+  }, [getConstraints, t, setError]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -125,12 +301,13 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
         setFlashEnabled(!flashEnabled);
       } catch (error) {
         console.error('Flash toggle error:', error);
+        setError(t('flashError') || 'Could not toggle flash.');
       }
     }
-  }, [flashEnabled, hasFlash]);
+  }, [flashEnabled, hasFlash, setError, t]);
 
   const applyImageFilters = useCallback((ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
 
     const brightnessValue = brightness[0] / 100;
@@ -156,7 +333,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
 
       // Apply processed value to all RGB channels (grayscale)
       data[i] = processedValue;     // Red
-      data[i + 1] = processedValue; // Green  
+      data[i + 1] = processedValue; // Green
       data[i + 2] = processedValue; // Blue
     }
 
@@ -171,7 +348,11 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
 
-    if (!ctx) return;
+    if (!ctx) {
+      setError(t("canvasError") || "Canvas context not available.");
+      setIsProcessing(false);
+      return;
+    }
 
     // Set canvas dimensions for optimal OCR (higher resolution)
     const optimalWidth = Math.min(video.videoWidth, 1920);
@@ -197,7 +378,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
     applyImageFilters(ctx, canvas);
 
     // Advanced text enhancement for better OCR
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
     const width = canvas.width;
     const height = canvas.height;
@@ -245,7 +426,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
     const imageData64 = canvas.toDataURL('image/png');
     setCapturedImage(imageData64);
     setIsProcessing(false);
-  }, [zoom, applyImageFilters]);
+  }, [zoom, applyImageFilters, setError, t]);
 
   const processImage = useCallback(async (imageSrc: string) => {
     if (!workerRef.current) {
@@ -281,20 +462,32 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       // Apply advanced image preprocessing for better OCR
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
+      const width = canvas.width;
+      const height = canvas.height;
 
-      // Convert to grayscale with better weights
+      // Step 1: Convert to grayscale with optimal weights for text
+      const grayData = new Uint8ClampedArray(data.length);
       for (let i = 0; i < data.length; i += 4) {
         const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        grayData[i] = grayData[i + 1] = grayData[i + 2] = gray;
+        grayData[i + 3] = data[i + 3];
+      }
 
-        // Apply adaptive thresholding for better text extraction
-        const threshold = 128;
-        const enhanced = gray > threshold ? 255 : 0;
+      // Step 2: Apply Gaussian blur to reduce noise
+      const blurredData = applyGaussianBlur(grayData, width, height, 1.0);
 
-        data[i] = enhanced;
-        data[i + 1] = enhanced;
-        data[i + 2] = enhanced;
+      // Step 3: Apply adaptive thresholding for better text contrast
+      const binaryData = applyAdaptiveThreshold(blurredData, width, height, 15, 10);
+
+      // Step 4: Apply morphological operations to clean up text
+      const cleanedData = applyMorphology(binaryData, width, height);
+
+      // Copy processed data back
+      for (let i = 0; i < data.length; i += 4) {
+        const value = cleanedData[i];
+        data[i] = data[i + 1] = data[i + 2] = value;
       }
 
       ctx.putImageData(imageData, 0, 0);

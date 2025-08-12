@@ -665,7 +665,7 @@ async function findMedicationByName(name: string): Promise<any | null> {
 
   for (const med of medicationDatabase) {
     // Check if the search term matches the medication name, generic name, or any alias
-    if (med.name.toLowerCase() === searchTerm || 
+    if (med.name.toLowerCase() === searchTerm ||
         med.genericName.toLowerCase() === searchTerm ||
         med.aliases.some(alias => alias.toLowerCase() === searchTerm)) {
       console.log(`Found exact match: ${med.name}`);
@@ -697,37 +697,140 @@ function levenshteinDistance(str1: string, str2: string): number {
   return matrix[str2.length][str1.length];
 }
 
-// Enhanced fuzzy matching function
-async function findMedicationByFuzzyMatch(text: string): Promise<any | null> {
-  console.log(`Fuzzy searching for: "${text}"`);
+// Jaro-Winkler similarity function
+function jaroWinklerSimilarity(s1: string, s2: string): number {
+  if (s1 === s2) return 1.0;
 
-  const searchTerm = text.toLowerCase().trim();
+  const jaro = jaroSimilarity(s1, s2);
 
-  for (const med of medicationDatabase) {
-    // Check for partial matches in medication name, generic name, or aliases
-    if (med.name.toLowerCase().includes(searchTerm) || 
-        searchTerm.includes(med.name.toLowerCase()) ||
-        med.genericName.toLowerCase().includes(searchTerm) ||
-        searchTerm.includes(med.genericName.toLowerCase()) ||
-        med.aliases.some(alias => 
-          alias.toLowerCase().includes(searchTerm) || 
-          searchTerm.includes(alias.toLowerCase())
-        )) {
-      console.log(`Found fuzzy match: ${med.name}`);
-      return med;
+  // Prefix scale for Jaro-Winkler
+  const p = 0.1;
+  let l = 0;
+  for (let i = 0; i < Math.min(s1.length, s2.length, 4); i++) {
+    if (s1[i] === s2[i]) {
+      l++;
+    } else {
+      break;
     }
   }
 
-  // Additional fuzzy logic for common misspellings
-  if (searchTerm.includes("asprn") || searchTerm.includes("asprin")) {
-    return medicationDatabase.find(med => med.name === "Aspirin") || null;
+  return jaro + l * p * (1 - jaro);
+}
+
+// Jaro similarity function
+function jaroSimilarity(s1: string, s2: string): number {
+  const l1 = s1.length;
+  const l2 = s2.length;
+
+  if (l1 === 0 || l2 === 0) return 0;
+
+  const matchDistance = Math.floor(Math.max(l1, l2) / 2) - 1;
+
+  const s1Matches = new Array(l1).fill(false);
+  const s2Matches = new Array(l2).fill(false);
+
+  let matches = 0;
+  for (let i = 0; i < l1; i++) {
+    const start = Math.max(0, i - matchDistance);
+    const end = Math.min(l2 - 1, i + matchDistance);
+
+    for (let j = start; j <= end; j++) {
+      if (!s2Matches[j] && s1[i] === s2[j]) {
+        s1Matches[i] = true;
+        s2Matches[j] = true;
+        matches++;
+        break;
+      }
+    }
   }
 
-  if (searchTerm.includes("melox") || searchTerm.includes("mobic")) {
-    return medicationDatabase.find(med => med.name === "Mobic") || null;
+  if (matches === 0) return 0;
+
+  let t = 0;
+  let k = 0;
+  for (let i = 0; i < l1; i++) {
+    if (s1Matches[i]) {
+      while (!s2Matches[k]) {
+        k++;
+      }
+      if (s1[i] !== s2[k]) {
+        t++;
+      }
+      k++;
+    }
+  }
+  t /= 2;
+
+  return (matches / l1 + matches / l2 + (matches - t) / matches) / 3;
+}
+
+// Longest common subsequence function
+function longestCommonSubsequence(str1: string, str2: string): number {
+  const m = str1.length;
+  const n = str2.length;
+  const dp = Array(m + 1).fill(0).map(() => Array(n + 1).fill(0));
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+  return dp[m][n];
+}
+
+export async function findMedicationByFuzzyMatch(searchText: string): Promise<Medication | null> {
+  const normalizedSearch = searchText.toLowerCase().trim();
+
+  if (normalizedSearch.length < 3) return null;
+
+  let bestMatch: Medication | null = null;
+  let bestScore = 0; // Using similarity score instead of distance
+  const minSimilarity = 0.6; // Minimum 60% similarity
+
+  for (const med of medications) {
+    const candidates = [
+      { text: med.name.toLowerCase(), weight: 1.0 },
+      { text: med.genericName?.toLowerCase() || '', weight: 0.9 },
+      { text: med.nameVi?.toLowerCase() || '', weight: 0.8 },
+      { text: med.genericNameVi?.toLowerCase() || '', weight: 0.7 }
+    ].filter(candidate => candidate.text.length > 0);
+
+    for (const candidate of candidates) {
+      // Exact substring match gets highest priority
+      if (candidate.text.includes(normalizedSearch) || normalizedSearch.includes(candidate.text)) {
+        return med;
+      }
+
+      // Calculate multiple similarity metrics
+      const editDistance = levenshteinDistance(normalizedSearch, candidate.text);
+      const maxLength = Math.max(normalizedSearch.length, candidate.text.length);
+      const editSimilarity = 1 - (editDistance / maxLength);
+
+      // Jaro-Winkler similarity for better name matching
+      const jaroSimilarityValue = jaroWinklerSimilarity(normalizedSearch, candidate.text);
+
+      // Longest common subsequence similarity
+      const lcsSimilarity = longestCommonSubsequence(normalizedSearch, candidate.text) / Math.max(normalizedSearch.length, candidate.text.length);
+
+      // Combined similarity score with weights
+      const combinedSimilarity = (
+        editSimilarity * 0.4 +
+        jaroSimilarityValue * 0.4 +
+        lcsSimilarity * 0.2
+      ) * candidate.weight;
+
+      if (combinedSimilarity > minSimilarity && combinedSimilarity > bestScore) {
+        bestMatch = med;
+        bestScore = combinedSimilarity;
+      }
+    }
   }
 
-  return null;
+  return bestMatch;
 }
 
 export async function findMedicationByPartialMatch(searchText: string): Promise<Medication | null> {
@@ -779,3 +882,26 @@ export async function findMedicationByPartialMatch(searchText: string): Promise<
 
   return sorted.length > 0 ? sorted[0].medication : null;
 }
+
+// Define the Medication type explicitly if it's not globally available
+interface Medication {
+  id: string;
+  name: string;
+  genericName?: string;
+  category?: string;
+  primaryUse?: string;
+  adultDosage?: string;
+  warnings?: string[];
+  aliases?: string[];
+  nameVi?: string;
+  genericNameVi?: string;
+  categoryVi?: string;
+  primaryUseVi?: string;
+  adultDosageVi?: string;
+  warningsVi?: string[];
+}
+
+// Placeholder for the 'medications' array, assuming it's defined elsewhere or should be 'medicationsDatabase'
+// If 'medications' is meant to be a different array, please provide its definition.
+// For now, assuming 'medications' refers to 'medicationsDatabase' for the fuzzy matching functions.
+const medications = medicationsDatabase;

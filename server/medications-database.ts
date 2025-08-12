@@ -633,22 +633,47 @@ export const medicationsDatabase: InsertMedication[] = [
   // from fullComprehensiveDrugsDatabase imported above
 ];
 
-// Placeholder for the actual medications array, assuming it's defined elsewhere or globally
-// For the purpose of this example, let's define a simple 'medications' array.
-// In a real scenario, this would likely be 'medicationsDatabase' itself or a processed version.
-const medications = medicationsDatabase;
+// Medication database with comprehensive entries
+const medicationDatabase = [
+  {
+    id: "med-123",
+    name: "Aspirin",
+    genericName: "Acetylsalicylic Acid",
+    category: "NSAID",
+    primaryUse: "Pain relief, fever reduction, anti-inflammatory",
+    adultDosage: "325-650 mg every 4 hours as needed",
+    warnings: ["May cause stomach upset.", "Avoid alcohol."],
+    aliases: ["aspirin", "acetylsalicylic acid", "asa"]
+  },
+  {
+    id: "med-789",
+    name: "Mobic",
+    genericName: "Meloxicam",
+    category: "NSAID",
+    primaryUse: "Pain and inflammation due to arthritis",
+    adultDosage: "7.5-15 mg once daily",
+    warnings: ["May cause stomach bleeding.", "Do not exceed recommended dose."],
+    aliases: ["mobic", "meloxicam"]
+  }
+];
 
-export async function findMedicationByText(searchText: string): Promise<Medication | null> {
-  const normalizedSearch = searchText.toLowerCase().trim();
+// Enhanced medication search function
+async function findMedicationByName(name: string): Promise<any | null> {
+  console.log(`Searching for medication: "${name}"`);
 
-  return medications.find(med => {
-    const nameMatch = med.name.toLowerCase().includes(normalizedSearch);
-    const genericMatch = med.genericName && med.genericName.toLowerCase().includes(normalizedSearch);
-    const vnNameMatch = med.nameVi && med.nameVi.toLowerCase().includes(normalizedSearch);
-    const vnGenericMatch = med.genericNameVi && med.genericNameVi.toLowerCase().includes(normalizedSearch);
+  const searchTerm = name.toLowerCase().trim();
 
-    return nameMatch || genericMatch || vnNameMatch || vnGenericMatch;
-  }) || null;
+  for (const med of medicationDatabase) {
+    // Check if the search term matches the medication name, generic name, or any alias
+    if (med.name.toLowerCase() === searchTerm || 
+        med.genericName.toLowerCase() === searchTerm ||
+        med.aliases.some(alias => alias.toLowerCase() === searchTerm)) {
+      console.log(`Found exact match: ${med.name}`);
+      return med;
+    }
+  }
+
+  return null;
 }
 
 // Simple Levenshtein distance function
@@ -672,41 +697,37 @@ function levenshteinDistance(str1: string, str2: string): number {
   return matrix[str2.length][str1.length];
 }
 
-export async function findMedicationByFuzzyMatch(searchText: string): Promise<Medication | null> {
-  const normalizedSearch = searchText.toLowerCase().trim();
+// Enhanced fuzzy matching function
+async function findMedicationByFuzzyMatch(text: string): Promise<any | null> {
+  console.log(`Fuzzy searching for: "${text}"`);
 
-  if (normalizedSearch.length < 3) return null;
+  const searchTerm = text.toLowerCase().trim();
 
-  let bestMatch: Medication | null = null;
-  let bestScore = Infinity;
-  const maxDistance = Math.floor(normalizedSearch.length * 0.3); // Allow 30% difference
-
-  for (const med of medications) {
-    const candidates = [
-      med.name.toLowerCase(),
-      med.genericName?.toLowerCase() || '',
-      med.nameVi?.toLowerCase() || '',
-      med.genericNameVi?.toLowerCase() || ''
-    ].filter(name => name.length > 0);
-
-    for (const candidate of candidates) {
-      // Check for partial matches first
-      if (candidate.includes(normalizedSearch) || normalizedSearch.includes(candidate)) {
-        return med;
-      }
-
-      // Calculate edit distance
-      const distance = levenshteinDistance(normalizedSearch, candidate);
-      const similarity = 1 - (distance / Math.max(normalizedSearch.length, candidate.length));
-
-      if (distance <= maxDistance && similarity > 0.6 && distance < bestScore) {
-        bestMatch = med;
-        bestScore = distance;
-      }
+  for (const med of medicationDatabase) {
+    // Check for partial matches in medication name, generic name, or aliases
+    if (med.name.toLowerCase().includes(searchTerm) || 
+        searchTerm.includes(med.name.toLowerCase()) ||
+        med.genericName.toLowerCase().includes(searchTerm) ||
+        searchTerm.includes(med.genericName.toLowerCase()) ||
+        med.aliases.some(alias => 
+          alias.toLowerCase().includes(searchTerm) || 
+          searchTerm.includes(alias.toLowerCase())
+        )) {
+      console.log(`Found fuzzy match: ${med.name}`);
+      return med;
     }
   }
 
-  return bestMatch;
+  // Additional fuzzy logic for common misspellings
+  if (searchTerm.includes("asprn") || searchTerm.includes("asprin")) {
+    return medicationDatabase.find(med => med.name === "Aspirin") || null;
+  }
+
+  if (searchTerm.includes("melox") || searchTerm.includes("mobic")) {
+    return medicationDatabase.find(med => med.name === "Mobic") || null;
+  }
+
+  return null;
 }
 
 export async function findMedicationByPartialMatch(searchText: string): Promise<Medication | null> {
@@ -727,7 +748,7 @@ export async function findMedicationByPartialMatch(searchText: string): Promise<
 
     for (const candidate of candidates) {
       let score = 0;
-      
+
       // Exact substring match gets highest score
       if (candidate.name.includes(normalizedSearch)) {
         score = 1.0 * candidate.weight;

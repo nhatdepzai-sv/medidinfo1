@@ -209,7 +209,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
     for (let y = 1; y < height - 1; y++) {
       for (let x = 1; x < width - 1; x++) {
         const idx = (y * width + x) * 4;
-        
+
         // Get surrounding pixels for edge detection
         const topLeft = originalData[((y-1) * width + (x-1)) * 4];
         const top = originalData[((y-1) * width + x) * 4];
@@ -375,12 +375,12 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
       // 3. Word combinations (2-word phrases)
       // 4. Capitalized words (likely brand names)
       const searchQueries = new Set<string>();
-      
+
       // Add original text
       if (cleanedText.length >= 3) {
         searchQueries.add(cleanedText);
       }
-      
+
       // Add all individual words
       words.forEach(word => {
         if (word.length >= 3) {
@@ -389,7 +389,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
           searchQueries.add(word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
         }
       });
-      
+
       // Add 2-word combinations
       for (let i = 0; i < words.length - 1; i++) {
         const combination = `${words[i]} ${words[i + 1]}`;
@@ -397,7 +397,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
           searchQueries.add(combination);
         }
       }
-      
+
       // Prioritize by length and capitalization (brand names often capitalized)
       const finalQueries = Array.from(searchQueries)
         .sort((a, b) => {
@@ -406,7 +406,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
           const bCapital = /^[A-Z]/.test(b);
           if (aCapital && !bCapital) return -1;
           if (!aCapital && bCapital) return 1;
-          
+
           // Second priority: longer words (more specific)
           return b.length - a.length;
         });

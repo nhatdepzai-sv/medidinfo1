@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { Camera, SwitchCamera, Zap, ZapOff, Download, RefreshCw, Settings, X, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
@@ -7,7 +7,7 @@ import { Badge } from './ui/badge';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
-import * as Tesseract from 'tesseract.js';
+// Tesseract is now lazily loaded within processImage
 
 interface CameraInterfaceProps {
   onCapture: (imageData: string) => void;
@@ -183,12 +183,12 @@ function applyMorphology(data: Uint8ClampedArray, width: number, height: number)
 }
 
 
-export default function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setProcessingStage }: CameraInterfaceProps) {
+function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setProcessingStage }: CameraInterfaceProps) {
   const { t } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const workerRef = useRef<Tesseract.Worker | null>(null);
+  // Tesseract worker is now managed within the processImage function due to lazy loading
 
   const [isActive, setIsActive] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
@@ -203,36 +203,10 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
   const [processingStage, setProcessingStageLocal] = useState('');
   const [autoFocus, setAutoFocus] = useState(true);
   const [resolution, setResolution] = useState<'HD' | 'FHD' | '4K'>('FHD');
+  const [ocrProgress, setOcrProgress] = useState(0); // State for OCR progress
 
-  // Initialize Tesseract worker
-  useEffect(() => {
-    const initializeWorker = async () => {
-      try {
-        workerRef.current = await Tesseract.createWorker('eng', 1, {
-          logger: m => {
-            if (m.status === 'loaded') {
-              setProcessingStageLocal(t('ocrReady') || 'OCR Engine Ready');
-            } else if (m.status === 'initialized') {
-              setProcessingStageLocal(t('ocrInitializing') || 'OCR Engine Initializing...');
-            }
-          }
-        });
-        await workerRef.current.load();
-        await workerRef.current.loadLanguage('eng');
-        await workerRef.current.initialize('eng');
-      } catch (err) {
-        console.error("Failed to initialize Tesseract worker:", err);
-        setError(t("tesseractInitializationError") || "Error initializing OCR engine.");
-      }
-    };
-    initializeWorker();
 
-    return () => {
-      if (workerRef.current) {
-        workerRef.current.terminate();
-      }
-    };
-  }, [setError, t]);
+  // Tesseract worker initialization is removed from here and moved to processImage for lazy loading
 
   const getConstraints = useCallback(() => {
     const constraints: MediaStreamConstraints = {
@@ -428,18 +402,29 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
     setIsProcessing(false);
   }, [zoom, applyImageFilters, setError, t]);
 
+  // Lazy-loaded Tesseract processing
   const processImage = useCallback(async (imageSrc: string) => {
-    if (!workerRef.current) {
-      setError(t("ocrNotReady") || "OCR engine is not ready yet.");
-      return;
-    }
+    // Dynamically import Tesseract
+    const Tesseract = await import('tesseract.js');
+    const worker = await Tesseract.createWorker('eng', 1, {
+      logger: m => {
+        if (m.status === 'loaded') {
+          setProcessingStageLocal(t('ocrReady') || 'OCR Engine Ready');
+        } else if (m.status === 'initialized') {
+          setProcessingStageLocal(t('ocrInitializing') || 'OCR Engine Initializing...');
+        } else if (m.status === 'recognizing text') {
+          setProcessingStageLocal(t('recognizingText') || `Recognizing text... ${Math.round(m.progress * 100)}%`);
+          setOcrProgress(Math.round(m.progress * 100));
+        }
+      }
+    });
 
     try {
       setIsProcessing(true);
       setProcessingStageLocal(t("analyzingImage") || "Analyzing image...");
       setProcessingStage(t("analyzingImage"));
 
-      // Create image element
+      // Create image element from src
       const img = new Image();
       img.crossOrigin = "anonymous";
 
@@ -527,7 +512,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
 
       for (const config of ocrConfigs) {
         try {
-          const result = await workerRef.current.recognize(canvas, config);
+          const result = await worker.recognize(canvas, config);
           const confidence = result.data.confidence;
 
           if (confidence > bestConfidence && result.data.text.trim().length > 0) {
@@ -682,8 +667,15 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
       console.error('Error processing image:', err);
       setError(err instanceof Error ? err.message : t("failedToProcessImage"));
       setIsProcessing(false);
+    } finally {
+      // Always terminate the worker to free up resources
+      if (worker) {
+        worker.terminate();
+      }
+      setOcrProgress(0); // Reset progress
     }
-  }, [t, onMedicationFound, setError, setProcessingStage]);
+  }, [t, onMedicationFound, setError, setProcessingStage, onClose]);
+
 
   const confirmCapture = useCallback(() => {
     if (capturedImage) {
@@ -827,7 +819,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
               <h2 className="text-2xl font-semibold mb-2">{t("processingImage") || "Processing Image"}</h2>
               <p className="text-lg opacity-90 mb-4">{processingStage}</p>
               <div className="w-64 bg-gray-700 rounded-full h-2 mx-auto">
-                <div className="bg-primary h-2 rounded-full animate-pulse" style={{width: '60%'}}></div>
+                <div className="bg-primary h-2 rounded-full animate-pulse" style={{width: `${ocrProgress}%`}}></div>
               </div>
               <p className="text-sm opacity-75 mt-4">{t("pleaseWait") || "Please wait while we analyze your image..."}</p>
             </div>
@@ -968,3 +960,5 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
     </div>
   );
 }
+
+export default memo(CameraInterface);

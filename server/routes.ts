@@ -40,10 +40,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`OCR confidence: ${confidence}%, extracted text: "${text}"`);
 
       if (!text.trim() || confidence < 30) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "Could not extract clear text from image. Please ensure good lighting and focus on the medication label.",
           extractedText: text,
-          confidence 
+          confidence
         });
       }
 
@@ -100,7 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!medication) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           message: "Could not identify this medication. Try focusing on the drug name or search manually.",
           extractedText: cleanedText,
           potentialNames: potentialDrugNames.slice(0, 5),
@@ -170,7 +170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Enrich history with medication details
       const enrichedHistory = await Promise.all(
         history.map(async (item) => {
-          const medication = item.medicationId 
+          const medication = item.medicationId
             ? await storage.getMedication(item.medicationId)
             : null;
 
@@ -264,8 +264,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         translatedText = `[Translation from ${from} to ${to}]: ${text}`;
       }
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         translatedText,
         originalText: text,
         fromLanguage: from,
@@ -319,10 +319,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const strategy of searchStrategies) {
         try {
           const result = await strategy.fn(text);
-          searchResults.push({ 
-            query: text, 
-            strategy: strategy.name, 
-            found: result ? result.name : null 
+          searchResults.push({
+            query: text,
+            strategy: strategy.name,
+            found: result ? result.name : null
           });
           if (result) {
             bestMatch = { medication: result, strategy: strategy.name, query: text };
@@ -342,10 +342,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             for (const strategy of searchStrategies) {
               try {
                 const result = await strategy.fn(query);
-                searchResults.push({ 
-                  query, 
-                  strategy: `${strategy.name}_alternative`, 
-                  found: result ? result.name : null 
+                searchResults.push({
+                  query,
+                  strategy: `${strategy.name}_alternative`,
+                  found: result ? result.name : null
                 });
                 if (result) {
                   bestMatch = { medication: result, strategy: `${strategy.name}_alternative`, query };
@@ -376,9 +376,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               searchResults.push({ query: word, strategy: "exact_ocr_word", found: exactMatchFromWord.name });
               break;
             }
-            
+
             // Then try partial match
-            const partialResult = await findMedicationByPartialMatch(word); 
+            const partialResult = await findMedicationByPartialMatch(word);
             if (partialResult) {
               bestMatch = { medication: partialResult, strategy: "partial_ocr_word", query: word };
               medication = partialResult;
@@ -401,7 +401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (medication) {
-        res.json({ 
+        res.json({
           medication,
           searchHistory: historyEntry,
           matchStrategy: bestMatch?.strategy,
@@ -410,8 +410,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalQueriesTried: searchResults.length
         });
       } else {
-        res.json({ 
-          medication: null, 
+        res.json({
+          medication: null,
           message: `No medication found after trying ${searchResults.length} different queries`,
           searchHistory: historyEntry,
           extractedText: text,
@@ -527,75 +527,146 @@ async function findMedicationByText(text: string): Promise<any | null> {
   return null;
 }
 
-// Placeholder for findMedicationByFuzzyMatch function - replace with actual implementation
-async function findMedicationByFuzzyMatch(text: string): Promise<any | null> {
-  // This is a mock implementation. In a real scenario, this would use fuzzy search.
-  console.log(`Mock Fuzzy Search: "${text}"`);
-  // Example: If text is "asprn", it might still find "Aspirin"
-  if (text.toLowerCase().includes("asprn")) {
-    return {
-      id: "med-123",
-      name: "Aspirin",
-      genericName: "Acetylsalicylic Acid",
-      category: "NSAID",
-      primaryUse: "Pain relief, fever reduction, anti-inflammatory",
-      adultDosage: "325-650 mg every 4 hours as needed",
-      warnings: ["May cause stomach upset.", "Avoid alcohol."],
-    };
+// Enhanced fuzzy matching function with Levenshtein distance and pattern matching
+async function findMedicationByFuzzyMatch(searchText: string): Promise<any | null> {
+  console.log(`Enhanced Fuzzy Search: "${searchText}"`);
+
+  // Get all medications from storage
+  const allMedications = await storage.searchMedications(""); // Get all
+
+  const normalizedSearch = searchText.toLowerCase().trim();
+  if (normalizedSearch.length < 3) return null;
+
+  let bestMatch = null;
+  let bestScore = 0;
+  const minScore = 0.6; // Minimum similarity threshold
+
+  for (const med of allMedications) {
+    const candidates = [
+      med.name,
+      med.genericName,
+      med.nameVi,
+      med.genericNameVi
+    ].filter(Boolean);
+
+    for (const candidate of candidates) {
+      const normalizedCandidate = candidate.toLowerCase();
+
+      // Exact substring match gets highest priority
+      if (normalizedCandidate.includes(normalizedSearch) || normalizedSearch.includes(normalizedCandidate)) {
+        return med;
+      }
+
+      // Calculate similarity score
+      const similarity = calculateSimilarity(normalizedSearch, normalizedCandidate);
+
+      if (similarity > minScore && similarity > bestScore) {
+        bestMatch = med;
+        bestScore = similarity;
+      }
+    }
   }
-  if (text.toLowerCase().includes("melox")) {
-    return {
-      id: "med-789",
-      name: "Mobic",
-      genericName: "Meloxicam",
-      category: "NSAID",
-      primaryUse: "Pain and inflammation due to arthritis",
-      adultDosage: "7.5-15 mg once daily",
-      warnings: ["May cause stomach bleeding."],
-    };
-  }
-  return null;
+
+  console.log(`Best fuzzy match: ${bestMatch?.name} with score: ${bestScore}`);
+  return bestMatch;
 }
 
-// Placeholder for findMedicationByPartialMatch function - replace with actual implementation
-async function findMedicationByPartialMatch(text: string): Promise<any | null> {
-  // This is a mock implementation. In a real scenario, this would query the database for partial matches.
-  console.log(`Mock Partial Match Search: "${text}"`);
-  // Example: If text is "Mobic" or "Meloxicam", it should return the correct medication
-  if (text.toLowerCase() === "mobic") {
-    return {
-      id: "med-789",
-      name: "Mobic",
-      genericName: "Meloxicam",
-      category: "NSAID",
-      primaryUse: "Pain and inflammation due to arthritis",
-      adultDosage: "7.5-15 mg once daily",
-      warnings: ["May cause stomach bleeding."],
-    };
+function calculateSimilarity(str1: string, str2: string): number {
+  // Levenshtein distance
+  const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+
+  for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+
+  for (let j = 1; j <= str2.length; j++) {
+    for (let i = 1; i <= str1.length; i++) {
+      const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1,
+        matrix[j - 1][i] + 1,
+        matrix[j - 1][i - 1] + indicator
+      );
+    }
   }
-  if (text.toLowerCase() === "meloxicam") {
-    return {
-      id: "med-789",
-      name: "Mobic",
-      genericName: "Meloxicam",
-      category: "NSAID",
-      primaryUse: "Pain and inflammation due to arthritis",
-      adultDosage: "7.5-15 mg once daily",
-      warnings: ["May cause stomach bleeding."],
-    };
-  }
-  return null;
+
+  const distance = matrix[str2.length][str1.length];
+  const maxLength = Math.max(str1.length, str2.length);
+  return 1 - (distance / maxLength);
 }
 
-// Placeholder for storeSearchHistory function - replace with actual implementation
-async function storeSearchHistory(query: string, searchMethod: string, medicationId?: string | null): Promise<any> {
-  // This is a mock implementation. In a real scenario, this would save to a database.
-  console.log(`Mock History Store: Query="${query}", Method="${searchMethod}", MedId="${medicationId}"`);
-  return {
-    id: `hist-${Math.random().toString(36).substring(7)}`,
-    query,
-    searchMethod,
-    medicationId,
-    timestamp: new Date().toISOString(),
-  };
+// Enhanced partial matching function with comprehensive scoring
+async function findMedicationByPartialMatch(searchText: string): Promise<any | null> {
+  console.log(`Enhanced Partial Match Search: "${searchText}"`);
+
+  const allMedications = await storage.searchMedications(""); // Get all
+  const normalizedSearch = searchText.toLowerCase().trim();
+
+  if (normalizedSearch.length < 3) return null;
+
+  // Score all medications based on how well they match
+  const scoredMedications = allMedications.map(med => {
+    const candidates = [
+      { text: med.name, weight: 1.0 },
+      { text: med.genericName || '', weight: 0.9 },
+      { text: med.nameVi || '', weight: 0.8 },
+      { text: med.genericNameVi || '', weight: 0.7 }
+    ].filter(c => c.text.length > 0);
+
+    let bestScore = 0;
+
+    for (const candidate of candidates) {
+      const normalizedCandidate = candidate.text.toLowerCase();
+      let score = 0;
+
+      // Exact match
+      if (normalizedCandidate === normalizedSearch) {
+        score = 1.0 * candidate.weight;
+      }
+      // Exact substring match
+      else if (normalizedCandidate.includes(normalizedSearch)) {
+        score = 0.9 * candidate.weight;
+      }
+      // Search term contains medication name
+      else if (normalizedSearch.includes(normalizedCandidate)) {
+        score = 0.8 * candidate.weight;
+      }
+      // Starts with search term
+      else if (normalizedCandidate.startsWith(normalizedSearch)) {
+        score = 0.7 * candidate.weight;
+      }
+      // Word boundary match
+      else if (new RegExp(`\\b${escapeRegex(normalizedSearch)}`, 'i').test(normalizedCandidate)) {
+        score = 0.6 * candidate.weight;
+      }
+      // Contains as substring with position bonus
+      else {
+        const index = normalizedCandidate.indexOf(normalizedSearch);
+        if (index !== -1) {
+          // Earlier position gets higher score
+          const positionBonus = 1 - (index / normalizedCandidate.length);
+          score = (0.4 + positionBonus * 0.2) * candidate.weight;
+        }
+      }
+
+      bestScore = Math.max(bestScore, score);
+    }
+
+    return { medication: med, score: bestScore };
+  });
+
+  // Return the highest scoring medication if it meets minimum threshold
+  const sorted = scoredMedications
+    .filter(item => item.score > 0.3)
+    .sort((a, b) => b.score - a.score);
+
+  const result = sorted.length > 0 ? sorted[0].medication : null;
+  if (result) {
+    console.log(`Best partial match: ${result.name} with score: ${sorted[0].score}`);
+  }
+
+  return result;
+}
+
+function escapeRegex(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

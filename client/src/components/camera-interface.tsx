@@ -549,67 +549,110 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
       setProcessingStage(t("searchingDatabase"));
 
       // Advanced text cleaning for medication names
-      const cleanedText = bestResult
-        .replace(/[^\w\s.-]/g, ' ') // Remove special chars except dots and hyphens
-        .replace(/\s+/g, ' ') // Normalize whitespace
-        .replace(/\b\d+mg?\b/gi, '') // Remove dosage information
-        .replace(/\b(tablet|capsule|pill|mg|mcg|ml|cap|tab)\b/gi, '') // Remove common medication terms
-        .trim();
+      const cleanedTexts = [
+        bestResult
+          .replace(/[^\w\s.-]/g, ' ') // Remove special chars except dots and hyphens
+          .replace(/\s+/g, ' ') // Normalize whitespace
+          .replace(/\b\d+mg?\b/gi, '') // Remove dosage information
+          .replace(/\b(tablet|capsule|pill|mg|mcg|ml|cap|tab)\b/gi, '') // Remove common medication terms
+          .trim(),
+        bestResult.replace(/[^a-zA-Z0-9]/g, ' ').trim() // Simpler cleaning for fallback
+      ].filter(text => text.length > 2); // Ensure at least some text remains
 
-      // Extract ALL potential drug names with comprehensive filtering
-      const words = cleanedText.split(' ')
+      const words = cleanedTexts[0].split(' ')
         .filter(word => word.length >= 3) // At least 3 characters
         .filter(word => /^[A-Za-z]/.test(word)) // Starts with a letter
         .filter(word => !/^\d+$/.test(word)); // Not just numbers
 
-      // Create comprehensive search queries including:
-      // 1. Original full text
-      // 2. All individual words (both as-is and cleaned)
-      // 3. Word combinations (2-word phrases)
-      // 4. Capitalized words (likely brand names)
-      const searchQueries = new Set<string>();
+      // Create comprehensive list of search queries with medication-specific patterns
+      const queries = new Set<string>();
 
-      // Add original text
-      if (cleanedText.length >= 3) {
-        searchQueries.add(cleanedText);
-      }
-
-      // Add all individual words
-      words.forEach(word => {
-        if (word.length >= 3) {
-          searchQueries.add(word);
-          searchQueries.add(word.toLowerCase());
-          searchQueries.add(word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+      // Add all cleaned variations
+      cleanedTexts.forEach(text => {
+        if (text.length > 2) {
+          queries.add(text);
         }
       });
 
-      // Add 2-word combinations
-      for (let i = 0; i < words.length - 1; i++) {
-        const combination = `${words[i]} ${words[i + 1]}`;
-        if (combination.length >= 5) {
-          searchQueries.add(combination);
+      // Add individual words with priority scoring
+      const prioritizedWords = words.sort((a, b) => {
+        // Prioritize words that look like medication names
+        const aScore = getMedicationScore(a);
+        const bScore = getMedicationScore(b);
+        return bScore - aScore;
+      });
+
+      prioritizedWords.forEach(word => {
+        if (word.length > 2) {
+          queries.add(word);
+
+          // Add common variations
+          queries.add(word.toLowerCase());
+          queries.add(word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+
+          // Add partial matches for longer words
+          if (word.length > 5) {
+            queries.add(word.substring(0, word.length - 1));
+            queries.add(word.substring(0, word.length - 2));
+          }
+        }
+      });
+
+      // Add combinations of 2 consecutive words
+      for (let i = 0; i < prioritizedWords.length - 1; i++) {
+        const combo = `${prioritizedWords[i]} ${prioritizedWords[i + 1]}`;
+        if (combo.length > 4 && combo.length < 25) {
+          queries.add(combo);
         }
       }
 
-      // Prioritize by length and capitalization (brand names often capitalized)
-      const finalQueries = Array.from(searchQueries)
-        .sort((a, b) => {
-          // First priority: words that start with capital letter (brand names)
-          const aCapital = /^[A-Z]/.test(a);
-          const bCapital = /^[A-Z]/.test(b);
-          if (aCapital && !bCapital) return -1;
-          if (!aCapital && bCapital) return 1;
+      // Add fuzzy variations (common OCR mistakes)
+      prioritizedWords.forEach(word => {
+        if (word.length > 3) {
+          // Common OCR substitutions
+          const variations = [
+            word.replace(/O/g, '0').replace(/0/g, 'O'),
+            word.replace(/I/g, '1').replace(/1/g, 'I'),
+            word.replace(/S/g, '5').replace(/5/g, 'S'),
+            word.replace(/B/g, '8').replace(/8/g, 'B'),
+          ];
+          variations.forEach(v => {
+            if (v !== word && v.length > 2) {
+              queries.add(v);
+            }
+          });
+        }
+      });
 
-          // Second priority: longer words (more specific)
-          return b.length - a.length;
-        });
+      const finalQueries = Array.from(queries).slice(0, 25); // Increased to 25 queries
+
+      function getMedicationScore(word: string): number {
+        let score = 0;
+
+        // Length bonus (medication names are typically 4-12 characters)
+        if (word.length >= 4 && word.length <= 12) score += 2;
+
+        // Capitalization pattern (brand names)
+        if (/^[A-Z][a-z]+$/.test(word)) score += 3;
+
+        // Common medication endings
+        const endings = ['ine', 'ole', 'ate', 'ide', 'ant', 'ase', 'cin', 'fen', 'pam', 'zam', 'tine', 'pine', 'olol', 'pril', 'tan', 'statin', 'cillin', 'mycin', 'floxacin'];
+        if (endings.some(ending => word.toLowerCase().endsWith(ending))) score += 5;
+
+        // Common medication prefixes
+        const prefixes = ['pre', 'pro', 'anti', 'hydro', 'metro', 'dexa', 'pred'];
+        if (prefixes.some(prefix => word.toLowerCase().startsWith(prefix))) score += 2;
+
+        return score;
+      }
+
 
       // Search for medication with comprehensive query list
       const response = await fetch('/api/identify-medication', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: cleanedText,
+          text: cleanedTexts[0] || bestResult, // Use primary cleaned text, fallback to bestResult
           alternativeQueries: finalQueries,
           searchMethod: 'photo',
           confidence: bestConfidence,
@@ -631,7 +674,7 @@ export default function CameraInterface({ onCapture, onClose, onMedicationFound,
           onClose(); // Close camera interface and return to home
         }, 1000);
       } else {
-        setError(t("noMedicationFound") + ` Detected text: "${cleanedText}"`);
+        setError(t("noMedicationFound") + ` Detected text: "${cleanedTexts[0] || bestResult}"`);
         setIsProcessing(false);
       }
 

@@ -5,26 +5,36 @@
 /* Core font loading with font-display: swap for better performance */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 
-/* Optimize base styles */
-@layer base {
+/* Optimize base styles for performance */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  line-height: 1.6;
+  color: #333;
+  background-color: #f8fafc;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Performance optimizations */
+  will-change: scroll-position;
+  transform: translateZ(0);
+}
+
+/* Optimize for mobile performance */
+@media (max-width: 768px) {
   * {
-    @apply border-border;
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
-}
-
-/* Reduce animation complexity for better performance */
-@layer utilities {
-  .animate-pulse {
-    animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  .animate-spin {
-    animation: spin 0.8s linear infinite;
+    -webkit-overflow-scrolling: touch;
   }
 }
 

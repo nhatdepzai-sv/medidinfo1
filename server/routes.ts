@@ -39,43 +39,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`OCR confidence: ${confidence}%, extracted text: "${text}"`);
 
-      if (!text.trim() || confidence < 30) {
+      // Preprocess text for better OCR results and easier parsing
+      const preprocessedText = text
+        .replace(/[^a-zA-Z0-9\s.-]/g, ' ') // Remove special characters except common ones
+        .replace(/\n/g, ' ') // Replace newlines with spaces
+        .replace(/\s+/g, ' ') // Replace multiple spaces with a single space
+        .trim();
+
+      if (!preprocessedText || confidence < 30) {
         return res.status(400).json({
           message: "Could not extract clear text from image. Please ensure good lighting and focus on the medication label.",
-          extractedText: text,
+          extractedText: preprocessedText,
           confidence
         });
       }
 
-      // Enhanced text processing and drug name extraction
-      const cleanedText = text
-        .replace(/\n/g, " ")
-        .replace(/[^\w\s.-]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+      // Clean and process the extracted text
+      const cleanedText = preprocessedText.toLowerCase().trim();
 
-      // Extract potential drug names using multiple strategies
-      const words = cleanedText.split(" ");
-      const potentialDrugNames = [];
+      // Enhanced drug name extraction with better patterns
+      const drugNamePatterns = [
+        // Brand names (often capitalized, 3+ letters)
+        /\b([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)\b/g,
+        // Generic names (lowercase, medical terms)
+        /\b([a-z]{4,}(?:ine|ol|al|ic|ate|ide|ium|phen|mycin|cillin))\b/gi,
+        // Common pharmaceutical suffixes
+        /\b([a-z]{3,}(?:pine|pril|sartan|statin|zole|tide|mab|nib))\b/gi,
+        // General drug patterns (3-15 characters)
+        /\b([a-z]{3,15})\b/gi
+      ];
 
-      // Strategy 1: Look for capitalized words (brand names)
-      for (const word of words) {
-        if (word.length > 3 && /^[A-Z][a-z]+/.test(word)) {
-          potentialDrugNames.push(word);
+      let potentialDrugNames: string[] = [];
+
+      for (const pattern of drugNamePatterns) {
+        const matches = preprocessedText.match(pattern) || cleanedText.match(pattern);
+        if (matches) {
+          potentialDrugNames.push(...matches.map(match => 
+            match.replace(/\d+(?:\.\d+)?\s*(?:mg|g|ml|mcg|iu|units?|tablets?|capsules?)/gi, '').trim()
+          ));
         }
       }
-
-      // Strategy 2: Look for common drug suffixes
-      const drugSuffixes = ['ine', 'ole', 'ate', 'ide', 'ant', 'ase', 'cin', 'fen', 'pam', 'zam', 'tine', 'pine'];
-      for (const word of words) {
-        if (word.length > 4 && drugSuffixes.some(suffix => word.toLowerCase().endsWith(suffix))) {
-          potentialDrugNames.push(word);
-        }
-      }
-
-      // Strategy 3: Try the full text and common fragments
-      potentialDrugNames.push(cleanedText);
-      potentialDrugNames.push(...words.filter(w => w.length > 4));
 
       let medication = null;
       let matchedText = "";

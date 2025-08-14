@@ -2,134 +2,176 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Pill, AlertTriangle, Info } from 'lucide-react';
+import { Pill, AlertTriangle, Clock, Info } from 'lucide-react';
 import { useLanguage } from '@/contexts/language-context';
 
-interface DrugResult {
+interface Medication {
   id: string;
   name: string;
   nameVi?: string;
-  genericName: string;
+  genericName?: string;
   genericNameVi?: string;
-  category: string;
+  category?: string;
   categoryVi?: string;
-  primaryUse: string;
+  primaryUse?: string;
   primaryUseVi?: string;
-  adultDosage: string;
+  adultDosage?: string;
   adultDosageVi?: string;
   maxDosage?: string;
   maxDosageVi?: string;
-  warnings: string[];
+  warnings?: string[];
   warningsVi?: string[];
 }
 
 interface DrugResultsProps {
-  results: DrugResult | DrugResult[] | null;
+  results: {
+    medications?: Medication[];
+    message?: string;
+    success?: boolean;
+  };
 }
 
-export default function DrugResults({ results }: DrugResultsProps) {
-  const { language, t } = useLanguage();
+const DrugResults: React.FC<DrugResultsProps> = ({ results }) => {
+  const { t, language } = useLanguage();
 
-  if (!results) {
+  if (!results?.success || !results?.medications?.length) {
     return (
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertDescription>
-          {t('noResults') || 'No results found. Try a different search term.'}
-        </AlertDescription>
-      </Alert>
+      <Card className="mb-4 border-orange-200">
+        <CardContent className="p-4 text-center">
+          <AlertTriangle className="w-12 h-12 text-orange-500 mx-auto mb-3" />
+          <h3 className="font-semibold text-gray-800 mb-2">
+            {t('noMedicationsFound') || 'No medications found'}
+          </h3>
+          <p className="text-sm text-gray-600">
+            {results?.message || t('tryDifferentSearch') || 'Try a different search term or take a clearer photo.'}
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
-  const medications = Array.isArray(results) ? results : [results];
-
   return (
     <div className="space-y-4">
-      {medications.map((medication) => (
-        <Card key={medication.id} className="border-l-4 border-l-blue-500">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-gray-800">
+          {t('searchResults') || 'Search Results'}
+        </h2>
+        <Badge variant="secondary">
+          {results.medications.length} {t('found') || 'found'}
+        </Badge>
+      </div>
+
+      {results.medications.map((medication) => (
+        <Card key={medication.id} className="shadow-md hover:shadow-lg transition-shadow">
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Pill className="w-5 h-5 text-blue-600" />
-                {language === 'vi' && medication.nameVi ? medication.nameVi : medication.name}
-              </CardTitle>
-              <Badge variant="secondary">
-                {language === 'vi' && medication.categoryVi ? medication.categoryVi : medication.category}
-              </Badge>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Pill className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg text-gray-800">
+                    {language === 'vi' && medication.nameVi ? medication.nameVi : medication.name}
+                  </CardTitle>
+                  {(medication.genericName || medication.genericNameVi) && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      {t('generic') || 'Generic'}: {' '}
+                      {language === 'vi' && medication.genericNameVi 
+                        ? medication.genericNameVi 
+                        : medication.genericName}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {(medication.category || medication.categoryVi) && (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                  {language === 'vi' && medication.categoryVi 
+                    ? medication.categoryVi 
+                    : medication.category}
+                </Badge>
+              )}
             </div>
-            {medication.genericName && (
-              <p className="text-sm text-gray-600">
-                <span className="font-medium">{t('generic') || 'Generic'}:</span>{' '}
-                {language === 'vi' && medication.genericNameVi ? medication.genericNameVi : medication.genericName}
-              </p>
-            )}
           </CardHeader>
 
           <CardContent className="space-y-4">
             {/* Primary Use */}
-            <div>
-              <h4 className="font-medium text-sm text-gray-700 mb-1">
-                {t('primaryUse') || 'Primary Use'}
-              </h4>
-              <p className="text-sm">
-                {language === 'vi' && medication.primaryUseVi ? medication.primaryUseVi : medication.primaryUse}
-              </p>
-            </div>
-
-            {/* Dosage Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h4 className="font-medium text-sm text-gray-700 mb-1">
-                  {t('adultDosage') || 'Adult Dosage'}
-                </h4>
-                <p className="text-sm font-mono bg-gray-50 p-2 rounded">
-                  {language === 'vi' && medication.adultDosageVi ? medication.adultDosageVi : medication.adultDosage}
-                </p>
-              </div>
-
-              {medication.maxDosage && (
+            {(medication.primaryUse || medication.primaryUseVi) && (
+              <div className="flex items-start space-x-3">
+                <Info className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="font-medium text-sm text-gray-700 mb-1">
-                    {t('maxDosage') || 'Maximum Dosage'}
-                  </h4>
-                  <p className="text-sm font-mono bg-gray-50 p-2 rounded">
-                    {language === 'vi' && medication.maxDosageVi ? medication.maxDosageVi : medication.maxDosage}
+                  <p className="font-medium text-sm text-gray-700">
+                    {t('primaryUse') || 'Primary Use'}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {language === 'vi' && medication.primaryUseVi 
+                      ? medication.primaryUseVi 
+                      : medication.primaryUse}
                   </p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* Dosage Information */}
+            {(medication.adultDosage || medication.adultDosageVi) && (
+              <div className="flex items-start space-x-3">
+                <Clock className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-sm text-gray-700">
+                    {t('adultDosage') || 'Adult Dosage'}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {language === 'vi' && medication.adultDosageVi 
+                      ? medication.adultDosageVi 
+                      : medication.adultDosage}
+                  </p>
+                  {(medication.maxDosage || medication.maxDosageVi) && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {t('maxDosage') || 'Max'}: {' '}
+                      {language === 'vi' && medication.maxDosageVi 
+                        ? medication.maxDosageVi 
+                        : medication.maxDosage}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Warnings */}
-            {medication.warnings && medication.warnings.length > 0 && (
-              <Alert className="border-orange-200 bg-orange-50">
-                <AlertTriangle className="h-4 w-4 text-orange-600" />
-                <AlertDescription>
-                  <div className="font-medium text-orange-800 mb-2">
-                    {t('warnings') || 'Important Warnings'}
-                  </div>
-                  <ul className="space-y-1 text-sm text-orange-700">
-                    {(language === 'vi' && medication.warningsVi ? medication.warningsVi : medication.warnings).map((warning, index) => (
-                      <li key={index} className="flex items-start gap-1">
-                        <span className="text-orange-600 mt-1">•</span>
-                        <span>{warning}</span>
+            {((medication.warnings && medication.warnings.length > 0) || 
+              (medication.warningsVi && medication.warningsVi.length > 0)) && (
+              <div className="flex items-start space-x-3">
+                <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-sm text-gray-700 mb-2">
+                    {t('warnings') || 'Warnings'}
+                  </p>
+                  <ul className="space-y-1">
+                    {(language === 'vi' && medication.warningsVi 
+                      ? medication.warningsVi 
+                      : medication.warnings || []
+                    ).map((warning, index) => (
+                      <li key={index} className="text-sm text-red-600 flex items-start">
+                        <span className="w-1 h-1 bg-red-600 rounded-full mt-2 mr-2 flex-shrink-0"></span>
+                        {warning}
                       </li>
                     ))}
                   </ul>
-                </AlertDescription>
-              </Alert>
+                </div>
+              </div>
             )}
 
             {/* Disclaimer */}
-            <Alert className="border-blue-200 bg-blue-50">
-              <Info className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-xs text-blue-700">
-                {t('disclaimer') || 'This information is for educational purposes only. Always consult with a healthcare professional before taking any medication.'}
-              </AlertDescription>
-            </Alert>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4">
+              <p className="text-xs text-yellow-800">
+                <strong>{t('disclaimer') || 'Disclaimer'}:</strong> {' '}
+                {t('consultDoctor') || 'Always consult with a healthcare professional before taking any medication. This information is for educational purposes only.'}
+              </p>
+            </div>
           </CardContent>
         </Card>
       ))}
     </div>
   );
-}
+};
+
+export default DrugResults;

@@ -429,6 +429,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Search medications endpoint with improved fuzzy matching
+  app.get("/api/search-medications", (req, res) => {
+    const query = req.query.query as string;
+
+    if (!query || query.trim().length < 2) {
+      return res.json({
+        success: false,
+        message: "Search query must be at least 2 characters long",
+        medications: []
+      });
+    }
+
+    const searchTerm = query.toLowerCase().trim();
+
+    // Function to calculate similarity score
+    const calculateSimilarity = (str1: string, str2: string): number => {
+      const longer = str1.length > str2.length ? str1 : str2;
+      const shorter = str1.length > str2.length ? str2 : str1;
+
+      if (longer.length === 0) return 1.0;
+
+      const distance = levenshteinDistance(longer, shorter);
+      return (longer.length - distance) / longer.length;
+    };
+
+    // Levenshtein distance function for fuzzy matching
+    const levenshteinDistance = (str1: string, str2: string): number => {
+      const matrix = [];
+      for (let i = 0; i <= str2.length; i++) {
+        matrix[i] = [i];
+      }
+      for (let j = 0; j <= str1.length; j++) {
+        matrix[0][j] = j;
+      }
+      for (let i = 1; i <= str2.length; i++) {
+        for (let j = 1; j <= str1.length; j++) {
+          if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+            matrix[i][j] = matrix[i - 1][j - 1];
+          } else {
+            matrix[i][j] = Math.min(
+              matrix[i - 1][j - 1] + 1,
+              matrix[i][j - 1] + 1,
+              matrix[i - 1][j] + 1
+            );
+          }
+        }
+      }
+      return matrix[str2.length][str1.length];
+    };
+
+    // Search through comprehensive database with scoring
+    const results = fullComprehensiveDrugsDatabase.map(medication => {
+      const nameScore = calculateSimilarity(medication.name.toLowerCase(), searchTerm);
+      const nameViScore = medication.nameVi ? calculateSimilarity(medication.nameVi.toLowerCase(), searchTerm) : 0;
+      const genericScore = medication.genericName ? calculateSimilarity(medication.genericName.toLowerCase(), searchTerm) : 0;
+      const genericViScore = medication.genericNameVi ? calculateSimilarity(medication.genericNameVi.toLowerCase(), searchTerm) : 0;
+
+      // Check for exact or partial matches
+      const nameMatch = medication.name.toLowerCase().includes(searchTerm);
+      const nameViMatch = medication.nameVi?.toLowerCase().includes(searchTerm);
+      const genericMatch = medication.genericName?.toLowerCase().includes(searchTerm);
+      const genericViMatch = medication.genericNameVi?.toLowerCase().includes(searchTerm);
+
+      // Calculate final score (prioritize exact matches, then partial matches, then similarity)
+      let score = Math.max(nameScore, nameViScore, genericScore, genericViScore);
+
+      if (nameMatch || nameViMatch || genericMatch || genericViMatch) {
+        score += 0.5; // Boost for partial matches
+      }
+
+      // Exact matches get highest priority
+      if (medication.name.toLowerCase() === searchTerm || 
+          medication.nameVi?.toLowerCase() === searchTerm ||
+          medication.genericName?.toLowerCase() === searchTerm ||
+          medication.genericNameVi?.toLowerCase() === searchTerm) {
+        score += 1.0;
+      }
+
+      return { medication, score };
+    })
+    .filter(result => result.score > 0.4) // Only return results with reasonable similarity
+    .sort((a, b) => b.score - a.score) // Sort by score descending
+    .map(result => result.medication);
+
+    res.json({
+      success: results.length > 0,
+      message: results.length > 0 ? `Found ${results.length} medication(s)` : "No medications found",
+      medications: results.slice(0, 10) // Limit to top 10 results
+    });
+  });
 
   const httpServer = createServer(app);
   return httpServer;

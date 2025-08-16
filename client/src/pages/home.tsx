@@ -9,6 +9,7 @@ import BottomNavigation from '@/components/bottom-navigation';
 import { useLanguage } from '@/contexts/language-context';
 import { useLocation } from 'wouter';
 import LanguageSwitcher from '../components/language-switcher';
+import { useTheme } from '../contexts/theme-context'; // Assuming you have a theme context
 
 // Memoized quick actions to prevent re-renders
 const QuickActions = React.memo(({ onScanClick, onSearchClick, onHistoryClick, onPillIdClick }: {
@@ -18,13 +19,14 @@ const QuickActions = React.memo(({ onScanClick, onSearchClick, onHistoryClick, o
   onPillIdClick: () => void;
 }) => {
   const { t } = useLanguage();
+  const { currentTheme } = useTheme();
 
   const actions = useMemo(() => [
-    { icon: Scan, label: t('scanMedication') || 'Scan', color: 'bg-blue-500', onClick: onScanClick },
-    { icon: Search, label: t('searchDrugs') || 'Search', color: 'bg-green-500', onClick: onSearchClick },
-    { icon: History, label: t('history') || 'History', color: 'bg-purple-500', onClick: onHistoryClick },
-    { icon: Pill, label: t('pillId') || 'Pill ID', color: 'bg-orange-500', onClick: onPillIdClick }
-  ], [t, onScanClick, onSearchClick, onHistoryClick, onPillIdClick]);
+    { icon: Scan, label: t('scanMedication') || 'Scan', color: currentTheme.colors.scan, onClick: onScanClick },
+    { icon: Search, label: t('searchDrugs') || 'Search', color: currentTheme.colors.search, onClick: onSearchClick },
+    { icon: History, label: t('history') || 'History', color: currentTheme.colors.history, onClick: onHistoryClick },
+    { icon: Pill, label: t('pillId') || 'Pill ID', color: currentTheme.colors.pillId, onClick: onPillIdClick }
+  ], [t, onScanClick, onSearchClick, onHistoryClick, onPillIdClick, currentTheme.colors]);
 
   return (
     <div className="grid grid-cols-2 gap-3 mb-6">
@@ -47,6 +49,7 @@ QuickActions.displayName = 'QuickActions';
 // Memoized recent searches to prevent re-renders
 const RecentSearches = React.memo(() => {
   const { t } = useLanguage();
+  const { currentTheme } = useTheme();
 
   const recentItems = useMemo(() => [
     'Aspirin', 'Ibuprofen', 'Paracetamol', 'Amoxicillin'
@@ -55,10 +58,10 @@ const RecentSearches = React.memo(() => {
   return (
     <Card className="mb-4">
       <CardContent className="p-4">
-        <h3 className="font-semibold mb-3">{t('recentSearches') || 'Recent Searches'}</h3>
+        <h3 className="font-semibold mb-3" style={{ color: currentTheme.colors.primary }}>{t('recentSearches') || 'Recent Searches'}</h3>
         <div className="flex flex-wrap gap-2">
           {recentItems.map((item, index) => (
-            <Button key={index} variant="outline" size="sm" className="text-xs">
+            <Button key={index} variant="outline" size="sm" className="text-xs" style={{ borderColor: currentTheme.colors.primary, color: currentTheme.colors.primary }}>
               {item}
             </Button>
           ))}
@@ -72,6 +75,7 @@ RecentSearches.displayName = 'RecentSearches';
 
 export default function Home() {
   const { t } = useLanguage();
+  const { currentTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [showCamera, setShowCamera] = useState(false);
   const [searchResults, setSearchResults] = useState(null);
@@ -119,7 +123,7 @@ export default function Home() {
 
   if (showCamera) {
     return (
-      <CameraInterface 
+      <CameraInterface
         onClose={handleCameraToggle}
         onCapture={(imageData) => {
           console.log('Image captured:', imageData);
@@ -142,12 +146,12 @@ export default function Home() {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg" style={{ backgroundColor: currentTheme.colors.background }}>
       {/* Header with Language Switcher */}
-      <header className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 shadow-lg sticky top-0 z-10">
+      <header className={`text-white p-4 shadow-lg sticky top-0 z-10`} style={{ background: currentTheme.colors.headerGradient }}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+            <div className={`w-10 h-10 ${currentTheme.colors.headerIconBackground} rounded-lg flex items-center justify-center`}>
               <Pill className="w-6 h-6" />
             </div>
             <div>
@@ -166,17 +170,20 @@ export default function Home() {
             value={searchQuery}
             onChange={handleSearchChange}
             className="flex-1 bg-white/10 border-white/20 text-white placeholder-white/70"
+            style={{ backgroundColor: currentTheme.colors.searchInputBackground, borderColor: currentTheme.colors.searchInputBorder, color: currentTheme.colors.searchInputText, placeholderColor: currentTheme.colors.searchInputPlaceholder }}
           />
-          <Button 
-            onClick={handleSearch} 
+          <Button
+            onClick={handleSearch}
             disabled={isLoading}
-            className="bg-white text-blue-600 hover:bg-gray-100"
+            className="bg-white hover:bg-gray-100"
+            style={{ color: currentTheme.colors.primary }}
           >
             <Search className="w-4 h-4" />
           </Button>
-          <Button 
+          <Button
             onClick={handleCameraToggle}
-            className="bg-white text-blue-600 hover:bg-gray-100"
+            className="bg-white hover:bg-gray-100"
+            style={{ color: currentTheme.colors.primary }}
           >
             <Scan className="w-4 h-4" />
           </Button>
@@ -184,12 +191,12 @@ export default function Home() {
       </header>
 
       {/* Main Content - Optimized scrolling */}
-      <main className="flex-1 p-4 pb-20 overflow-y-auto">
+      <main className="flex-1 p-4 pb-20 overflow-y-auto" style={{ backgroundColor: currentTheme.colors.background }}>
         {searchResults ? (
           <DrugResults results={searchResults} />
         ) : (
           <>
-            <QuickActions 
+            <QuickActions
               onScanClick={handleScanClick}
               onSearchClick={handleSearchClick}
               onHistoryClick={handleHistoryClick}

@@ -41,6 +41,9 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
   const [detectedText, setDetectedText] = useState<string>('');
   const [searchResult, setSearchResult] = useState<any>({});
   const [autoFocus, setAutoFocus] = useState(true);
+  const [liveDetection, setLiveDetection] = useState<string>('');
+  const [isLiveScanning, setIsLiveScanning] = useState(false);
+  const [lastScanTime, setLastScanTime] = useState(0);
   const { toast } = useToast(); // Initialize useToast
 
   const getConstraints = useCallback(() => {
@@ -515,11 +518,82 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     }
   }, [capturedImage, toast, t]);
 
+  // Live scanning function
+  const performLiveScan = useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current || !isActive || isProcessing) return;
+    
+    const now = Date.now();
+    if (now - lastScanTime < 2000) return; // Throttle to every 2 seconds
+    
+    setLastScanTime(now);
+    setIsLiveScanning(true);
+
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) return;
+
+      // Set smaller canvas size for live scanning (faster processing)
+      canvas.width = 640;
+      canvas.height = 480;
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Convert to grayscale for better OCR
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+        data[i] = gray;
+        data[i + 1] = gray;
+        data[i + 2] = gray;
+      }
+      
+      ctx.putImageData(imageData, 0, 0);
+      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+      // Quick OCR with basic settings
+      const Tesseract = await import('tesseract.js');
+      const worker = await Tesseract.createWorker(['eng'], 1, {
+        logger: () => {} // Disable logging for live scan
+      });
+
+      await worker.setParameters({
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-.',
+        tessedit_pageseg_mode: 8, // Single word
+        preserve_interword_spaces: '0'
+      });
+
+      const { data: { text } } = await worker.recognize(imageDataUrl);
+      await worker.terminate();
+
+      const cleanText = text.trim().replace(/[^\w\s-]/g, '').slice(0, 20);
+      if (cleanText.length > 2) {
+        setLiveDetection(cleanText);
+      }
+    } catch (error) {
+      console.log('Live scan error:', error);
+    } finally {
+      setIsLiveScanning(false);
+    }
+  }, [isActive, isProcessing, lastScanTime]);
+
   // Effect to start camera on mount and stop on unmount
   useEffect(() => {
     startCamera();
     return () => stopCamera();
   }, [startCamera, stopCamera]);
+
+  // Live scanning interval
+  useEffect(() => {
+    if (isActive && !capturedImage && !isProcessing) {
+      const interval = setInterval(performLiveScan, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [isActive, capturedImage, isProcessing, performLiveScan]);
 
   // Effect to re-apply settings if needed (e.g., after switching camera, though switchCamera is handled internally)
   // This might be redundant if startCamera is called on switch, but kept for potential future needs.
@@ -789,9 +863,26 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
                 <div className="absolute -bottom-2 -right-2 w-4 h-4 border-r-2 border-b-2 border-yellow-400"></div>
               </div>
 
+              {/* Live Detection Display */}
+              {liveDetection && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-600/90 text-white px-4 py-2 rounded-lg backdrop-blur-sm">
+                  <div className="flex items-center space-x-2">
+                    {isLiveScanning ? (
+                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                    ) : (
+                      <div className="w-2 h-2 bg-green-300 rounded-full animate-pulse"></div>
+                    )}
+                    <span className="font-medium">Detecting: {liveDetection}</span>
+                  </div>
+                </div>
+              )}
+
               <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white text-sm px-4 py-2 rounded-lg text-center">
                 <div className="mb-1">📱 {t.ensureGoodLighting}</div>
                 <div>🔍 {t.focusOnDrugName}</div>
+                {liveDetection && (
+                  <div className="mt-1 text-green-300">✨ Live scanning active</div>
+                )}
               </div>
             </div>
           </>

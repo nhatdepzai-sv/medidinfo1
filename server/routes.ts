@@ -5,7 +5,8 @@ import { createWorker } from "tesseract.js";
 import { storage } from "./storage";
 import { drugSearchResponseSchema, insertMedicationSchema, insertSearchHistorySchema } from "@shared/schema";
 import { z } from "zod";
-import { fullComprehensiveDrugsDatabase } from "./comprehensive-drugs-database";
+import { fullComprehensiveDrugsDatabase } from './comprehensive-drugs-database';
+import { globalMedicationsDatabase } from './global-medications-database';
 
 interface MulterRequest extends Request {
   file?: Express.Multer.File;
@@ -600,6 +601,73 @@ async function searchDrugInfo(drugName: string) {
   }
 }
 
+// Helper function to search drug information using global medications database
+async function searchGlobalMedicationDatabase(drugName: string): Promise<any | null> {
+  const normalizedSearch = drugName.toLowerCase().trim();
+  if (normalizedSearch.length < 2) return null;
+
+  let bestMatch = null;
+  let highestScore = 0;
+
+  for (const med of globalMedicationsDatabase) {
+    const candidates = [
+      { text: med.name, weight: 1.0 },
+      { text: med.genericName, weight: 0.9 },
+      { text: med.nameVi, weight: 0.8 },
+      { text: med.genericNameVi, weight: 0.7 },
+      { text: med.description, weight: 0.5 }
+    ].filter(c => c.text && c.text.length > 0);
+
+    for (const candidate of candidates) {
+      const normalizedCandidate = candidate.text.toLowerCase();
+      let score = 0;
+
+      // Exact match
+      if (normalizedCandidate === normalizedSearch) {
+        score = 1.0 * candidate.weight;
+      }
+      // Substring match
+      else if (normalizedCandidate.includes(normalizedSearch)) {
+        score = 0.9 * candidate.weight;
+      }
+      // Search term includes candidate
+      else if (normalizedSearch.includes(normalizedCandidate)) {
+        score = 0.8 * candidate.weight;
+      }
+      // Starts with match
+      else if (normalizedCandidate.startsWith(normalizedSearch)) {
+        score = 0.7 * candidate.weight;
+      }
+      // Word boundary match
+      else if (new RegExp(`\\b${escapeRegex(normalizedSearch)}`, 'i').test(normalizedCandidate)) {
+        score = 0.6 * candidate.weight;
+      }
+      // Contains as substring with position bonus
+      else {
+        const index = normalizedCandidate.indexOf(normalizedSearch);
+        if (index !== -1) {
+          const positionBonus = 1 - (index / normalizedCandidate.length);
+          score = (0.4 + positionBonus * 0.2) * candidate.weight;
+        }
+      }
+
+      if (score > highestScore) {
+        highestScore = score;
+        bestMatch = med;
+      }
+    }
+  }
+
+  // Return best match if score is above a threshold
+  if (highestScore > 0.3) {
+    console.log(`Global DB Best Match: ${bestMatch?.name} with score ${highestScore}`);
+    return bestMatch;
+  }
+
+  return null;
+}
+
+
 // Placeholder for findMedicationByText function - replace with actual implementation
 async function findMedicationByText(text: string): Promise<any | null> {
   // This is a mock implementation. In a real scenario, this would query the database.
@@ -668,14 +736,14 @@ async function findMedicationByFuzzyMatch(searchText: string): Promise<any | nul
 
   for (const med of allMedications) {
     const candidates = [
-      med.name,
-      med.genericName,
-      med.nameVi,
-      med.genericNameVi
+      {text: med.name, weight: 1.0},
+      {text: med.genericName, weight: 0.9},
+      {text: med.nameVi, weight: 0.8},
+      {text: med.genericNameVi, weight: 0.7}
     ].filter(Boolean);
 
     for (const candidate of candidates) {
-      const normalizedCandidate = candidate.toLowerCase();
+      const normalizedCandidate = candidate.text.toLowerCase();
 
       // Exact substring match gets highest priority
       if (normalizedCandidate.includes(normalizedSearch) || normalizedSearch.includes(normalizedCandidate)) {

@@ -74,7 +74,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const pattern of drugNamePatterns) {
         const matches = preprocessedText.match(pattern) || cleanedText.match(pattern);
         if (matches) {
-          potentialDrugNames.push(...matches.map(match => 
+          potentialDrugNames.push(...matches.map(match =>
             match.replace(/\d+(?:\.\d+)?\s*(?:mg|g|ml|mcg|iu|units?|tablets?|capsules?)/gi, '').trim()
           ));
         }
@@ -429,6 +429,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual drug search endpoint (improved)
+  app.post("/api/search-medication", async (req, res) => {
+    try {
+      const { text } = req.body;
+
+      if (!text) {
+        return res.status(400).json({ error: "No text provided" });
+      }
+
+      console.log("Searching for medication with text:", text);
+
+      // Enhanced medication detection logic
+      const medication = detectMedication(text);
+
+      if (medication) {
+        // Store search in history
+        storage.addSearchHistory(text, medication.name);
+
+        console.log("Medication found:", medication.name);
+        res.json(medication);
+      } else {
+        console.log("No medication found for text:", text);
+        res.status(404).json({ error: "Medication not found" });
+      }
+    } catch (error) {
+      console.error("Error searching medication:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+
   // Search medications endpoint with improved fuzzy matching
   app.get("/api/search-medications", (req, res) => {
     const query = req.query.query as string;
@@ -479,7 +510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return matrix[str2.length][str1.length];
     };
 
-    // Search through comprehensive database with scoring
+    // Search through comprehensive[:10] database with scoring
     const results = fullComprehensiveDrugsDatabase.map(medication => {
       const nameScore = calculateSimilarity(medication.name.toLowerCase(), searchTerm);
       const nameViScore = medication.nameVi ? calculateSimilarity(medication.nameVi.toLowerCase(), searchTerm) : 0;
@@ -500,7 +531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Exact matches get highest priority
-      if (medication.name.toLowerCase() === searchTerm || 
+      if (medication.name.toLowerCase() === searchTerm ||
           medication.nameVi?.toLowerCase() === searchTerm ||
           medication.genericName?.toLowerCase() === searchTerm ||
           medication.genericNameVi?.toLowerCase() === searchTerm) {
@@ -590,7 +621,7 @@ async function findMedicationByText(text: string): Promise<any | null> {
       name: "Paracetamol",
       genericName: "Acetaminophen",
       category: "Analgesic, Antipyretic",
-      primaryUse: "Pain relief, fever reduction",
+      primaryUse: "Pain relief and fever reduction",
       adultDosage: "500-1000 mg every 4-6 hours as needed",
       warnings: ["May cause liver damage in high doses."],
     };
@@ -700,9 +731,9 @@ async function findMedicationByPartialMatch(searchText: string): Promise<any | n
   const scoredMedications = allMedications.map(med => {
     const candidates = [
       { text: med.name, weight: 1.0 },
-      { text: med.genericName || '', weight: 0.9 },
-      { text: med.nameVi || '', weight: 0.8 },
-      { text: med.genericNameVi || '', weight: 0.7 }
+      { text: med.genericName, weight: 0.9 },
+      { text: med.nameVi, weight: 0.8 },
+      { text: med.genericNameVi, weight: 0.7 }
     ].filter(c => c.text.length > 0);
 
     let bestScore = 0;
@@ -762,4 +793,81 @@ async function findMedicationByPartialMatch(searchText: string): Promise<any | n
 
 function escapeRegex(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function detectMedication(text: string) {
+  // Enhanced keyword matching with better text processing
+  const lowerText = text.toLowerCase()
+    .replace(/[^\w\s]/g, ' ') // Remove special characters
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .trim();
+
+  const words = lowerText.split(' ');
+
+  // Check for ibuprofen variants
+  const ibuprofenKeywords = ['ibuprofen', 'advil', 'motrin', 'brufen'];
+  if (ibuprofenKeywords.some(keyword =>
+    words.some(word => word.includes(keyword) || keyword.includes(word))
+  )) {
+    return {
+      id: "med-123",
+      name: "Ibuprofen",
+      genericName: "Ibuprofen",
+      category: "NSAID",
+      primaryUse: "Pain relief and inflammation reduction",
+      adultDosage: "200-400mg every 4-6 hours",
+      maxDosage: "1200mg per day",
+      warnings: ["Do not exceed recommended dose.", "May cause stomach irritation."],
+    };
+  }
+
+  // Check for acetaminophen variants
+  const acetaminophenKeywords = ['acetaminophen', 'tylenol', 'paracetamol', 'panadol'];
+  if (acetaminophenKeywords.some(keyword =>
+    words.some(word => word.includes(keyword) || keyword.includes(word))
+  )) {
+    return {
+      id: "med-456",
+      name: "Acetaminophen",
+      genericName: "Acetaminophen",
+      category: "Analgesic",
+      primaryUse: "Pain relief and fever reduction",
+      adultDosage: "325-650mg every 4-6 hours",
+      maxDosage: "3000mg per day",
+      warnings: ["Do not exceed recommended dose.", "May cause liver damage if overused."],
+    };
+  }
+
+  // Check for aspirin variants
+  const aspirinKeywords = ['aspirin', 'bayer', 'bufferin'];
+  if (aspirinKeywords.some(keyword =>
+    words.some(word => word.includes(keyword) || keyword.includes(word))
+  )) {
+    return {
+      id: "med-789",
+      name: "Aspirin",
+      genericName: "Aspirin",
+      category: "NSAID",
+      primaryUse: "Pain relief, inflammation reduction, and blood thinning",
+      adultDosage: "81-325mg daily for heart protection, 325-650mg every 4 hours for pain",
+      maxDosage: "4000mg per day for pain relief",
+      warnings: ["May cause stomach bleeding.", "Consult doctor before use if on blood thinners."],
+    };
+  }
+
+  // Check for meloxicam
+  if (words.some(word => word.includes('meloxicam') || word.includes('mobic'))) {
+    return {
+      id: "med-101",
+      name: "Meloxicam",
+      genericName: "Meloxicam",
+      category: "NSAID",
+      primaryUse: "Pain and inflammation relief for arthritis",
+      adultDosage: "7.5-15mg once daily",
+      maxDosage: "15mg per day",
+      warnings: ["May cause stomach bleeding.", "Monitor kidney function."],
+    };
+  }
+
+  return null;
 }

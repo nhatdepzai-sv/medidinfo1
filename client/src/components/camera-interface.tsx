@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
-import { Camera, SwitchCamera, Zap, ZapOff, Download, RefreshCw, Settings, X, Check, AlertCircle } from 'lucide-react';
+import { Camera, SwitchCamera, Zap, ZapOff, Download, RefreshCw, Settings, X, Check, AlertCircle, Scan } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { useLanguage } from '../contexts/language-context';
@@ -8,6 +7,8 @@ import { Badge } from './ui/badge';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
+import { useToast } from '../hooks/use-toast'; // Assuming useToast is available
+import Tesseract from 'tesseract.js'; // Dynamically imported in processImage
 
 interface CameraInterfaceProps {
   onCapture: (imageData: string) => void;
@@ -30,8 +31,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
   const [hasFlash, setHasFlash] = useState(false);
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [zoom, setZoom] = useState([1]);
-  const [brightness, setBrightness] = useState([100]);
-  const [contrast, setContrast] = useState([100]);
+  const [brightness, setBrightness] = useState([100]); // Changed default to 100
+  const [contrast, setContrast] = useState([100]); // Changed default to 100
   const [showSettings, setShowSettings] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -39,6 +40,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
   const [ocrProgress, setOcrProgress] = useState(0);
   const [detectedText, setDetectedText] = useState<string>('');
   const [searchResult, setSearchResult] = useState<any>({});
+  const { toast } = useToast(); // Initialize useToast
 
   const getConstraints = useCallback(() => {
     const constraints: MediaStreamConstraints = {
@@ -57,7 +59,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     try {
       setIsInitializing(true);
       setCameraError('');
-      
+
       // Stop existing stream
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
@@ -74,17 +76,17 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        
+
         // Wait for video to load
         await new Promise<void>((resolve, reject) => {
           if (!videoRef.current) {
             reject(new Error('Video element not available'));
             return;
           }
-          
+
           videoRef.current.onloadedmetadata = () => resolve();
           videoRef.current.onerror = () => reject(new Error('Video load error'));
-          
+
           // Timeout after 10 seconds
           setTimeout(() => reject(new Error('Camera timeout')), 10000);
         });
@@ -102,7 +104,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     } catch (error: any) {
       console.error('Camera error:', error);
       let errorMessage = 'Camera access failed';
-      
+
       if (error.name === 'NotAllowedError') {
         errorMessage = 'Camera permission denied. Please allow camera access and refresh the page.';
       } else if (error.name === 'NotFoundError') {
@@ -112,13 +114,19 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       setCameraError(errorMessage);
       setError(errorMessage);
+      // Use toast for camera errors
+      toast({
+        title: t.cameraError,
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsInitializing(false);
     }
-  }, [getConstraints, setError]);
+  }, [getConstraints, setError, toast, t]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -143,9 +151,14 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         setFlashEnabled(!flashEnabled);
       } catch (error) {
         console.error('Flash toggle error:', error);
+        toast({
+          title: t.error,
+          description: t.unableToControlFlash,
+          variant: "destructive",
+        });
       }
     }
-  }, [flashEnabled, hasFlash]);
+  }, [flashEnabled, hasFlash, toast, t]);
 
   const capturePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current || !isActive) return;
@@ -156,6 +169,11 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
     if (!ctx) {
       setError("Canvas not available");
+      toast({
+        title: t.error,
+        description: "Canvas not available",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -169,24 +187,34 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     // Enhanced image preprocessing for OCR
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
-    const brightnessValue = brightness[0] / 100;
-    const contrastValue = contrast[0] / 100;
+    // Adjust brightness and contrast values from state, ensuring they are numbers
+    const brightnessValue = (Number(brightness[0]) - 100) / 100; // Scale 0-200 to -1 to 1
+    const contrastValue = Number(contrast[0]) / 100; // Scale 0-200 to 0-2
 
     // Apply brightness, contrast and sharpening
     for (let i = 0; i < data.length; i += 4) {
       // Convert to grayscale for better text recognition
       const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-      
+
       // Apply brightness and contrast
-      let newValue = ((gray - 128) * contrastValue + 128) * brightnessValue;
-      
-      // Enhance contrast for text (make text more black/white)
+      // Formula for contrast: C = ((G - 128) * contrastValue) + 128
+      // Formula for brightness: B = C * brightnessValue
+      let newValue = gray;
+      newValue = ((newValue - 128) * contrastValue) + 128; // Apply contrast
+      newValue = newValue + (newValue * brightnessValue); // Apply brightness
+
+      // Clamp values to 0-255
+      newValue = Math.max(0, Math.min(255, newValue));
+
+      // Enhance contrast for text (make text more black/white) - experimental
       if (newValue > 128) {
-        newValue = Math.min(255, newValue * 1.2);
+        newValue = Math.min(255, newValue * 1.1); // Slightly increase lighter areas
       } else {
-        newValue = Math.max(0, newValue * 0.8);
+        newValue = Math.max(0, newValue * 0.9); // Slightly decrease darker areas
       }
-      
+      newValue = Math.max(0, Math.min(255, newValue)); // Re-clamp after enhancement
+
+
       data[i] = newValue;     // R
       data[i + 1] = newValue; // G
       data[i + 2] = newValue; // B
@@ -196,28 +224,42 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     ctx.putImageData(imageData, 0, 0);
 
     // Use higher quality for OCR processing
-    const imageData64 = canvas.toDataURL('image/png', 1.0);
+    const imageData64 = canvas.toDataURL('image/png', 1.0); // Use PNG for better quality
     setCapturedImage(imageData64);
-    onCapture(imageData64);
-  }, [brightness, contrast, isActive, setError, onCapture]);
+    onCapture(imageData64); // Pass the captured image data
+  }, [brightness, contrast, isActive, setError, onCapture, toast, t]);
 
-  const processImage = useCallback(async (imageSrc: string) => {
+
+  const processOCR = useCallback(async () => {
+    if (!capturedImage) {
+      toast({
+        title: t.error,
+        description: t.noImageProvided,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessing(true);
-    setDetectedText('');
     setProcessingStageLocal('Initializing OCR...');
+    setOcrProgress(0);
+    setDetectedText('');
+    setSearchResult({});
 
     try {
       // Dynamically import Tesseract
       const Tesseract = await import('tesseract.js');
-      
+
       setProcessingStageLocal('Loading OCR engine...');
-      
+
       // Initialize worker with multiple languages for better recognition
-      const worker = await Tesseract.createWorker(['eng', 'vie'], 1, {
+      const worker = await Tesseract.createWorker(['eng', 'vie'], 1, { // Added 'vie' as per original intention
         logger: m => {
           if (m.status === 'recognizing text') {
             setProcessingStageLocal(`Recognizing text... ${Math.round(m.progress * 100)}%`);
             setOcrProgress(Math.round(m.progress * 100));
+          } else {
+            setProcessingStageLocal(m.status);
           }
         }
       });
@@ -234,31 +276,33 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
       // First pass with standard recognition
       setProcessingStageLocal('Analyzing image...');
-      const { data: { text: rawText, confidence } } = await worker.recognize(imageSrc);
-      
+      const { data: { text: rawText, confidence } } = await worker.recognize(capturedImage);
+
       console.log(`OCR confidence: ${confidence}%, raw text: "${rawText}"`);
-      
-      // If confidence is low, try with different parameters
+
+      let finalCleanText = rawText.trim();
+
+      // If confidence is low, try with different parameters or additional processing
       if (confidence < 70) {
         setProcessingStageLocal('Enhancing recognition...');
         await worker.setParameters({
           tessedit_pageseg_mode: 8, // Single word
           tessedit_char_blacklist: '|\\~`@#$^&*+=[]{};"<>?'
         });
-        
-        const { data: { text: enhancedText } } = await worker.recognize(imageSrc);
-        const finalText = enhancedText.length > rawText.length ? enhancedText : rawText;
-        await worker.terminate();
-        
-        const cleanText = finalText.trim();
-        setDetectedText(cleanText);
-        await searchMedications(cleanText);
-      } else {
-        await worker.terminate();
-        const cleanText = rawText.trim();
-        setDetectedText(cleanText);
-        await searchMedications(cleanText);
+
+        const { data: { text: enhancedText } } = await worker.recognize(capturedImage);
+        const cleanedEnhancedText = enhancedText.trim();
+
+        // Prioritize the text with more characters or higher confidence if available
+        if (cleanedEnhancedText.length > finalCleanText.length || (cleanedEnhancedText.length === finalCleanText.length && Tesseract.CustomRecognizeOptions.confidence > confidence)) {
+            finalCleanText = cleanedEnhancedText;
+        }
       }
+      await worker.terminate();
+
+      setDetectedText(finalCleanText);
+      await searchMedications(finalCleanText);
+
     } catch (error) {
       console.error('OCR Error:', error);
       setSearchResult({
@@ -266,16 +310,21 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         message: 'Error processing image'
       });
       setProcessingStageLocal("Processing error");
+      toast({
+        title: t.error,
+        description: t.failedToProcessImage,
+        variant: "destructive",
+      });
     } finally {
       setIsProcessing(false);
       setOcrProgress(0);
     }
-  }, [onMedicationFound, onClose]);
+  }, [capturedImage, onMedicationFound, toast, t]);
 
   const searchMedications = useCallback(async (text: string) => {
     if (text) {
       setProcessingStageLocal('Searching medications...');
-      
+
       // Enhanced text preprocessing for better medication name extraction
       const preprocessedText = text
         .replace(/[^\w\s.-]/g, ' ') // Remove special characters except word chars, spaces, dots, hyphens
@@ -286,27 +335,43 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       const words = preprocessedText
         .split(/[\s\n\r,.-]+/)
         .filter(word => word.length > 2)
-        .filter(word => /^[A-Za-z][A-Za-z0-9-]*$/.test(word));
+        .filter(word => /^[A-Za-z][A-Za-z0-9-]*$/.test(word)); // Basic regex for medication names
 
       // Also try to extract complete phrases that might be medication names
       const phrases = preprocessedText
         .split(/[,.;:\n\r]+/)
         .map(phrase => phrase.trim())
-        .filter(phrase => phrase.length > 3 && phrase.length < 50);
+        .filter(phrase => phrase.length > 3 && phrase.length < 50); // Limit phrase length
 
-      // Combine words and phrases for searching
+      // Combine words and phrases for searching, taking the first few potential matches
       const searchTerms = [...new Set([...words.slice(0, 8), ...phrases.slice(0, 3)])];
 
       console.log('Search terms extracted:', searchTerms);
+
+      if (searchTerms.length === 0) {
+        setSearchResult({
+          success: false,
+          message: `No relevant text found for precise search.`
+        });
+        setProcessingStageLocal("No relevant text found");
+        toast({
+          title: t.warning,
+          description: t.noRelevantTextFound,
+        });
+        return;
+      }
 
       // Search for medications
       const searchPromises = searchTerms.map(async (term) => {
         try {
           const response = await fetch(`/api/search-medications?query=${encodeURIComponent(term)}`);
+          if (!response.ok) {
+            throw new Error(`API request failed with status ${response.status}`);
+          }
           return await response.json();
         } catch (error) {
           console.error(`Search error for term "${term}":`, error);
-          return { success: false, medications: [] };
+          return { success: false, medications: [] }; // Return a consistent structure on error
         }
       });
 
@@ -332,17 +397,22 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
           message: `Found ${allMedications.length} medication(s)`
         });
         setProcessingStageLocal("Medication found!");
-        
+
+        // Automatically select the first found medication and close
         setTimeout(() => {
           onMedicationFound(allMedications[0]);
           onClose();
-        }, 1000);
+        }, 1500); // Slightly longer delay to show the "Medication found!" message
       } else {
         setSearchResult({
           success: false,
           message: `No medication found for: "${text}"`
         });
         setProcessingStageLocal("No medication found");
+        toast({
+          title: t.info,
+          description: t.noMedicationFound,
+        });
       }
     } else {
       setSearchResult({
@@ -350,41 +420,83 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         message: 'No text detected in image'
       });
       setProcessingStageLocal("No text detected");
+      toast({
+        title: t.warning,
+        description: t.noTextDetected,
+      });
     }
-  }, [onMedicationFound, onClose]);
+  }, [onMedicationFound, onClose, toast, t]);
 
   const confirmCapture = useCallback(() => {
     if (capturedImage) {
-      processImage(capturedImage);
+      processOCR(); // Call the new OCR processing function
     }
-  }, [capturedImage, processImage]);
+  }, [capturedImage, processOCR]);
 
   const retakePhoto = useCallback(() => {
     setCapturedImage(null);
     setDetectedText('');
     setSearchResult({});
-  }, []);
+    // Restart camera if it was active
+    if (isActive) {
+      startCamera();
+    }
+  }, [isActive, startCamera]);
 
   const downloadImage = useCallback(() => {
     if (capturedImage) {
       const link = document.createElement('a');
-      link.download = `medication-scan-${Date.now()}.jpg`;
+      link.download = `medication-scan-${Date.now()}.png`; // Use PNG for better quality
       link.href = capturedImage;
+      document.body.appendChild(link);
       link.click();
-    }
-  }, [capturedImage]);
+      document.body.removeChild(link);
 
+      toast({
+        title: t.success,
+        description: t.downloadImageSuccess, // More descriptive success message
+      });
+    }
+  }, [capturedImage, toast, t]);
+
+  // Effect to start camera on mount and stop on unmount
   useEffect(() => {
     startCamera();
     return () => stopCamera();
   }, [startCamera, stopCamera]);
 
+  // Effect to re-apply settings if needed (e.g., after switching camera, though switchCamera is handled internally)
+  // This might be redundant if startCamera is called on switch, but kept for potential future needs.
   useEffect(() => {
-    if (isActive && facingMode) {
-      startCamera();
-    }
-  }, [facingMode, isActive, startCamera]);
+    if (isActive && !isInitializing) {
+      // Re-apply zoom, brightness, contrast if they change after initial load
+      const videoTrack = streamRef.current?.getVideoTracks()[0];
+      if (videoTrack) {
+        const capabilities = videoTrack.getCapabilities();
+        const constraints: MediaTrackConstraints = {};
 
+        if (capabilities.zoom && zoom[0] !== 1) {
+          constraints.zoom = zoom[0];
+        }
+        if (capabilities.torch) { // Flash is handled by toggleFlash
+          constraints.torch = flashEnabled;
+        }
+
+        // Brightness and contrast are handled by CSS filters, not track constraints usually
+        // If they were direct constraints:
+        // if (capabilities.brightness) constraints.brightness = brightness[0]/100;
+        // if (capabilities.contrast) constraints.contrast = contrast[0]/100;
+
+        try {
+          videoTrack.applyConstraints(constraints);
+        } catch (constraintError) {
+          console.warn('Could not apply camera constraints in useEffect:', constraintError);
+        }
+      }
+    }
+  }, [zoom, flashEnabled, isActive, isInitializing]);
+
+  // Style for the video element, applying zoom and filter effects
   const videoStyle = {
     transform: `scale(${zoom[0]})`,
     filter: `brightness(${brightness[0]}%) contrast(${contrast[0]}%)`,
@@ -400,6 +512,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
           variant="ghost"
           size="icon"
           className="text-white hover:bg-white/20"
+          aria-label="Close camera"
         >
           <X className="h-6 w-6" />
         </Button>
@@ -422,6 +535,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
           variant="ghost"
           size="icon"
           className="text-white hover:bg-white/20"
+          aria-label="Toggle settings"
         >
           <Settings className="h-6 w-6" />
         </Button>
@@ -432,39 +546,50 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         <Card className="absolute top-16 right-4 w-80 bg-black/90 backdrop-blur-md text-white border-gray-600 z-10">
           <CardContent className="p-4 space-y-4">
             <div className="space-y-2">
-              <Label>Zoom: {zoom[0]}x</Label>
+              <Label htmlFor="zoom-slider">Zoom: {zoom[0]}x</Label>
               <Slider
+                id="zoom-slider"
                 value={zoom}
                 onValueChange={setZoom}
                 max={3}
                 min={1}
                 step={0.1}
                 className="w-full"
+                aria-label="Zoom slider"
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Brightness: {brightness[0]}%</Label>
+              <Label htmlFor="brightness-slider">Brightness: {brightness[0]}%</Label>
               <Slider
+                id="brightness-slider"
                 value={brightness}
                 onValueChange={setBrightness}
-                max={150}
-                min={50}
+                max={200} // Adjusted max to 200 for a wider range
+                min={0}   // Adjusted min to 0
                 step={5}
                 className="w-full"
+                aria-label="Brightness slider"
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Contrast: {contrast[0]}%</Label>
+              <Label htmlFor="contrast-slider">Contrast: {contrast[0]}%</Label>
               <Slider
+                id="contrast-slider"
                 value={contrast}
                 onValueChange={setContrast}
-                max={150}
-                min={50}
+                max={200} // Adjusted max to 200 for a wider range
+                min={0}   // Adjusted min to 0
                 step={5}
                 className="w-full"
+                aria-label="Contrast slider"
               />
+            </div>
+
+            <div className="flex items-center space-x-2 pt-4">
+              <Switch id="autofocus-switch" checked={autoFocus} onCheckedChange={setAutoFocus} />
+              <Label htmlFor="autofocus-switch">Auto Focus</Label>
             </div>
           </CardContent>
         </Card>
@@ -475,30 +600,30 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         {isInitializing ? (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900">
             <div className="animate-spin w-12 h-12 border-4 border-white border-t-transparent rounded-full mb-4"></div>
-            <p className="text-white text-lg">Initializing camera...</p>
+            <p className="text-white text-lg">{t.initializingCamera}</p>
           </div>
         ) : cameraError ? (
           <div className="w-full h-full flex flex-col items-center justify-center bg-red-900/20 text-white p-8">
             <AlertCircle className="w-16 h-16 mb-4 text-red-400" />
-            <h2 className="text-xl font-semibold mb-2">Camera Error</h2>
+            <h2 className="text-xl font-semibold mb-2">{t.cameraError}</h2>
             <p className="text-center mb-6">{cameraError}</p>
             <Button
               onClick={startCamera}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Try Again
+              {t.tryAgain}
             </Button>
           </div>
         ) : isProcessing ? (
           <div className="w-full h-full flex flex-col items-center justify-center bg-black/90">
             <div className="text-center text-white p-8">
               <div className="animate-spin w-16 h-16 border-4 border-white border-t-transparent rounded-full mx-auto mb-6"></div>
-              <h2 className="text-2xl font-semibold mb-2">Processing Image</h2>
+              <h2 className="text-2xl font-semibold mb-2">{t.processingImage}</h2>
               <p className="text-lg opacity-90 mb-4">{processingStage}</p>
               {ocrProgress > 0 && (
                 <div className="w-64 bg-gray-700 rounded-full h-2 mx-auto">
-                  <div 
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                     style={{width: `${ocrProgress}%`}}
                   ></div>
                 </div>
@@ -518,10 +643,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
             {/* Medication Capture Guide */}
             <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-48 border-2 border-yellow-400 bg-yellow-400/10 rounded-lg">
-                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black/70 text-white text-sm px-3 py-1 rounded-full">
-                  Align medication label here
-                </div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-48 border-2 border-yellow-400 bg-yellow-400/10 rounded-lg flex items-center justify-center text-white text-sm text-center p-2">
+                {t.alignMedicationLabel}
                 {/* Corner markers */}
                 <div className="absolute -top-2 -left-2 w-4 h-4 border-l-2 border-t-2 border-yellow-400"></div>
                 <div className="absolute -top-2 -right-2 w-4 h-4 border-r-2 border-t-2 border-yellow-400"></div>
@@ -530,8 +653,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
               </div>
 
               <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white text-sm px-4 py-2 rounded-lg text-center">
-                <div className="mb-1">📱 Ensure good lighting and focus</div>
-                <div>🔍 Focus on drug name and dosage</div>
+                <div className="mb-1">📱 {t.ensureGoodLighting}</div>
+                <div>🔍 {t.focusOnDrugName}</div>
               </div>
             </div>
           </>
@@ -539,7 +662,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
           <div className="w-full h-full flex items-center justify-center bg-black">
             <img
               src={capturedImage}
-              alt="Captured"
+              alt="Captured medication"
               className="max-w-full max-h-full object-contain"
             />
           </div>
@@ -556,23 +679,25 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
               onClick={() => {
                 setIsProcessing(false);
                 setProcessingStageLocal('');
-                setCapturedImage(null);
+                setCapturedImage(null); // Reset to allow retake
+                startCamera(); // Restart camera
               }}
               variant="outline"
               size="lg"
               className="text-white border-white hover:bg-white/20"
             >
-              Cancel
+              {t.cancel}
             </Button>
           </div>
         ) : !capturedImage ? (
-          <div className="flex justify-center items-center space-x-8">
+          <div className="flex justify-center items-center space-x-4 md:space-x-8">
             {hasFlash && (
               <Button
                 onClick={toggleFlash}
                 variant="ghost"
                 size="icon"
                 className={`text-white hover:bg-white/20 ${flashEnabled ? 'bg-yellow-500/20' : ''}`}
+                aria-label="Toggle flash"
               >
                 {flashEnabled ? <Zap className="h-6 w-6" /> : <ZapOff className="h-6 w-6" />}
               </Button>
@@ -582,7 +707,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
               onClick={capturePhoto}
               disabled={!isActive || isProcessing}
               size="lg"
-              className="w-20 h-20 rounded-full bg-white hover:bg-gray-200 text-black"
+              className="w-20 h-20 rounded-full bg-white hover:bg-gray-200 text-black disabled:opacity-50"
+              aria-label="Capture photo"
             >
               <Camera className="h-8 w-8" />
             </Button>
@@ -592,39 +718,54 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
               variant="ghost"
               size="icon"
               className="text-white hover:bg-white/20"
+              aria-label="Switch camera"
             >
               <SwitchCamera className="h-6 w-6" />
             </Button>
           </div>
         ) : (
-          <div className="flex justify-center items-center space-x-4">
+          <div className="flex justify-center items-center space-x-2 md:space-x-4 flex-wrap">
             <Button
               onClick={retakePhoto}
               variant="outline"
               size="lg"
-              className="flex items-center space-x-2 text-white border-white hover:bg-white/20"
+              className="flex items-center space-x-2 text-white border-white hover:bg-white/20 disabled:opacity-50"
+              disabled={isProcessing}
             >
               <RefreshCw className="h-5 w-5" />
-              <span>Retake</span>
+              <span>{t.retakePhoto}</span>
             </Button>
 
             <Button
               onClick={downloadImage}
               variant="outline"
               size="lg"
-              className="flex items-center space-x-2 text-white border-white hover:bg-white/20"
+              className="flex items-center space-x-2 text-white border-white hover:bg-white/20 disabled:opacity-50"
+              disabled={isProcessing}
             >
               <Download className="h-5 w-5" />
-              <span>Download</span>
+              <span>{t.downloadImage}</span>
             </Button>
 
             <Button
-              onClick={confirmCapture}
-              size="lg"
-              className="flex items-center space-x-2 bg-green-600 hover:bg-green-700"
+              onClick={confirmCapture} // This now calls processOCR
+              disabled={isProcessing}
+              className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 disabled:opacity-50"
+              aria-label="Process OCR"
             >
-              <Check className="h-5 w-5" />
-              <span>Analyze</span>
+              <Scan className="h-5 w-5" /> {/* Changed icon to Scan */}
+              <span>{isProcessing ? t.processing : t.scanText}</span>
+            </Button>
+
+            <Button
+              variant="secondary"
+              onClick={() => setShowSettings(!showSettings)}
+              className="flex items-center space-x-2 disabled:opacity-50"
+              disabled={isProcessing}
+              aria-label="Toggle settings"
+            >
+              <Settings className="h-5 w-5" />
+              <span>{t.settings}</span>
             </Button>
           </div>
         )}

@@ -5,6 +5,7 @@ import { createWorker } from "tesseract.js";
 import { storage } from "./storage";
 import { drugSearchResponseSchema, insertMedicationSchema, insertSearchHistorySchema } from "@shared/schema";
 import { z } from "zod";
+import { fullComprehensiveDrugsDatabase } from "./comprehensive-drugs-database";
 
 interface MulterRequest extends Request {
   file?: Express.Multer.File;

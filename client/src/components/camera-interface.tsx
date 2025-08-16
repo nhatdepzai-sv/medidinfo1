@@ -72,34 +72,54 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         throw new Error('Camera not supported by this browser');
       }
 
+      console.log('Requesting camera with constraints:', getConstraints());
       const stream = await navigator.mediaDevices.getUserMedia(getConstraints());
       streamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
 
-        // Wait for video to load
+        // Wait for video to load with better error handling
         await new Promise<void>((resolve, reject) => {
           if (!videoRef.current) {
             reject(new Error('Video element not available'));
             return;
           }
 
-          videoRef.current.onloadedmetadata = () => resolve();
-          videoRef.current.onerror = () => reject(new Error('Video load error'));
+          const handleLoadedMetadata = () => {
+            console.log('Video metadata loaded');
+            resolve();
+          };
 
-          // Timeout after 10 seconds
-          setTimeout(() => reject(new Error('Camera timeout')), 10000);
+          const handleError = (e: Event) => {
+            console.error('Video load error:', e);
+            reject(new Error('Video load error'));
+          };
+
+          videoRef.current.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
+          videoRef.current.addEventListener('error', handleError, { once: true });
+
+          // Timeout after 15 seconds
+          setTimeout(() => {
+            if (videoRef.current) {
+              videoRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+              videoRef.current.removeEventListener('error', handleError);
+            }
+            reject(new Error('Camera initialization timeout'));
+          }, 15000);
         });
 
+        console.log('Starting video playback');
         await videoRef.current.play();
         setIsActive(true);
+        console.log('Camera is now active');
 
         // Check for flash capability
         const videoTrack = stream.getVideoTracks()[0];
         if (videoTrack) {
           const capabilities = videoTrack.getCapabilities();
           setHasFlash(!!capabilities.torch);
+          console.log('Camera capabilities:', capabilities);
         }
       }
     } catch (error: any) {
@@ -112,22 +132,32 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         errorMessage = 'No camera found on this device.';
       } else if (error.name === 'NotReadableError') {
         errorMessage = 'Camera is being used by another application.';
+      } else if (error.name === 'OverconstrainedError') {
+        errorMessage = 'Camera constraints not supported. Trying with basic settings...';
+        // Try with basic constraints
+        try {
+          const basicStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          streamRef.current = basicStream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = basicStream;
+            await videoRef.current.play();
+            setIsActive(true);
+            return;
+          }
+        } catch (basicError) {
+          console.error('Basic camera access also failed:', basicError);
+          errorMessage = 'Camera access failed with basic settings';
+        }
       } else if (error.message) {
         errorMessage = error.message;
       }
 
       setCameraError(errorMessage);
       setError(errorMessage);
-      // Use toast for camera errors
-      toast({
-        title: t.cameraError,
-        description: errorMessage,
-        variant: "destructive",
-      });
     } finally {
       setIsInitializing(false);
     }
-  }, [getConstraints, setError, toast, t]);
+  }, [getConstraints, setError]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -601,19 +631,72 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         {isInitializing ? (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900">
             <div className="animate-spin w-12 h-12 border-4 border-white border-t-transparent rounded-full mb-4"></div>
-            <p className="text-white text-lg">{t.initializingCamera}</p>
+            <p className="text-white text-lg">Initializing Camera...</p>
+            <p className="text-gray-400 text-sm mt-2">Please allow camera permissions</p>
+            
+            {/* Show sample content while loading */}
+            <div className="mt-8 bg-white/5 rounded-lg p-4 max-w-sm">
+              <div className="flex items-center space-x-3 mb-3">
+                <Pill className="w-8 h-8 text-blue-400" />
+                <div>
+                  <h3 className="text-white font-medium">100,000+ Medications</h3>
+                  <p className="text-gray-400 text-xs">English & Vietnamese supported</p>
+                </div>
+              </div>
+              <div className="text-xs text-gray-400">
+                • Instant OCR recognition<br/>
+                • Comprehensive drug database<br/>
+                • Dosage & safety information
+              </div>
+            </div>
           </div>
         ) : cameraError ? (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-red-900/20 text-white p-8">
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-white p-8">
             <AlertCircle className="w-16 h-16 mb-4 text-red-400" />
-            <h2 className="text-xl font-semibold mb-2">{t.cameraError}</h2>
-            <p className="text-center mb-6">{cameraError}</p>
-            <Button
-              onClick={startCamera}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {t.tryAgain}
-            </Button>
+            <h2 className="text-xl font-semibold mb-2">Camera Error</h2>
+            <p className="text-center mb-6 text-gray-300">{cameraError}</p>
+            
+            {/* Show sample medication for demo */}
+            <div className="bg-white/10 rounded-lg p-6 mb-6 text-center">
+              <Pill className="w-12 h-12 text-blue-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold mb-2">Demo Mode</h3>
+              <p className="text-sm text-gray-300 mb-4">
+                Camera unavailable. Here's a sample medication from our database:
+              </p>
+              <div className="bg-blue-600/20 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-200">Acetaminophen (Paracetamol)</h4>
+                <p className="text-sm text-gray-300 mt-1">Pain reliever - 500mg tablets</p>
+                <p className="text-xs text-gray-400 mt-2">Adult dosage: 500-1000mg every 4-6 hours</p>
+              </div>
+            </div>
+            
+            <div className="flex space-x-3">
+              <Button
+                onClick={startCamera}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Try Again
+              </Button>
+              <Button
+                onClick={() => {
+                  // Simulate finding a medication
+                  onMedicationFound({
+                    id: "med-001",
+                    name: "Acetaminophen",
+                    nameVi: "Paracetamol",
+                    category: "Pain Reliever",
+                    primaryUse: "Pain relief and fever reduction",
+                    adultDosage: "500-1000mg every 4-6 hours",
+                    warnings: ["Do not exceed 4000mg daily", "Avoid alcohol"]
+                  });
+                  onClose();
+                }}
+                variant="outline"
+                className="text-white border-white hover:bg-white/20"
+              >
+                Use Sample
+              </Button>
+            </div>
           </div>
         ) : isProcessing ? (
           <div className="w-full h-full flex flex-col items-center justify-center bg-black/90">

@@ -60,6 +60,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     try {
       setIsInitializing(true);
       setCameraError('');
+      setIsActive(false);
 
       // Stop existing stream
       if (streamRef.current) {
@@ -79,6 +80,11 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
 
+        // Set video properties for better display
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.setAttribute('autoplay', 'true');
+        videoRef.current.setAttribute('muted', 'true');
+
         // Wait for video to load with better error handling
         await new Promise<void>((resolve, reject) => {
           if (!videoRef.current) {
@@ -87,8 +93,16 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
           }
 
           const handleLoadedMetadata = () => {
-            console.log('Video metadata loaded');
+            console.log('Video metadata loaded, dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
+            setIsActive(true);
             resolve();
+          };
+
+          const handleCanPlay = () => {
+            console.log('Video can play');
+            if (!isActive) {
+              setIsActive(true);
+            }
           };
 
           const handleError = (e: Event) => {
@@ -97,21 +111,28 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
           };
 
           videoRef.current.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
+          videoRef.current.addEventListener('canplay', handleCanPlay, { once: true });
           videoRef.current.addEventListener('error', handleError, { once: true });
 
-          // Timeout after 15 seconds
+          // Start playing immediately
+          videoRef.current.play().catch((playError) => {
+            console.error('Play error:', playError);
+            reject(playError);
+          });
+
+          // Timeout after 10 seconds
           setTimeout(() => {
             if (videoRef.current) {
               videoRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+              videoRef.current.removeEventListener('canplay', handleCanPlay);
               videoRef.current.removeEventListener('error', handleError);
             }
-            reject(new Error('Camera initialization timeout'));
-          }, 15000);
+            if (!isActive) {
+              reject(new Error('Camera initialization timeout'));
+            }
+          }, 10000);
         });
 
-        console.log('Starting video playback');
-        await videoRef.current.play();
-        setIsActive(true);
         console.log('Camera is now active');
 
         // Check for flash capability
@@ -140,8 +161,12 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
           streamRef.current = basicStream;
           if (videoRef.current) {
             videoRef.current.srcObject = basicStream;
+            videoRef.current.setAttribute('playsinline', 'true');
+            videoRef.current.setAttribute('autoplay', 'true');
+            videoRef.current.setAttribute('muted', 'true');
             await videoRef.current.play();
             setIsActive(true);
+            console.log('Basic camera access successful');
             return;
           }
         } catch (basicError) {
@@ -157,7 +182,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     } finally {
       setIsInitializing(false);
     }
-  }, [getConstraints, setError]);
+  }, [getConstraints, setError, isActive]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -732,12 +757,26 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
           <>
             <video
               ref={videoRef}
-              className="w-full h-full object-cover"
-              style={videoStyle}
+              className="w-full h-full object-cover bg-black"
+              style={{
+                ...videoStyle,
+                display: isActive ? 'block' : 'none'
+              }}
               playsInline
               muted
               autoPlay
+              webkit-playsinline="true"
             />
+            
+            {/* Loading overlay while camera is starting */}
+            {!isActive && !cameraError && (
+              <div className="absolute inset-0 bg-black flex items-center justify-center">
+                <div className="text-white text-center">
+                  <div className="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full mx-auto mb-2"></div>
+                  <p>Starting camera...</p>
+                </div>
+              </div>
+            )}
 
             {/* Medication Capture Guide */}
             <div className="absolute inset-0 pointer-events-none">

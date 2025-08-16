@@ -40,6 +40,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
   const [ocrProgress, setOcrProgress] = useState(0);
   const [detectedText, setDetectedText] = useState<string>('');
   const [searchResult, setSearchResult] = useState<any>({});
+  const [autoFocus, setAutoFocus] = useState(true);
   const { toast } = useToast(); // Initialize useToast
 
   const getConstraints = useCallback(() => {

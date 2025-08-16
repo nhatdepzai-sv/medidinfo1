@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo } from 'react';
 import { Search, Scan, History, User, Pill } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import DrugResults from '@/components/drug-results';
 import BottomNavigation from '@/components/bottom-navigation';
 import { useLanguage } from '@/contexts/language-context';
 import { useLocation } from 'wouter';
+import LanguageSwitcher from '../components/language-switcher';
 
 // Memoized quick actions to prevent re-renders
 const QuickActions = React.memo(({ onScanClick, onSearchClick, onHistoryClick, onPillIdClick }: {
@@ -18,7 +18,7 @@ const QuickActions = React.memo(({ onScanClick, onSearchClick, onHistoryClick, o
   onPillIdClick: () => void;
 }) => {
   const { t } = useLanguage();
-  
+
   const actions = useMemo(() => [
     { icon: Scan, label: t('scanMedication') || 'Scan', color: 'bg-blue-500', onClick: onScanClick },
     { icon: Search, label: t('searchDrugs') || 'Search', color: 'bg-green-500', onClick: onSearchClick },
@@ -47,7 +47,7 @@ QuickActions.displayName = 'QuickActions';
 // Memoized recent searches to prevent re-renders
 const RecentSearches = React.memo(() => {
   const { t } = useLanguage();
-  
+
   const recentItems = useMemo(() => [
     'Aspirin', 'Ibuprofen', 'Paracetamol', 'Amoxicillin'
   ], []);
@@ -80,7 +80,7 @@ export default function Home() {
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) return;
-    
+
     setIsLoading(true);
     try {
       const response = await fetch(`/api/search-medications?query=${encodeURIComponent(searchQuery)}`);
@@ -143,7 +143,7 @@ export default function Home() {
 
   return (
     <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
-      {/* Header - Optimized with fixed height */}
+      {/* Header with Language Switcher */}
       <header className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 shadow-lg sticky top-0 z-10">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
@@ -155,6 +155,7 @@ export default function Home() {
               <p className="text-blue-100 text-sm">{t('medicationScanner') || 'Medication Scanner'}</p>
             </div>
           </div>
+          <LanguageSwitcher />
         </div>
 
         {/* Search Bar - Inline for better performance */}
@@ -195,7 +196,7 @@ export default function Home() {
               onPillIdClick={handlePillIdClick}
             />
             <RecentSearches />
-            
+
             {/* Tips Card - Lazy loaded */}
             <Card className="bg-gradient-to-r from-green-50 to-blue-50">
               <CardContent className="p-4">

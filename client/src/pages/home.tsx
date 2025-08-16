@@ -95,7 +95,27 @@ export default function Home() {
   }, []);
 
   if (showCamera) {
-    return <CameraInterface onClose={handleCameraToggle} />;
+    return (
+      <CameraInterface 
+        onClose={handleCameraToggle}
+        onCapture={(imageData) => {
+          console.log('Image captured:', imageData);
+        }}
+        onMedicationFound={(medication) => {
+          console.log('Medication found:', medication);
+          setSearchResults({
+            success: true,
+            medications: [medication]
+          });
+        }}
+        setError={(error) => {
+          console.error('Camera error:', error);
+        }}
+        setProcessingStage={(stage) => {
+          console.log('Processing stage:', stage);
+        }}
+      />
+    );
   }
 
   return (

@@ -28,14 +28,35 @@ export class MemStorage implements IStorage {
     this.users = new Map();
     this.medications = new Map();
     this.searchHistory = new Map();
+    // Initialize medications synchronously to ensure they're available immediately
     this.initializeMedications();
   }
 
-  private async initializeMedications() {
+  private initializeMedications() {
     // Populate the database with initial medications
     for (const med of medicationsDatabase) {
-      await this.createMedication(med);
+      const id = randomUUID();
+      const medication: Medication = {
+        id,
+        name: med.name,
+        nameVi: med.nameVi || null,
+        genericName: med.genericName || null,
+        genericNameVi: med.genericNameVi || null,
+        category: med.category || null,
+        categoryVi: med.categoryVi || null,
+        primaryUse: med.primaryUse || null,
+        primaryUseVi: med.primaryUseVi || null,
+        adultDosage: med.adultDosage || null,
+        adultDosageVi: med.adultDosageVi || null,
+        maxDosage: med.maxDosage || null,
+        maxDosageVi: med.maxDosageVi || null,
+        warnings: med.warnings || null,
+        warningsVi: med.warningsVi || null,
+        createdAt: new Date(),
+      };
+      this.medications.set(id, medication);
     }
+    console.log(`✅ Initialized ${this.medications.size} medications in storage`);
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -87,12 +108,19 @@ export class MemStorage implements IStorage {
     const medication: Medication = {
       id,
       name: insertMedication.name,
+      nameVi: insertMedication.nameVi || null,
       genericName: insertMedication.genericName || null,
+      genericNameVi: insertMedication.genericNameVi || null,
       category: insertMedication.category || null,
+      categoryVi: insertMedication.categoryVi || null,
       primaryUse: insertMedication.primaryUse || null,
+      primaryUseVi: insertMedication.primaryUseVi || null,
       adultDosage: insertMedication.adultDosage || null,
+      adultDosageVi: insertMedication.adultDosageVi || null,
       maxDosage: insertMedication.maxDosage || null,
+      maxDosageVi: insertMedication.maxDosageVi || null,
       warnings: insertMedication.warnings || null,
+      warningsVi: insertMedication.warningsVi || null,
       createdAt: new Date(),
     };
     this.medications.set(id, medication);

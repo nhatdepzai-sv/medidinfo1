@@ -159,29 +159,44 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       return;
     }
 
-    // Set canvas size
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
+    // Set canvas size to higher resolution for better OCR
+    canvas.width = video.videoWidth || 1920;
+    canvas.height = video.videoHeight || 1080;
 
     // Draw video frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Apply simple brightness and contrast
+    // Enhanced image preprocessing for OCR
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
     const brightnessValue = brightness[0] / 100;
     const contrastValue = contrast[0] / 100;
 
+    // Apply brightness, contrast and sharpening
     for (let i = 0; i < data.length; i += 4) {
+      // Convert to grayscale for better text recognition
+      const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+      
       // Apply brightness and contrast
-      data[i] = Math.min(255, Math.max(0, ((data[i] - 128) * contrastValue + 128) * brightnessValue));
-      data[i + 1] = Math.min(255, Math.max(0, ((data[i + 1] - 128) * contrastValue + 128) * brightnessValue));
-      data[i + 2] = Math.min(255, Math.max(0, ((data[i + 2] - 128) * contrastValue + 128) * brightnessValue));
+      let newValue = ((gray - 128) * contrastValue + 128) * brightnessValue;
+      
+      // Enhance contrast for text (make text more black/white)
+      if (newValue > 128) {
+        newValue = Math.min(255, newValue * 1.2);
+      } else {
+        newValue = Math.max(0, newValue * 0.8);
+      }
+      
+      data[i] = newValue;     // R
+      data[i + 1] = newValue; // G
+      data[i + 2] = newValue; // B
+      // Alpha channel stays the same
     }
 
     ctx.putImageData(imageData, 0, 0);
 
-    const imageData64 = canvas.toDataURL('image/jpeg', 0.9);
+    // Use higher quality for OCR processing
+    const imageData64 = canvas.toDataURL('image/png', 1.0);
     setCapturedImage(imageData64);
     onCapture(imageData64);
   }, [brightness, contrast, isActive, setError, onCapture]);
@@ -196,7 +211,9 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       const Tesseract = await import('tesseract.js');
       
       setProcessingStageLocal('Loading OCR engine...');
-      const worker = await Tesseract.createWorker('eng', 1, {
+      
+      // Initialize worker with multiple languages for better recognition
+      const worker = await Tesseract.createWorker(['eng', 'vie'], 1, {
         logger: m => {
           if (m.status === 'recognizing text') {
             setProcessingStageLocal(`Recognizing text... ${Math.round(m.progress * 100)}%`);
@@ -205,78 +222,42 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         }
       });
 
+      // Enhanced OCR parameters for better medication text recognition
       await worker.setParameters({
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-.,() ',
-        tessedit_pageseg_mode: 6,
-        preserve_interword_spaces: '1'
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-.,()/ %',
+        tessedit_pageseg_mode: 6, // Uniform block of text
+        preserve_interword_spaces: '1',
+        tessedit_ocr_engine_mode: 1, // Neural nets LSTM engine
+        tessedit_do_invert: '0',
+        classify_bln_numeric_mode: '0'
       });
 
-      const { data: { text } } = await worker.recognize(imageSrc);
-      await worker.terminate();
-
-      const cleanText = text.trim();
-      setDetectedText(cleanText);
-
-      if (cleanText) {
-        setProcessingStageLocal('Searching medications...');
+      // First pass with standard recognition
+      setProcessingStageLocal('Analyzing image...');
+      const { data: { text: rawText, confidence } } = await worker.recognize(imageSrc);
+      
+      console.log(`OCR confidence: ${confidence}%, raw text: "${rawText}"`);
+      
+      // If confidence is low, try with different parameters
+      if (confidence < 70) {
+        setProcessingStageLocal('Enhancing recognition...');
+        await worker.setParameters({
+          tessedit_pageseg_mode: 8, // Single word
+          tessedit_char_blacklist: '|\\~`@#$^&*+=[]{};"<>?'
+        });
         
-        // Extract words for searching
-        const words = cleanText
-          .split(/[\s\n\r,.-]+/)
-          .filter(word => word.length > 2 && /^[A-Za-z][A-Za-z0-9-]*$/.test(word))
-          .slice(0, 5); // Limit to first 5 words
-
-        // Search for medications
-        const searchPromises = words.map(async (word) => {
-          try {
-            const response = await fetch(`/api/search-medications?query=${encodeURIComponent(word)}`);
-            return await response.json();
-          } catch (error) {
-            console.error(`Search error for word "${word}":`, error);
-            return { success: false, medications: [] };
-          }
-        });
-
-        const searchResults = await Promise.all(searchPromises);
-        const allMedications = [];
-        const medicationIds = new Set();
-
-        for (const result of searchResults) {
-          if (result.success && result.medications) {
-            for (const med of result.medications) {
-              if (!medicationIds.has(med.id)) {
-                medicationIds.add(med.id);
-                allMedications.push(med);
-              }
-            }
-          }
-        }
-
-        if (allMedications.length > 0) {
-          setSearchResult({
-            success: true,
-            medications: allMedications,
-            message: `Found ${allMedications.length} medication(s)`
-          });
-          setProcessingStageLocal("Medication found!");
-          
-          setTimeout(() => {
-            onMedicationFound(allMedications[0]);
-            onClose();
-          }, 1000);
-        } else {
-          setSearchResult({
-            success: false,
-            message: `No medication found for: "${cleanText}"`
-          });
-          setProcessingStageLocal("No medication found");
-        }
+        const { data: { text: enhancedText } } = await worker.recognize(imageSrc);
+        const finalText = enhancedText.length > rawText.length ? enhancedText : rawText;
+        await worker.terminate();
+        
+        const cleanText = finalText.trim();
+        setDetectedText(cleanText);
+        await searchMedications(cleanText);
       } else {
-        setSearchResult({
-          success: false,
-          message: 'No text detected in image'
-        });
-        setProcessingStageLocal("No text detected");
+        await worker.terminate();
+        const cleanText = rawText.trim();
+        setDetectedText(cleanText);
+        await searchMedications(cleanText);
       }
     } catch (error) {
       console.error('OCR Error:', error);
@@ -288,6 +269,87 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     } finally {
       setIsProcessing(false);
       setOcrProgress(0);
+    }
+  }, [onMedicationFound, onClose]);
+
+  const searchMedications = useCallback(async (text: string) => {
+    if (text) {
+      setProcessingStageLocal('Searching medications...');
+      
+      // Enhanced text preprocessing for better medication name extraction
+      const preprocessedText = text
+        .replace(/[^\w\s.-]/g, ' ') // Remove special characters except word chars, spaces, dots, hyphens
+        .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+        .trim();
+
+      // Extract potential medication names using multiple strategies
+      const words = preprocessedText
+        .split(/[\s\n\r,.-]+/)
+        .filter(word => word.length > 2)
+        .filter(word => /^[A-Za-z][A-Za-z0-9-]*$/.test(word));
+
+      // Also try to extract complete phrases that might be medication names
+      const phrases = preprocessedText
+        .split(/[,.;:\n\r]+/)
+        .map(phrase => phrase.trim())
+        .filter(phrase => phrase.length > 3 && phrase.length < 50);
+
+      // Combine words and phrases for searching
+      const searchTerms = [...new Set([...words.slice(0, 8), ...phrases.slice(0, 3)])];
+
+      console.log('Search terms extracted:', searchTerms);
+
+      // Search for medications
+      const searchPromises = searchTerms.map(async (term) => {
+        try {
+          const response = await fetch(`/api/search-medications?query=${encodeURIComponent(term)}`);
+          return await response.json();
+        } catch (error) {
+          console.error(`Search error for term "${term}":`, error);
+          return { success: false, medications: [] };
+        }
+      });
+
+      const searchResults = await Promise.all(searchPromises);
+      const allMedications = [];
+      const medicationIds = new Set();
+
+      for (const result of searchResults) {
+        if (result.success && result.medications) {
+          for (const med of result.medications) {
+            if (!medicationIds.has(med.id)) {
+              medicationIds.add(med.id);
+              allMedications.push(med);
+            }
+          }
+        }
+      }
+
+      if (allMedications.length > 0) {
+        setSearchResult({
+          success: true,
+          medications: allMedications,
+          message: `Found ${allMedications.length} medication(s)`
+        });
+        setProcessingStageLocal("Medication found!");
+        
+        setTimeout(() => {
+          onMedicationFound(allMedications[0]);
+          onClose();
+        }, 1000);
+      } else {
+        setSearchResult({
+          success: false,
+          message: `No medication found for: "${text}"`
+        });
+        setProcessingStageLocal("No medication found");
+      }
+    } else {
+      setSearchResult({
+        success: false,
+        message: 'No text detected in image'
+      });
+      setProcessingStageLocal("No text detected");
     }
   }, [onMedicationFound, onClose]);
 

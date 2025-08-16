@@ -8,22 +8,28 @@ import CameraInterface from '@/components/camera-interface';
 import DrugResults from '@/components/drug-results';
 import BottomNavigation from '@/components/bottom-navigation';
 import { useLanguage } from '@/contexts/language-context';
+import { useLocation } from 'wouter';
 
 // Memoized quick actions to prevent re-renders
-const QuickActions = React.memo(() => {
+const QuickActions = React.memo(({ onScanClick, onSearchClick, onHistoryClick, onPillIdClick }: {
+  onScanClick: () => void;
+  onSearchClick: () => void;
+  onHistoryClick: () => void;
+  onPillIdClick: () => void;
+}) => {
   const { t } = useLanguage();
   
   const actions = useMemo(() => [
-    { icon: Scan, label: t('scanMedication') || 'Scan', color: 'bg-blue-500' },
-    { icon: Search, label: t('searchDrugs') || 'Search', color: 'bg-green-500' },
-    { icon: History, label: t('history') || 'History', color: 'bg-purple-500' },
-    { icon: Pill, label: t('pillId') || 'Pill ID', color: 'bg-orange-500' }
-  ], [t]);
+    { icon: Scan, label: t('scanMedication') || 'Scan', color: 'bg-blue-500', onClick: onScanClick },
+    { icon: Search, label: t('searchDrugs') || 'Search', color: 'bg-green-500', onClick: onSearchClick },
+    { icon: History, label: t('history') || 'History', color: 'bg-purple-500', onClick: onHistoryClick },
+    { icon: Pill, label: t('pillId') || 'Pill ID', color: 'bg-orange-500', onClick: onPillIdClick }
+  ], [t, onScanClick, onSearchClick, onHistoryClick, onPillIdClick]);
 
   return (
     <div className="grid grid-cols-2 gap-3 mb-6">
       {actions.map((action, index) => (
-        <Card key={index} className="transition-all hover:shadow-md">
+        <Card key={index} className="transition-all hover:shadow-md cursor-pointer" onClick={action.onClick}>
           <CardContent className="p-4 text-center">
             <div className={`w-12 h-12 ${action.color} rounded-full mx-auto mb-2 flex items-center justify-center`}>
               <action.icon className="w-6 h-6 text-white" />
@@ -70,6 +76,7 @@ export default function Home() {
   const [showCamera, setShowCamera] = useState(false);
   const [searchResults, setSearchResults] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [location, setLocation] = useLocation();
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) return;
@@ -93,6 +100,22 @@ export default function Home() {
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   }, []);
+
+  const handleScanClick = useCallback(() => {
+    setShowCamera(true);
+  }, []);
+
+  const handleSearchClick = useCallback(() => {
+    document.querySelector('input')?.focus();
+  }, []);
+
+  const handleHistoryClick = useCallback(() => {
+    setLocation('/history');
+  }, [setLocation]);
+
+  const handlePillIdClick = useCallback(() => {
+    setLocation('/translator');
+  }, [setLocation]);
 
   if (showCamera) {
     return (
@@ -165,7 +188,12 @@ export default function Home() {
           <DrugResults results={searchResults} />
         ) : (
           <>
-            <QuickActions />
+            <QuickActions 
+              onScanClick={handleScanClick}
+              onSearchClick={handleSearchClick}
+              onHistoryClick={handleHistoryClick}
+              onPillIdClick={handlePillIdClick}
+            />
             <RecentSearches />
             
             {/* Tips Card - Lazy loaded */}

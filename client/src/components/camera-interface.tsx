@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
-import { Camera, SwitchCamera, Zap, ZapOff, Download, RefreshCw, Settings, X, Check, AlertCircle, Scan } from 'lucide-react';
+import { Camera, SwitchCamera, Zap, ZapOff, Download, RefreshCw, Settings, X, Check, AlertCircle, Scan, Pill } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { useLanguage } from '../contexts/language-context';
@@ -7,8 +7,8 @@ import { Badge } from './ui/badge';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
-import { useToast } from '../hooks/use-toast'; // Assuming useToast is available
-import Tesseract from 'tesseract.js'; // Dynamically imported in processImage
+import { useToast } from '../hooks/use-toast';
+import Tesseract from 'tesseract.js';
 
 interface CameraInterfaceProps {
   onCapture: (imageData: string) => void;
@@ -648,6 +648,20 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
                 • Comprehensive drug database<br/>
                 • Dosage & safety information
               </div>
+            </div>
+            
+            {/* Fallback options */}
+            <div className="mt-6 flex space-x-3">
+              <Button
+                onClick={() => {
+                  setIsInitializing(false);
+                  setCameraError("Camera unavailable - using demo mode");
+                }}
+                variant="outline"
+                className="text-white border-white hover:bg-white/20"
+              >
+                Skip Camera
+              </Button>
             </div>
           </div>
         ) : cameraError ? (

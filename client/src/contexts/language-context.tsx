@@ -271,7 +271,7 @@ const translations = {
     copiedToClipboard: "Đã sao chép vào clipboard",
     medicationInfoCopied: "Thông tin thuốc đã được sao chép vào clipboard của bạn.",
 
-    // Drug categories and types in Vietnamese  
+    // Drug categories and types in Vietnamese
     painReliever: "Thuốc Giảm Đau",
     antiInflammatory: "Thuốc Chống Viêm",
     antibiotic: "Kháng Sinh",

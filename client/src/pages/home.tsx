@@ -239,14 +239,16 @@ export default function Home() {
             placeholder={t('searchMedications') || 'Search medications...'}
             value={searchQuery}
             onChange={handleSearchChange}
-            className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/70 focus:bg-white/20 focus:border-white/40"
-            onKeyPress={(e) => {
+            className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/70 focus:bg-white/20 focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/30"
+            onKeyDown={(e) => {
               if (e.key === 'Enter' && searchQuery.trim()) {
+                e.preventDefault();
                 handleSearch();
               }
             }}
             autoComplete="off"
             autoFocus={false}
+            tabIndex={0}
           />
           <Button
             onClick={handleSearch}

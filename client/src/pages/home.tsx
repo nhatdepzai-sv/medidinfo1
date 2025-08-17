@@ -239,7 +239,12 @@ export default function Home() {
             placeholder={t('searchMedications') || 'Search medications...'}
             value={searchQuery}
             onChange={handleSearchChange}
-            className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/70 focus:bg-white/20 focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="flex-1 bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/40 px-4 py-2 rounded-lg"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              borderColor: 'rgba(255, 255, 255, 0.3)',
+              color: 'white'
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && searchQuery.trim()) {
                 e.preventDefault();

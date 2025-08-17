@@ -463,11 +463,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Search medications endpoint with improved fuzzy matching
-  app.get("/api/search-medications", (req, res) => {
+  app.get('/api/search-medications', async (req, res) => {
     const query = req.query.query as string;
 
+    console.log('Search request received:', { query });
+
     if (!query || query.trim().length < 2) {
-      return res.json({
+      return res.status(400).json({
         success: false,
         message: "Search query must be at least 2 characters long",
         medications: []
@@ -475,6 +477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const searchTerm = query.toLowerCase().trim();
+    console.log('Processing search term:', searchTerm);
 
     try {
       // Enhanced search with fuzzy matching and multiple criteria
@@ -505,23 +508,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         return nameMatch || nameViMatch || genericMatch || genericViMatch || 
                categoryMatch || categoryViMatch || wordMatch || brandMatch;
-      })
-      .sort((a, b) => {
-        // Prioritize exact matches
-        const aExact = a.name.toLowerCase() === searchTerm || a.nameVi?.toLowerCase() === searchTerm;
-        const bExact = b.name.toLowerCase() === searchTerm || b.nameVi?.toLowerCase() === searchTerm;
-
-        if (aExact && !bExact) return -1;
-        if (bExact && !aExact) return 1;
-
-        // Then prioritize starts with matches
-        const aStartsWith = a.name.toLowerCase().startsWith(searchTerm) || a.nameVi?.toLowerCase().startsWith(searchTerm);
-        const bStartsWith = b.name.toLowerCase().startsWith(searchTerm) || b.nameVi?.toLowerCase().startsWith(searchTerm);
-
-        if (aStartsWith && !bStartsWith) return -1;
-        if (bStartsWith && !aStartsWith) return 1;
-
-        return 0;
       })
       .slice(0, 25); // Limit to 25 results
 

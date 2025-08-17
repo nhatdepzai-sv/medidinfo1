@@ -29,18 +29,16 @@ function App() {
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
-            <Router>
-              <div className="min-h-screen bg-gray-50">
-                <Switch>
-                  <Route path="/" component={Home} />
-                  <Route path="/history" component={History} />
-                  <Route path="/translator" component={TranslatorPage} />
-                  <Route path="/profile" component={Profile} />
-                  <Route component={NotFound} />
-                </Switch>
-                <Toaster />
-              </div>
-            </Router>
+            <div className="min-h-screen bg-gray-50">
+              <Switch>
+                <Route path="/" component={Home} />
+                <Route path="/history" component={History} />
+                <Route path="/translator" component={TranslatorPage} />
+                <Route path="/profile" component={Profile} />
+                <Route component={NotFound} />
+              </Switch>
+              <Toaster />
+            </div>
           </TooltipProvider>
         </QueryClientProvider>
       </ThemeProvider>

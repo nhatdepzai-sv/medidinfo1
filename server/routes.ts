@@ -476,81 +476,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const searchTerm = query.toLowerCase().trim();
 
-    // Function to calculate similarity score
-    const calculateSimilarity = (str1: string, str2: string): number => {
-      const longer = str1.length > str2.length ? str1 : str2;
-      const shorter = str1.length > str2.length ? str2 : str1;
+    try {
+      // Enhanced search with fuzzy matching and multiple criteria
+      const results = fullComprehensiveDrugsDatabase.filter(drug => {
+        // Direct matches
+        const nameMatch = drug.name.toLowerCase().includes(searchTerm);
+        const nameViMatch = drug.nameVi?.toLowerCase().includes(searchTerm);
+        const genericMatch = drug.genericName?.toLowerCase().includes(searchTerm);
+        const genericViMatch = drug.genericNameVi?.toLowerCase().includes(searchTerm);
+        const categoryMatch = drug.category?.toLowerCase().includes(searchTerm);
+        const categoryViMatch = drug.categoryVi?.toLowerCase().includes(searchTerm);
 
-      if (longer.length === 0) return 1.0;
+        // Partial word matches for better search results
+        const nameWords = drug.name.toLowerCase().split(/[\s-]+/);
+        const nameViWords = drug.nameVi?.toLowerCase().split(/[\s-]+/) || [];
+        const genericWords = drug.genericName?.toLowerCase().split(/[\s-]+/) || [];
+        const genericViWords = drug.genericNameVi?.toLowerCase().split(/[\s-]+/) || [];
 
-      const distance = levenshteinDistance(longer, shorter);
-      return (longer.length - distance) / longer.length;
-    };
+        const wordMatch = [...nameWords, ...nameViWords, ...genericWords, ...genericViWords]
+          .some(word => word.startsWith(searchTerm) || searchTerm.startsWith(word));
 
-    // Levenshtein distance function for fuzzy matching
-    const levenshteinDistance = (str1: string, str2: string): number => {
-      const matrix = [];
-      for (let i = 0; i <= str2.length; i++) {
-        matrix[i] = [i];
-      }
-      for (let j = 0; j <= str1.length; j++) {
-        matrix[0][j] = j;
-      }
-      for (let i = 1; i <= str2.length; i++) {
-        for (let j = 1; j <= str1.length; j++) {
-          if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-            matrix[i][j] = matrix[i - 1][j - 1];
-          } else {
-            matrix[i][j] = Math.min(
-              matrix[i - 1][j - 1] + 1,
-              matrix[i][j - 1] + 1,
-              matrix[i - 1][j] + 1
-            );
-          }
-        }
-      }
-      return matrix[str2.length][str1.length];
-    };
+        // Brand name matching if available
+        const brandMatch = (drug as any).brandNames?.some((brand: string) => 
+          brand.toLowerCase().includes(searchTerm)
+        ) || (drug as any).brandNamesVi?.some((brand: string) => 
+          brand.toLowerCase().includes(searchTerm)
+        );
 
-    // Search through comprehensive[:10] database with scoring
-    const results = fullComprehensiveDrugsDatabase.map(medication => {
-      const nameScore = calculateSimilarity(medication.name.toLowerCase(), searchTerm);
-      const nameViScore = medication.nameVi ? calculateSimilarity(medication.nameVi.toLowerCase(), searchTerm) : 0;
-      const genericScore = medication.genericName ? calculateSimilarity(medication.genericName.toLowerCase(), searchTerm) : 0;
-      const genericViScore = medication.genericNameVi ? calculateSimilarity(medication.genericNameVi.toLowerCase(), searchTerm) : 0;
+        return nameMatch || nameViMatch || genericMatch || genericViMatch || 
+               categoryMatch || categoryViMatch || wordMatch || brandMatch;
+      })
+      .sort((a, b) => {
+        // Prioritize exact matches
+        const aExact = a.name.toLowerCase() === searchTerm || a.nameVi?.toLowerCase() === searchTerm;
+        const bExact = b.name.toLowerCase() === searchTerm || b.nameVi?.toLowerCase() === searchTerm;
 
-      // Check for exact or partial matches
-      const nameMatch = medication.name.toLowerCase().includes(searchTerm);
-      const nameViMatch = medication.nameVi?.toLowerCase().includes(searchTerm);
-      const genericMatch = medication.genericName?.toLowerCase().includes(searchTerm);
-      const genericViMatch = medication.genericNameVi?.toLowerCase().includes(searchTerm);
+        if (aExact && !bExact) return -1;
+        if (bExact && !aExact) return 1;
 
-      // Calculate final score (prioritize exact matches, then partial matches, then similarity)
-      let score = Math.max(nameScore, nameViScore, genericScore, genericViScore);
+        // Then prioritize starts with matches
+        const aStartsWith = a.name.toLowerCase().startsWith(searchTerm) || a.nameVi?.toLowerCase().startsWith(searchTerm);
+        const bStartsWith = b.name.toLowerCase().startsWith(searchTerm) || b.nameVi?.toLowerCase().startsWith(searchTerm);
 
-      if (nameMatch || nameViMatch || genericMatch || genericViMatch) {
-        score += 0.5; // Boost for partial matches
-      }
+        if (aStartsWith && !bStartsWith) return -1;
+        if (bStartsWith && !aStartsWith) return 1;
 
-      // Exact matches get highest priority
-      if (medication.name.toLowerCase() === searchTerm ||
-          medication.nameVi?.toLowerCase() === searchTerm ||
-          medication.genericName?.toLowerCase() === searchTerm ||
-          medication.genericNameVi?.toLowerCase() === searchTerm) {
-        score += 1.0;
-      }
+        return 0;
+      })
+      .slice(0, 25); // Limit to 25 results
 
-      return { medication, score };
-    })
-    .filter(result => result.score > 0.4) // Only return results with reasonable similarity
-    .sort((a, b) => b.score - a.score) // Sort by score descending
-    .map(result => result.medication);
+      console.log(`Search completed: found ${results.length} results for "${searchTerm}"`);
 
-    res.json({
-      success: results.length > 0,
-      message: results.length > 0 ? `Found ${results.length} medication(s)` : "No medications found",
-      medications: results.slice(0, 10) // Limit to top 10 results
-    });
+      res.json({
+        success: results.length > 0,
+        medications: results,
+        message: results.length > 0 ? 
+          `Found ${results.length} medication${results.length > 1 ? 's' : ''}` : 
+          'No medications found for your search'
+      });
+    } catch (error) {
+      console.error('Search error:', error);
+      res.status(500).json({
+        success: false,
+        medications: [],
+        message: 'Search failed due to server error'
+      });
+    }
   });
 
   const httpServer = createServer(app);

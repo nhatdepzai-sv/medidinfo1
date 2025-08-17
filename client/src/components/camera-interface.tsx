@@ -226,7 +226,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     const flashOverlay = document.createElement('div');
     flashOverlay.className = 'fixed inset-0 bg-white opacity-80 z-50 pointer-events-none';
     document.body.appendChild(flashOverlay);
-    
+
     setTimeout(() => {
       document.body.removeChild(flashOverlay);
     }, 150);
@@ -496,7 +496,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       setProcessingStageLocal("No text detected");
       toast({
         title: t.warning,
-        description: t.noTextDetected,
+        description: t.textNotDetected,
       });
     }
   }, [onMedicationFound, onClose, toast, t]);
@@ -536,10 +536,10 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
   // Live scanning function
   const performLiveScan = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current || !isActive || isProcessing) return;
-    
+
     const now = Date.now();
     if (now - lastScanTime < 2000) return; // Throttle to every 2 seconds
-    
+
     setLastScanTime(now);
     setIsLiveScanning(true);
 
@@ -555,18 +555,18 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       canvas.height = 480;
 
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
+
       // Convert to grayscale for better OCR
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
-      
+
       for (let i = 0; i < data.length; i += 4) {
         const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
         data[i] = gray;
         data[i + 1] = gray;
         data[i + 2] = gray;
       }
-      
+
       ctx.putImageData(imageData, 0, 0);
       const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
 
@@ -747,7 +747,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
             <div className="animate-spin w-12 h-12 border-4 border-white border-t-transparent rounded-full mb-4"></div>
             <p className="text-white text-lg">Initializing Camera...</p>
             <p className="text-gray-400 text-sm mt-2">Please allow camera permissions</p>
-            
+
             {/* Show sample content while loading */}
             <div className="mt-8 bg-white/5 rounded-lg p-4 max-w-sm">
               <div className="flex items-center space-x-3 mb-3">
@@ -763,7 +763,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
                 • Dosage & safety information
               </div>
             </div>
-            
+
             {/* Fallback options */}
             <div className="mt-6 flex space-x-3">
               <Button
@@ -783,7 +783,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
             <AlertCircle className="w-16 h-16 mb-4 text-red-400" />
             <h2 className="text-xl font-semibold mb-2">Camera Error</h2>
             <p className="text-center mb-6 text-gray-300">{cameraError}</p>
-            
+
             {/* Show sample medication for demo */}
             <div className="bg-white/10 rounded-lg p-6 mb-6 text-center">
               <Pill className="w-12 h-12 text-blue-400 mx-auto mb-3" />
@@ -797,7 +797,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
                 <p className="text-xs text-gray-400 mt-2">Adult dosage: 500-1000mg every 4-6 hours</p>
               </div>
             </div>
-            
+
             <div className="flex space-x-3">
               <Button
                 onClick={startCamera}
@@ -836,10 +836,10 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
                   <Pill className="w-8 h-8 text-white animate-pulse" />
                 </div>
               </div>
-              
+
               <h2 className="text-2xl font-bold mb-3">{t.processingImage || 'Processing Image'}</h2>
               <p className="text-lg opacity-90 mb-6">{processingStage}</p>
-              
+
               {/* Progress bar with percentage */}
               {ocrProgress > 0 && (
                 <div className="mb-6">
@@ -855,7 +855,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
                   </div>
                 </div>
               )}
-              
+
               {/* Processing steps indicator */}
               <div className="bg-white/10 rounded-lg p-4 text-sm">
                 <div className="space-y-2">
@@ -873,7 +873,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
                   </div>
                 </div>
               </div>
-              
+
               <p className="text-xs opacity-70 mt-4">
                 {t.processingNote || 'Analyzing medication name and searching our comprehensive database...'}
               </p>
@@ -893,7 +893,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
               autoPlay
               webkit-playsinline="true"
             />
-            
+
             {/* Loading overlay while camera is starting */}
             {(!isActive || isInitializing) && !cameraError && (
               <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center">
@@ -901,7 +901,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
                   <div className="animate-spin w-12 h-12 border-4 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
                   <h3 className="text-xl font-semibold mb-2">{t.startingCamera || 'Starting Camera...'}</h3>
                   <p className="text-sm opacity-80">{t.pleaseWait || 'Please wait while we initialize your camera'}</p>
-                  
+
                   {/* Camera setup progress */}
                   <div className="mt-6 bg-white/10 rounded-lg p-4 max-w-sm mx-auto">
                     <div className="flex items-center space-x-3 mb-3">

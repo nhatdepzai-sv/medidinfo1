@@ -85,38 +85,70 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useLocation();
+  const [isLoading, setIsLoading] = useState(false); // Added loading state for camera processing
+  const [error, setError] = useState(''); // Added error state for search and camera
 
-  const handleSearch = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults({});
-      return;
-    }
+  // Use the original handleSearch logic, but fix the endpoint and response handling
+  const handleSearch = useCallback(async () => {
+    if (!searchQuery.trim()) return;
 
     setIsSearching(true);
-    setSearchQuery(query);
+    setError(""); // Clear previous errors
+
     try {
-      const response = await fetch(`/api/search-medications?query=${encodeURIComponent(query)}`);
-      const data = await response.json();
-      setSearchResults(data);
-    } catch (error) {
-      console.error('Search error:', error);
+      // Use the medications search endpoint instead
+      const response = await fetch(`/api/search-medications?query=${encodeURIComponent(searchQuery.trim())}`);
+
+      if (!response.ok) {
+        // Handle non-2xx responses
+        const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred.' }));
+        throw new Error(`Search failed with status ${response.status}: ${errorData.message}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.medications && result.medications.length > 0) {
+        setSearchResults({
+          success: true,
+          medications: result.medications,
+          message: result.message || `Found ${result.medications.length} medication(s)`
+        });
+      } else {
+        setSearchResults({
+          success: false,
+          medications: [],
+          message: result.message || 'No medications found for your search'
+        });
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      setError(t.searchFailed || `Search failed: ${errorMessage}`);
       setSearchResults({
         success: false,
-        message: 'Search failed. Please try again.'
+        medications: [],
+        message: t.searchFailed || 'Search failed. Please try again.'
       });
     } finally {
       setIsSearching(false);
     }
-  }, []);
+  }, [searchQuery, t, setError]); // Include dependencies
 
   const handleCameraToggle = useCallback(() => {
     setShowCamera(prev => !prev);
-  }, []);
+    if (showCamera) { // If closing camera, clear search results and query
+      setSearchResults({});
+      setSearchQuery('');
+      setError('');
+    }
+  }, [showCamera]);
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
-    if (e.target.value.length === 0) {
+    // Clear results and error when the search query is cleared
+    if (e.target.value.trim().length === 0) {
       setSearchResults({});
+      setError('');
     }
   }, []);
 
@@ -125,7 +157,11 @@ export default function Home() {
   }, []);
 
   const handleSearchClick = useCallback(() => {
-    document.querySelector('input')?.focus();
+    // Focus the search input if it exists
+    const searchInput = document.querySelector('input[placeholder*="Search medications"]');
+    if (searchInput) {
+      searchInput.focus();
+    }
   }, []);
 
   const handleHistoryClick = useCallback(() => {
@@ -142,9 +178,9 @@ export default function Home() {
         onClose={handleCameraToggle}
         onCapture={(imageData) => {
           console.log('Image captured:', imageData);
-          // Here you would typically trigger a backend process for image analysis
-          // For now, we'll simulate a result after a short delay to show a loading state
-          setIsLoading(true); // Assuming you have a loading state for processing
+          setIsLoading(true);
+          setError(''); // Clear previous errors
+          // Simulate backend processing
           setTimeout(() => {
             // Replace with actual backend call and result handling
             setSearchResults({ success: true, medications: [{ name: 'Simulated Drug', description: 'This is a simulated result.' }] });
@@ -157,16 +193,20 @@ export default function Home() {
             success: true,
             medications: [medication]
           });
+          setIsLoading(false);
+          setError('');
         }}
-        setError={(error) => {
-          console.error('Camera error:', error);
-          setSearchResults({ success: false, message: error });
+        setError={(errorMsg) => {
+          console.error('Camera error:', errorMsg);
+          setError(errorMsg);
+          setSearchResults({ success: false, message: errorMsg });
+          setIsLoading(false);
         }}
         setProcessingStage={(stage) => {
           console.log('Processing stage:', stage);
-          // You could use this to update a UI element showing progress
           if (stage === 'processing') {
             setIsLoading(true);
+            setError('');
           } else {
             setIsLoading(false);
           }
@@ -201,10 +241,15 @@ export default function Home() {
             onChange={handleSearchChange}
             className="flex-1 bg-white/10 border-white/20 text-white placeholder-white/70"
             style={{ backgroundColor: currentTheme.colors.searchInputBackground, borderColor: currentTheme.colors.searchInputBorder, color: currentTheme.colors.searchInputText, placeholderColor: currentTheme.colors.searchInputPlaceholder }}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleSearch();
+              }
+            }}
           />
           <Button
-            onClick={() => handleSearch(searchQuery)}
-            disabled={isSearching}
+            onClick={handleSearch}
+            disabled={isSearching || isLoading}
             className="bg-white hover:bg-gray-100"
             style={{ color: currentTheme.colors.primary }}
           >
@@ -212,6 +257,7 @@ export default function Home() {
           </Button>
           <Button
             onClick={handleCameraToggle}
+            disabled={isSearching || isLoading}
             className="bg-white hover:bg-gray-100"
             style={{ color: currentTheme.colors.primary }}
           >
@@ -222,15 +268,29 @@ export default function Home() {
 
       {/* Main Content - Optimized scrolling */}
       <main className="flex-1 p-4 pb-20 overflow-y-auto" style={{ backgroundColor: currentTheme.colors.background }}>
-        {searchResults && searchResults.medications && searchResults.medications.length > 0 ? (
+        {error && (
+          <Card className="mb-4 text-center py-4" style={{ borderColor: currentTheme.colors.error || 'red', color: currentTheme.colors.error || 'red' }}>
+            <CardContent>
+              <p>{error}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {isLoading && (
+          <div className="flex justify-center items-center h-32">
+            <p>{t('processing') || 'Processing...'}</p>
+          </div>
+        )}
+
+        {!isLoading && !error && searchResults && searchResults.medications && searchResults.medications.length > 0 ? (
           <DrugResults results={searchResults} />
-        ) : searchResults && searchResults.message ? (
+        ) : !isLoading && !error && searchResults && searchResults.message && (searchResults.medications === undefined || searchResults.medications.length === 0) ? (
           <Card className="mb-4 text-center py-4" style={{ borderColor: currentTheme.colors.primary, color: currentTheme.colors.primary }}>
             <CardContent>
               <p>{searchResults.message}</p>
             </CardContent>
           </Card>
-        ) : (
+        ) : !isLoading && !error && (
           <>
             <QuickActions
               onScanClick={handleScanClick}

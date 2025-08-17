@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Search, Scan, History, User, Pill } from 'lucide-react';
+import { Search, Scan, History, User, Pill, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -76,26 +76,38 @@ RecentSearches.displayName = 'RecentSearches';
 export default function Home() {
   const { t } = useLanguage();
   const { currentTheme } = useTheme();
-  const [searchQuery, setSearchQuery] = useState('');
   const [showCamera, setShowCamera] = useState(false);
-  const [searchResults, setSearchResults] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<{
+    success: boolean;
+    medications?: any[];
+    message?: string;
+  }>({});
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useLocation();
 
-  const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim()) return;
+  const handleSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults({});
+      return;
+    }
 
-    setIsLoading(true);
+    setIsSearching(true);
+    setSearchQuery(query);
     try {
-      const response = await fetch(`/api/search-medications?query=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`/api/search-medications?query=${encodeURIComponent(query)}`);
       const data = await response.json();
       setSearchResults(data);
     } catch (error) {
       console.error('Search error:', error);
+      setSearchResults({
+        success: false,
+        message: 'Search failed. Please try again.'
+      });
     } finally {
-      setIsLoading(false);
+      setIsSearching(false);
     }
-  }, [searchQuery]);
+  }, []);
 
   const handleCameraToggle = useCallback(() => {
     setShowCamera(prev => !prev);
@@ -103,6 +115,9 @@ export default function Home() {
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
+    if (e.target.value.length === 0) {
+      setSearchResults({});
+    }
   }, []);
 
   const handleScanClick = useCallback(() => {
@@ -127,6 +142,14 @@ export default function Home() {
         onClose={handleCameraToggle}
         onCapture={(imageData) => {
           console.log('Image captured:', imageData);
+          // Here you would typically trigger a backend process for image analysis
+          // For now, we'll simulate a result after a short delay to show a loading state
+          setIsLoading(true); // Assuming you have a loading state for processing
+          setTimeout(() => {
+            // Replace with actual backend call and result handling
+            setSearchResults({ success: true, medications: [{ name: 'Simulated Drug', description: 'This is a simulated result.' }] });
+            setIsLoading(false);
+          }, 2000);
         }}
         onMedicationFound={(medication) => {
           console.log('Medication found:', medication);
@@ -137,9 +160,16 @@ export default function Home() {
         }}
         setError={(error) => {
           console.error('Camera error:', error);
+          setSearchResults({ success: false, message: error });
         }}
         setProcessingStage={(stage) => {
           console.log('Processing stage:', stage);
+          // You could use this to update a UI element showing progress
+          if (stage === 'processing') {
+            setIsLoading(true);
+          } else {
+            setIsLoading(false);
+          }
         }}
       />
     );
@@ -173,8 +203,8 @@ export default function Home() {
             style={{ backgroundColor: currentTheme.colors.searchInputBackground, borderColor: currentTheme.colors.searchInputBorder, color: currentTheme.colors.searchInputText, placeholderColor: currentTheme.colors.searchInputPlaceholder }}
           />
           <Button
-            onClick={handleSearch}
-            disabled={isLoading}
+            onClick={() => handleSearch(searchQuery)}
+            disabled={isSearching}
             className="bg-white hover:bg-gray-100"
             style={{ color: currentTheme.colors.primary }}
           >
@@ -192,8 +222,14 @@ export default function Home() {
 
       {/* Main Content - Optimized scrolling */}
       <main className="flex-1 p-4 pb-20 overflow-y-auto" style={{ backgroundColor: currentTheme.colors.background }}>
-        {searchResults ? (
+        {searchResults && searchResults.medications && searchResults.medications.length > 0 ? (
           <DrugResults results={searchResults} />
+        ) : searchResults && searchResults.message ? (
+          <Card className="mb-4 text-center py-4" style={{ borderColor: currentTheme.colors.primary, color: currentTheme.colors.primary }}>
+            <CardContent>
+              <p>{searchResults.message}</p>
+            </CardContent>
+          </Card>
         ) : (
           <>
             <QuickActions

@@ -222,6 +222,21 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
   const capturePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current || !isActive) return;
 
+    // Show immediate feedback with flash effect
+    const flashOverlay = document.createElement('div');
+    flashOverlay.className = 'fixed inset-0 bg-white opacity-80 z-50 pointer-events-none';
+    document.body.appendChild(flashOverlay);
+    
+    setTimeout(() => {
+      document.body.removeChild(flashOverlay);
+    }, 150);
+
+    // Add capture sound effect (optional)
+    try {
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmNBCCl+zPLOekYHHWq+8qGOWRAJU6v7vG1fGTNhkfKxjUIJLXzE8dnAFUkPIXfb92OGWAkzU4fgutdBCTFjkfOzgVYKJXfO7+n9CFgQOGu83YFuCAU0e8jT2nyiCgggCG+mEJr2jjsKO3e7xHpOCBA9dtzs2YaLKQQcjVzocxoGJf1u2OwCAMN+zFqGZY+EMQdXlr3C1IRkOA=='');
+      audio.play().catch(() => {}); // Ignore audio errors
+    } catch (e) {}
+
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -812,19 +827,56 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
             </div>
           </div>
         ) : isProcessing ? (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-black/90">
-            <div className="text-center text-white p-8">
-              <div className="animate-spin w-16 h-16 border-4 border-white border-t-transparent rounded-full mx-auto mb-6"></div>
-              <h2 className="text-2xl font-semibold mb-2">{t.processingImage}</h2>
-              <p className="text-lg opacity-90 mb-4">{processingStage}</p>
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-900 via-purple-900 to-blue-800">
+            <div className="text-center text-white p-8 max-w-sm">
+              {/* Enhanced loading animation */}
+              <div className="relative mb-8">
+                <div className="animate-spin w-20 h-20 border-4 border-white border-t-transparent rounded-full mx-auto"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Pill className="w-8 h-8 text-white animate-pulse" />
+                </div>
+              </div>
+              
+              <h2 className="text-2xl font-bold mb-3">{t.processingImage || 'Processing Image'}</h2>
+              <p className="text-lg opacity-90 mb-6">{processingStage}</p>
+              
+              {/* Progress bar with percentage */}
               {ocrProgress > 0 && (
-                <div className="w-64 bg-gray-700 rounded-full h-2 mx-auto">
-                  <div
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                    style={{width: `${ocrProgress}%`}}
-                  ></div>
+                <div className="mb-6">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>OCR Progress</span>
+                    <span>{ocrProgress}%</span>
+                  </div>
+                  <div className="w-full bg-white/20 rounded-full h-3">
+                    <div
+                      className="bg-gradient-to-r from-blue-400 to-green-400 h-3 rounded-full transition-all duration-500 shadow-lg"
+                      style={{width: `${ocrProgress}%`}}
+                    ></div>
+                  </div>
                 </div>
               )}
+              
+              {/* Processing steps indicator */}
+              <div className="bg-white/10 rounded-lg p-4 text-sm">
+                <div className="space-y-2">
+                  <div className={`flex items-center space-x-2 ${processingStage.includes('Initializing') ? 'text-yellow-300' : 'text-green-300'}`}>
+                    <div className="w-2 h-2 rounded-full bg-current animate-pulse"></div>
+                    <span>Image preprocessing</span>
+                  </div>
+                  <div className={`flex items-center space-x-2 ${processingStage.includes('recognizing') ? 'text-yellow-300' : 'text-gray-400'}`}>
+                    <div className="w-2 h-2 rounded-full bg-current animate-pulse"></div>
+                    <span>Text recognition</span>
+                  </div>
+                  <div className={`flex items-center space-x-2 ${processingStage.includes('Searching') ? 'text-yellow-300' : 'text-gray-400'}`}>
+                    <div className="w-2 h-2 rounded-full bg-current animate-pulse"></div>
+                    <span>Database search</span>
+                  </div>
+                </div>
+              </div>
+              
+              <p className="text-xs opacity-70 mt-4">
+                {t.processingNote || 'Analyzing medication name and searching our comprehensive database...'}
+              </p>
             </div>
           </div>
         ) : !capturedImage ? (
@@ -834,7 +886,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
               className="w-full h-full object-cover bg-black"
               style={{
                 ...videoStyle,
-                display: isActive ? 'block' : 'none'
+                display: 'block' // Always show video element
               }}
               playsInline
               muted
@@ -843,11 +895,28 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
             />
             
             {/* Loading overlay while camera is starting */}
-            {!isActive && !cameraError && (
-              <div className="absolute inset-0 bg-black flex items-center justify-center">
-                <div className="text-white text-center">
-                  <div className="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full mx-auto mb-2"></div>
-                  <p>Starting camera...</p>
+            {(!isActive || isInitializing) && !cameraError && (
+              <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center">
+                <div className="text-white text-center p-8">
+                  <div className="animate-spin w-12 h-12 border-4 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <h3 className="text-xl font-semibold mb-2">{t.startingCamera || 'Starting Camera...'}</h3>
+                  <p className="text-sm opacity-80">{t.pleaseWait || 'Please wait while we initialize your camera'}</p>
+                  
+                  {/* Camera setup progress */}
+                  <div className="mt-6 bg-white/10 rounded-lg p-4 max-w-sm mx-auto">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm">Requesting camera permissions</span>
+                    </div>
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm">Initializing video stream</span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm">Preparing OCR engine</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

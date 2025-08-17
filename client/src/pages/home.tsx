@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { Search, Scan, History, User, Pill, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,6 @@ import BottomNavigation from '@/components/bottom-navigation';
 import { useLanguage } from '@/contexts/language-context';
 import { useLocation } from 'wouter';
 import LanguageSwitcher from '../components/language-switcher';
-import { useTheme } from '../contexts/theme-context'; // Assuming you have a theme context
 
 // Memoized quick actions to prevent re-renders
 const QuickActions = React.memo(({ onScanClick, onSearchClick, onHistoryClick, onPillIdClick }: {
@@ -19,14 +19,13 @@ const QuickActions = React.memo(({ onScanClick, onSearchClick, onHistoryClick, o
   onPillIdClick: () => void;
 }) => {
   const { t } = useLanguage();
-  const { currentTheme } = useTheme();
 
   const actions = useMemo(() => [
-    { icon: Scan, label: t('scanMedication') || 'Scan', color: currentTheme.colors.scan, onClick: onScanClick },
-    { icon: Search, label: t('searchDrugs') || 'Search', color: currentTheme.colors.search, onClick: onSearchClick },
-    { icon: History, label: t('history') || 'History', color: currentTheme.colors.history, onClick: onHistoryClick },
-    { icon: Pill, label: t('pillId') || 'Pill ID', color: currentTheme.colors.pillId, onClick: onPillIdClick }
-  ], [t, onScanClick, onSearchClick, onHistoryClick, onPillIdClick, currentTheme.colors]);
+    { icon: Scan, label: t('scanMedication') || 'Scan', color: 'bg-blue-500', onClick: onScanClick },
+    { icon: Search, label: t('searchDrugs') || 'Search', color: 'bg-green-500', onClick: onSearchClick },
+    { icon: History, label: t('history') || 'History', color: 'bg-purple-500', onClick: onHistoryClick },
+    { icon: Pill, label: t('pillId') || 'Pill ID', color: 'bg-orange-500', onClick: onPillIdClick }
+  ], [t, onScanClick, onSearchClick, onHistoryClick, onPillIdClick]);
 
   return (
     <div className="grid grid-cols-2 gap-3 mb-6">
@@ -49,7 +48,6 @@ QuickActions.displayName = 'QuickActions';
 // Memoized recent searches to prevent re-renders
 const RecentSearches = React.memo(() => {
   const { t } = useLanguage();
-  const { currentTheme } = useTheme();
 
   const recentItems = useMemo(() => [
     'Aspirin', 'Ibuprofen', 'Paracetamol', 'Amoxicillin'
@@ -58,10 +56,10 @@ const RecentSearches = React.memo(() => {
   return (
     <Card className="mb-4">
       <CardContent className="p-4">
-        <h3 className="font-semibold mb-3" style={{ color: currentTheme.colors.primary }}>{t('recentSearches') || 'Recent Searches'}</h3>
+        <h3 className="font-semibold mb-3 text-blue-600">{t('recentSearches') || 'Recent Searches'}</h3>
         <div className="flex flex-wrap gap-2">
           {recentItems.map((item, index) => (
-            <Button key={index} variant="outline" size="sm" className="text-xs" style={{ borderColor: currentTheme.colors.primary, color: currentTheme.colors.primary }}>
+            <Button key={index} variant="outline" size="sm" className="text-xs border-blue-500 text-blue-600">
               {item}
             </Button>
           ))}
@@ -75,7 +73,6 @@ RecentSearches.displayName = 'RecentSearches';
 
 export default function Home() {
   const { t } = useLanguage();
-  const { currentTheme } = useTheme();
   const [showCamera, setShowCamera] = useState(false);
   const [searchResults, setSearchResults] = useState<{
     success: boolean;
@@ -85,22 +82,20 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useLocation();
-  const [isLoading, setIsLoading] = useState(false); // Added loading state for camera processing
-  const [error, setError] = useState(''); // Added error state for search and camera
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   // Use the original handleSearch logic, but fix the endpoint and response handling
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
-    setError(""); // Clear previous errors
+    setError("");
 
     try {
-      // Use the medications search endpoint instead
       const response = await fetch(`/api/search-medications?query=${encodeURIComponent(searchQuery.trim())}`);
 
       if (!response.ok) {
-        // Handle non-2xx responses
         const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred.' }));
         throw new Error(`Search failed with status ${response.status}: ${errorData.message}`);
       }
@@ -132,11 +127,11 @@ export default function Home() {
     } finally {
       setIsSearching(false);
     }
-  }, [searchQuery, t, setError]); // Include dependencies
+  }, [searchQuery, t, setError]);
 
   const handleCameraToggle = useCallback(() => {
     setShowCamera(prev => !prev);
-    if (showCamera) { // If closing camera, clear search results and query
+    if (showCamera) {
       setSearchResults({});
       setSearchQuery('');
       setError('');
@@ -145,7 +140,6 @@ export default function Home() {
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
-    // Clear results and error when the search query is cleared
     if (e.target.value.trim().length === 0) {
       setSearchResults({});
       setError('');
@@ -157,7 +151,6 @@ export default function Home() {
   }, []);
 
   const handleSearchClick = useCallback(() => {
-    // Focus the search input if it exists
     const searchInput = document.querySelector('input[placeholder*="Search medications"]');
     if (searchInput) {
       searchInput.focus();
@@ -179,10 +172,8 @@ export default function Home() {
         onCapture={(imageData) => {
           console.log('Image captured:', imageData);
           setIsLoading(true);
-          setError(''); // Clear previous errors
-          // Simulate backend processing
+          setError('');
           setTimeout(() => {
-            // Replace with actual backend call and result handling
             setSearchResults({ success: true, medications: [{ name: 'Simulated Drug', description: 'This is a simulated result.' }] });
             setIsLoading(false);
           }, 2000);
@@ -216,12 +207,12 @@ export default function Home() {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg" style={{ backgroundColor: currentTheme.colors.background }}>
-      {/* Header with Language Switcher */}
-      <header className={`text-white p-4 shadow-lg sticky top-0 z-10`} style={{ background: currentTheme.colors.headerGradient }}>
+    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+      {/* Header */}
+      <header className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 shadow-lg sticky top-0 z-10">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className={`w-10 h-10 ${currentTheme.colors.headerIconBackground} rounded-lg flex items-center justify-center`}>
+            <div className="w-10 h-10 bg-blue-800 rounded-lg flex items-center justify-center">
               <Pill className="w-6 h-6" />
             </div>
             <div>
@@ -232,37 +223,28 @@ export default function Home() {
           <LanguageSwitcher />
         </div>
 
-        {/* Search Bar - Inline for better performance */}
+        {/* Search Bar */}
         <div className="flex space-x-2">
           <Input
             type="text"
             placeholder={t('searchMedications') || 'Search medications...'}
             value={searchQuery}
             onChange={handleSearchChange}
-            className="flex-1 bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/40 px-4 py-2 rounded-lg"
-            style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              borderColor: 'rgba(255, 255, 255, 0.3)',
-              color: 'white'
-            }}
+            className="flex-1 bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/40"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && searchQuery.trim()) {
                 e.preventDefault();
                 handleSearch();
               }
             }}
-            autoComplete="off"
-            autoFocus={false}
-            tabIndex={0}
           />
           <Button
             onClick={handleSearch}
             disabled={isSearching || isLoading || !searchQuery.trim()}
-            className="bg-white hover:bg-gray-100 disabled:opacity-50"
-            style={{ color: currentTheme.colors.primary }}
+            className="bg-white hover:bg-gray-100 text-blue-600"
           >
             {isSearching ? (
-              <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
+              <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full" />
             ) : (
               <Search className="w-4 h-4" />
             )}
@@ -270,20 +252,19 @@ export default function Home() {
           <Button
             onClick={handleCameraToggle}
             disabled={isSearching || isLoading}
-            className="bg-white hover:bg-gray-100"
-            style={{ color: currentTheme.colors.primary }}
+            className="bg-white hover:bg-gray-100 text-blue-600"
           >
             <Scan className="w-4 h-4" />
           </Button>
         </div>
       </header>
 
-      {/* Main Content - Optimized scrolling */}
-      <main className="flex-1 p-4 pb-20 overflow-y-auto" style={{ backgroundColor: currentTheme.colors.background }}>
+      {/* Main Content */}
+      <main className="flex-1 p-4 pb-20 overflow-y-auto">
         {error && (
-          <Card className="mb-4 text-center py-4" style={{ borderColor: currentTheme.colors.error || 'red', color: currentTheme.colors.error || 'red' }}>
+          <Card className="mb-4 text-center py-4 border-red-200">
             <CardContent>
-              <p>{error}</p>
+              <p className="text-red-600">{error}</p>
             </CardContent>
           </Card>
         )}
@@ -297,9 +278,9 @@ export default function Home() {
         {!isLoading && !error && searchResults && searchResults.medications && searchResults.medications.length > 0 ? (
           <DrugResults results={searchResults} />
         ) : !isLoading && !error && searchResults && searchResults.message && (searchResults.medications === undefined || searchResults.medications.length === 0) ? (
-          <Card className="mb-4 text-center py-4" style={{ borderColor: currentTheme.colors.primary, color: currentTheme.colors.primary }}>
+          <Card className="mb-4 text-center py-4 border-blue-200">
             <CardContent>
-              <p>{searchResults.message}</p>
+              <p className="text-blue-600">{searchResults.message}</p>
             </CardContent>
           </Card>
         ) : !isLoading && !error && (
@@ -312,7 +293,7 @@ export default function Home() {
             />
             <RecentSearches />
 
-            {/* Tips Card - Lazy loaded */}
+            {/* Tips Card */}
             <Card className="bg-gradient-to-r from-green-50 to-blue-50">
               <CardContent className="p-4">
                 <h3 className="font-semibold text-green-800 mb-2">

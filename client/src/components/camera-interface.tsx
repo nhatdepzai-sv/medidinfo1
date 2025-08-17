@@ -233,7 +233,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
     // Add capture sound effect (optional)
     try {
-      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmNBCCl+zPLOekYHHWq+8qGOWRAJU6v7vG1fGTNhkfKxjUIJLXzE8dnAFUkPIXfb92OGWAkzU4fgutdBCTFjkfOzgVYKJXfO7+n9CFgQOGu83YFuCAU0e8jT2nyiCgggCG+mEJr2jjsKO3e7xHpOCBA9dtzs2YaLKQQcjVzocxoGJf1u2OwCAMN+zFqGZY+EMQdXlr3C1IRkOA=='');
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmNBCCl+zPLOekYHHWq+8qGOWRAJU6v7vG1fGTNhkfKxjUIJLXzE8dnAFUkPIXfb92OGWAkzU4fgutdBCTFjkfOzgVYKJXfO7+n9CFgQOGu83YFuCAU0e8jT2nyiCgggCG+mEJr2jjsKO3e7xHpOCBA9dtzs2YaLKQQcjVzocxoGJf1u2OwCAMN+zFqGZY+EMQdXlr3C1IRkOA==');
       audio.play().catch(() => {}); // Ignore audio errors
     } catch (e) {}
 

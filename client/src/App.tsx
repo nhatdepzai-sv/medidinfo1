@@ -25,16 +25,26 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <LanguageProvider>
       <ThemeProvider>
-        <LanguageProvider>
+        <QueryClientProvider client={queryClient}>
           <TooltipProvider>
-            <Toaster />
-            <Router />
+            <Router>
+              <div className="min-h-screen bg-gray-50">
+                <Switch>
+                  <Route path="/" component={Home} />
+                  <Route path="/history" component={History} />
+                  <Route path="/translator" component={TranslatorPage} />
+                  <Route path="/profile" component={Profile} />
+                  <Route component={NotFound} />
+                </Switch>
+                <Toaster />
+              </div>
+            </Router>
           </TooltipProvider>
-        </LanguageProvider>
+        </QueryClientProvider>
       </ThemeProvider>
-    </QueryClientProvider>
+    </LanguageProvider>
   );
 }
 

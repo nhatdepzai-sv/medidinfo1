@@ -239,21 +239,26 @@ export default function Home() {
             placeholder={t('searchMedications') || 'Search medications...'}
             value={searchQuery}
             onChange={handleSearchChange}
-            className="flex-1 bg-white/10 border-white/20 text-white placeholder-white/70"
-            style={{ backgroundColor: currentTheme.colors.searchInputBackground, borderColor: currentTheme.colors.searchInputBorder, color: currentTheme.colors.searchInputText, placeholderColor: currentTheme.colors.searchInputPlaceholder }}
+            className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/70 focus:bg-white/20 focus:border-white/40"
             onKeyPress={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === 'Enter' && searchQuery.trim()) {
                 handleSearch();
               }
             }}
+            autoComplete="off"
+            autoFocus={false}
           />
           <Button
             onClick={handleSearch}
-            disabled={isSearching || isLoading}
-            className="bg-white hover:bg-gray-100"
+            disabled={isSearching || isLoading || !searchQuery.trim()}
+            className="bg-white hover:bg-gray-100 disabled:opacity-50"
             style={{ color: currentTheme.colors.primary }}
           >
-            <Search className="w-4 h-4" />
+            {isSearching ? (
+              <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
+            ) : (
+              <Search className="w-4 h-4" />
+            )}
           </Button>
           <Button
             onClick={handleCameraToggle}

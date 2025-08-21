@@ -128,7 +128,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Manual drug search endpoint
+  // Enhanced search medications endpoint
+  app.get("/api/search-medications", async (req, res) => {
+    try {
+      const query = req.query.query as string;
+
+      if (!query || typeof query !== "string" || query.trim().length < 2) {
+        return res.json({
+          success: false,
+          message: "Search query must be at least 2 characters",
+          medications: []
+        });
+      }
+
+      const searchTerm = query.toLowerCase().trim();
+      console.log('Enhanced search for:', searchTerm);
+
+      // Advanced fuzzy matching algorithm
+      const searchResults = fullComprehensiveDrugsDatabase.filter(drug => {
+        // Exact matches (highest priority)
+        const exactNameMatch = drug.name.toLowerCase() === searchTerm;
+        const exactGenericMatch = drug.genericName?.toLowerCase() === searchTerm;
+        
+        if (exactNameMatch || exactGenericMatch) return true;
+
+        // Substring matches (high priority)
+        const nameContains = drug.name.toLowerCase().includes(searchTerm);
+        const genericContains = drug.genericName?.toLowerCase().includes(searchTerm);
+        const nameViContains = drug.nameVi?.toLowerCase().includes(searchTerm);
+        
+        if (nameContains || genericContains || nameViContains) return true;
+
+        // Word boundary matches (medium priority)
+        const nameWords = drug.name.toLowerCase().split(/[\s-]+/);
+        const genericWords = drug.genericName?.toLowerCase().split(/[\s-]+/) || [];
+        const nameViWords = drug.nameVi?.toLowerCase().split(/[\s-]+/) || [];
+        
+        const wordMatch = [...nameWords, ...genericWords, ...nameViWords]
+          .some(word => word.startsWith(searchTerm) || searchTerm.startsWith(word));
+        
+        if (wordMatch) return true;
+
+        // Fuzzy matching for OCR errors (lower priority)
+        const similarity = calculateSimilarity(searchTerm, drug.name.toLowerCase());
+        return similarity > 0.7; // 70% similarity threshold
+      });
+
+      // Sort results by relevance
+      const sortedResults = searchResults.sort((a, b) => {
+        // Exact matches first
+        const aExact = a.name.toLowerCase() === searchTerm || a.genericName?.toLowerCase() === searchTerm;
+        const bExact = b.name.toLowerCase() === searchTerm || b.genericName?.toLowerCase() === searchTerm;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+
+        // Then substring matches
+        const aContains = a.name.toLowerCase().includes(searchTerm);
+        const bContains = b.name.toLowerCase().includes(searchTerm);
+        if (aContains && !bContains) return -1;
+        if (!aContains && bContains) return 1;
+
+        // Finally by name length (shorter names often more relevant)
+        return a.name.length - b.name.length;
+      });
+
+      // Limit results to top 50 for performance
+      const limitedResults = sortedResults.slice(0, 50);
+
+      res.json({
+        success: true,
+        medications: limitedResults,
+        total: sortedResults.length,
+        message: `Found ${sortedResults.length} medication(s) matching "${query}"`
+      });
+
+    } catch (error) {
+      console.error('Search medications error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Search failed',
+        medications: []
+      });
+    }
+  });
+
+  // Helper function for similarity calculation
+  function calculateSimilarity(str1: string, str2: string): number {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) return 1.0;
+    
+    const distance = levenshteinDistance(longer, shorter);
+    return (longer.length - distance) / longer.length;
+  }
+
+  function levenshteinDistance(str1: string, str2: string): number {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1, // substitution
+            matrix[i][j - 1] + 1,     // insertion
+            matrix[i - 1][j] + 1      // deletion
+          );
+        }
+      }
+    }
+    
+    return matrix[str2.length][str1.length];
+  }
+
+  // Manual drug search endpoint (legacy support)
   app.post("/api/search-drug", async (req, res) => {
     try {
       const { query } = req.body;

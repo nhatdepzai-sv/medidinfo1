@@ -7,6 +7,7 @@ import { drugSearchResponseSchema, insertMedicationSchema, insertSearchHistorySc
 import { z } from "zod";
 import { fullComprehensiveDrugsDatabase } from './comprehensive-drugs-database';
 import { globalMedicationsDatabase } from './global-medications-database';
+import { medicationsDatabase } from "./medications-database";
 
 interface MulterRequest extends Request {
   file?: Express.Multer.File;
@@ -144,8 +145,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('Processing search term:', searchTerm);
 
     try {
+      // Combine all databases for comprehensive search
+      const allDatabases = [
+        ...fullComprehensiveDrugsDatabase,
+        ...globalMedicationsDatabase,
+        ...medicationsDatabase // Including the new database
+      ];
+
       // Enhanced search with fuzzy matching and multiple criteria
-      const results = fullComprehensiveDrugsDatabase.filter(drug => {
+      const results = allDatabases.filter(drug => {
         // Direct matches
         const nameMatch = drug.name.toLowerCase().includes(searchTerm);
         const nameViMatch = drug.nameVi?.toLowerCase().includes(searchTerm);
@@ -164,13 +172,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .some(word => word.startsWith(searchTerm) || searchTerm.startsWith(word));
 
         // Brand name matching if available
-        const brandMatch = (drug as any).brandNames?.some((brand: string) => 
+        const brandMatch = (drug as any).brandNames?.some((brand: string) =>
           brand.toLowerCase().includes(searchTerm)
-        ) || (drug as any).brandNamesVi?.some((brand: string) => 
+        ) || (drug as any).brandNamesVi?.some((brand: string) =>
           brand.toLowerCase().includes(searchTerm)
         );
 
-        return nameMatch || nameViMatch || genericMatch || genericViMatch || 
+        return nameMatch || nameViMatch || genericMatch || genericViMatch ||
                categoryMatch || categoryViMatch || wordMatch || brandMatch;
       })
       .sort((a, b) => {
@@ -197,8 +205,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: results.length > 0,
         medications: results,
-        message: results.length > 0 ? 
-          `Found ${results.length} medication${results.length > 1 ? 's' : ''}` : 
+        message: results.length > 0 ?
+          `Found ${results.length} medication${results.length > 1 ? 's' : ''}` :
           'No medications found for your search'
       });
     } catch (error) {
@@ -577,8 +585,8 @@ async function searchDrugInfo(drugName: string) {
     // Extract medication information
     const medicationInfo = {
       name: openfda.brand_name?.[0] || drugName,
-      genericName: openFDA.generic_name?.[0] || undefined,
-      category: openFDA.pharmacologic_class?.[0] || undefined,
+      genericName: openfda.generic_name?.[0] || undefined,
+      category: openfda.pharmacologic_class?.[0] || undefined,
       primaryUse: result.indications_and_usage?.[0] || result.purpose?.[0] || "Medication purpose not available",
       adultDosage: result.dosage_and_administration?.[0] || undefined,
       maxDosage: undefined, // This would need to be parsed from dosage_and_administration
@@ -927,6 +935,49 @@ function detectMedication(text: string) {
       adultDosage: "7.5-15mg once daily",
       maxDosage: "15mg per day",
       warnings: ["May cause stomach bleeding.", "Monitor kidney function."],
+    };
+  }
+
+  // Add more drug detection logic here, including for cancer and gout medications.
+  // Example for Ginkgo Biloba (often used for cognitive function, not strictly a "drug" in all contexts, but included for comprehensiveness)
+  if (words.some(word => word.includes('ginkgo') || word.includes('biloba'))) {
+    return {
+      id: "med-202",
+      name: "Ginkgo Biloba",
+      genericName: "Ginkgo Biloba Extract",
+      category: "Herbal Supplement",
+      primaryUse: "Improve cognitive function, circulation",
+      adultDosage: "40-80 mg two to three times daily",
+      maxDosage: "240mg per day",
+      warnings: ["May increase bleeding risk.", "Interactions with blood thinners."],
+    };
+  }
+
+  // Example for a Gout medication (e.g., Allopurinol)
+  if (words.some(word => word.includes('allopurinol') || word.includes('zyloprim'))) {
+    return {
+      id: "med-303",
+      name: "Allopurinol",
+      genericName: "Allopurinol",
+      category: "Xanthine Oxidase Inhibitor",
+      primaryUse: "Treat gout and hyperuricemia",
+      adultDosage: "100-300 mg once daily",
+      maxDosage: "800mg per day",
+      warnings: ["May cause skin rash.", "Stay hydrated."],
+    };
+  }
+
+  // Example for a Cancer medication (e.g., Tamoxifen)
+  if (words.some(word => word.includes('tamoxifen') || word.includes('nolvadex'))) {
+    return {
+      id: "med-404",
+      name: "Tamoxifen",
+      genericName: "Tamoxifen Citrate",
+      category: "Selective Estrogen Receptor Modulator (SERM)",
+      primaryUse: "Treat breast cancer",
+      adultDosage: "20 mg once daily",
+      maxDosage: "40mg per day",
+      warnings: ["Increased risk of blood clots.", "Can affect menstrual cycle."],
     };
   }
 

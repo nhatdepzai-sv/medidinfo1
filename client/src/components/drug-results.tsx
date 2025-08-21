@@ -2,7 +2,8 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Pill, AlertTriangle, Clock, Info } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Pill, AlertTriangle, Clock, Info, Languages } from 'lucide-react';
 import { useLanguage } from '@/contexts/language-context';
 
 interface Medication {
@@ -33,6 +34,13 @@ interface DrugResultsProps {
 
 const DrugResults: React.FC<DrugResultsProps> = ({ results }) => {
   const { t, language } = useLanguage();
+
+  const translateWithGoogle = (text: string) => {
+    const sourceLang = language === 'vi' ? 'vi' : 'en';
+    const targetLang = language === 'vi' ? 'en' : 'vi';
+    const googleTranslateUrl = `https://translate.google.com/?sl=${sourceLang}&tl=${targetLang}&text=${encodeURIComponent(text)}`;
+    window.open(googleTranslateUrl, '_blank');
+  };
 
   if (!results?.success || !results?.medications?.length) {
     return (
@@ -83,13 +91,26 @@ const DrugResults: React.FC<DrugResultsProps> = ({ results }) => {
                   )}
                 </div>
               </div>
-              {(medication.category || medication.categoryVi) && (
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                  {language === 'vi' && medication.categoryVi 
-                    ? medication.categoryVi 
-                    : medication.category}
-                </Badge>
-              )}
+              <div className="flex items-center space-x-2">
+                {(medication.category || medication.categoryVi) && (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                    {language === 'vi' && medication.categoryVi 
+                      ? medication.categoryVi 
+                      : medication.category}
+                  </Badge>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => translateWithGoogle(
+                    language === 'vi' && medication.nameVi ? medication.nameVi : medication.name
+                  )}
+                  className="p-2 hover:bg-blue-50"
+                  title={t('translate') || 'Translate'}
+                >
+                  <Languages className="w-4 h-4 text-blue-600" />
+                </Button>
+              </div>
             </div>
           </CardHeader>
 

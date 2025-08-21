@@ -1,27 +1,18 @@
 import { type User, type InsertUser, type Medication, type InsertMedication, type SearchHistory, type InsertSearchHistory } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { medicationsDatabase } from "./medications-database";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
 import * as schema from "@shared/schema";
 import { eq, like, or, desc, asc } from "drizzle-orm";
-import type { NewMedication, Medication, NewSearchHistory, SearchHistory } from "@shared/schema";
 
-// Database connection with optimizations
-const sqlite = new Database("medication_scanner.db", {
-  verbose: process.env.NODE_ENV === 'development' ? console.log : undefined,
-});
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL environment variable is required");
+}
 
-// Performance optimizations
-sqlite.pragma('journal_mode = WAL'); // Write-Ahead Logging for better performance
-sqlite.pragma('synchronous = NORMAL'); // Balance between safety and speed
-sqlite.pragma('cache_size = 1000'); // Increase cache size
-sqlite.pragma('temp_store = MEMORY'); // Store temp tables in memory
-
-const db = drizzle(sqlite, { schema });
-
-// Run migrations
-migrate(db, { migrationsFolder: "./drizzle" });
+// Create the database connection
+const sql = neon(process.env.DATABASE_URL);
+const db = drizzle(sql, { schema });
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -38,152 +29,125 @@ export interface IStorage {
   createSearchHistory(searchHistory: InsertSearchHistory): Promise<SearchHistory>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private medications: Map<string, Medication>;
-  private searchHistory: Map<string, SearchHistory>;
-
+export class DatabaseStorage implements IStorage {
   constructor() {
-    this.users = new Map();
-    this.medications = new Map();
-    this.searchHistory = new Map();
-    // Initialize medications synchronously to ensure they're available immediately
-    this.initializeMedications();
+    // Initialize medications from the database
+    this.initializeMedications().catch(console.error);
   }
 
-  private initializeMedications() {
-    // Populate the database with initial medications
-    for (const med of medicationsDatabase) {
-      const id = randomUUID();
-      const medication: Medication = {
-        id,
-        name: med.name,
-        nameVi: med.nameVi || null,
-        genericName: med.genericName || null,
-        genericNameVi: med.genericNameVi || null,
-        category: med.category || null,
-        categoryVi: med.categoryVi || null,
-        primaryUse: med.primaryUse || null,
-        primaryUseVi: med.primaryUseVi || null,
-        adultDosage: med.adultDosage || null,
-        adultDosageVi: med.adultDosageVi || null,
-        maxDosage: med.maxDosage || null,
-        maxDosageVi: med.maxDosageVi || null,
-        warnings: med.warnings || null,
-        warningsVi: med.warningsVi || null,
-        createdAt: new Date(),
-      };
-      this.medications.set(id, medication);
+  private async initializeMedications() {
+    try {
+      const existingMedications = await db.select().from(schema.medications).limit(1);
+
+      if (existingMedications.length === 0) {
+        console.log("Initializing medications database...");
+        const medications = medicationsDatabase.map(med => ({
+          ...med,
+          id: randomUUID()
+        }));
+
+        await db.insert(schema.medications).values(medications);
+        console.log(`Inserted ${medications.length} medications into database`);
+      }
+    } catch (error) {
+      console.error("Error initializing medications:", error);
     }
-    console.log(`✅ Initialized ${this.medications.size} medications in storage`);
   }
 
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const users = await db.select().from(schema.users).where(eq(schema.users.id, id));
+    return users[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const users = await db.select().from(schema.users).where(eq(schema.users.username, username));
+    return users[0];
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async createUser(user: InsertUser): Promise<User> {
+    const newUser = {
+      ...user,
+      id: randomUUID()
+    };
+    await db.insert(schema.users).values(newUser);
+    return newUser as User;
   }
 
   async getMedication(id: string): Promise<Medication | undefined> {
-    return this.medications.get(id);
+    const medications = await db.select().from(schema.medications).where(eq(schema.medications.id, id));
+    return medications[0];
   }
 
   async getMedicationByName(name: string): Promise<Medication | undefined> {
-    const lowerName = name.toLowerCase();
-    return Array.from(this.medications.values()).find(
-      (med) => 
-        med.name.toLowerCase().includes(lowerName) ||
-        (med.nameVi && med.nameVi.toLowerCase().includes(lowerName)) ||
-        (med.genericName && med.genericName.toLowerCase().includes(lowerName)) ||
-        (med.genericNameVi && med.genericNameVi.toLowerCase().includes(lowerName))
+    const medications = await db.select().from(schema.medications).where(
+      or(
+        eq(schema.medications.name, name),
+        eq(schema.medications.nameVi, name),
+        eq(schema.medications.genericName, name),
+        eq(schema.medications.genericNameVi, name)
+      )
     );
+    return medications[0];
   }
 
   async getMedicationByPartialName(partialName: string): Promise<Medication | undefined> {
-    const searchTerm = `%${partialName.toLowerCase()}%`;
-    const medications = Array.from(this.medications.values()).filter(
-      (med) =>
-        med.name.toLowerCase().includes(partialName.toLowerCase()) ||
-        (med.nameVi && med.nameVi.toLowerCase().includes(partialName.toLowerCase())) ||
-        (med.genericName && med.genericName.toLowerCase().includes(partialName.toLowerCase())) ||
-        (med.genericNameVi && med.genericNameVi.toLowerCase().includes(partialName.toLowerCase()))
+    const medications = await db.select().from(schema.medications).where(
+      or(
+        like(schema.medications.name, `%${partialName}%`),
+        like(schema.medications.nameVi, `%${partialName}%`),
+        like(schema.medications.genericName, `%${partialName}%`),
+        like(schema.medications.genericNameVi, `%${partialName}%`)
+      )
     );
-    return medications[0] || undefined;
+    return medications[0];
   }
 
-  async createMedication(insertMedication: InsertMedication): Promise<Medication> {
-    const id = randomUUID();
-    const medication: Medication = {
-      id,
-      name: insertMedication.name,
-      nameVi: insertMedication.nameVi || null,
-      genericName: insertMedication.genericName || null,
-      genericNameVi: insertMedication.genericNameVi || null,
-      category: insertMedication.category || null,
-      categoryVi: insertMedication.categoryVi || null,
-      primaryUse: insertMedication.primaryUse || null,
-      primaryUseVi: insertMedication.primaryUseVi || null,
-      adultDosage: insertMedication.adultDosage || null,
-      adultDosageVi: insertMedication.adultDosageVi || null,
-      maxDosage: insertMedication.maxDosage || null,
-      maxDosageVi: insertMedication.maxDosageVi || null,
-      warnings: insertMedication.warnings || null,
-      warningsVi: insertMedication.warningsVi || null,
-      createdAt: new Date(),
+  async createMedication(medication: InsertMedication): Promise<Medication> {
+    const newMedication = {
+      ...medication,
+      id: randomUUID()
     };
-    this.medications.set(id, medication);
-    return medication;
+    await db.insert(schema.medications).values(newMedication);
+    return newMedication as Medication;
   }
 
   async searchMedications(query: string): Promise<Medication[]> {
-    const lowerQuery = query.toLowerCase();
-    return Array.from(this.medications.values()).filter(
-      (med) =>
-        med.name.toLowerCase().includes(lowerQuery) ||
-        (med.nameVi && med.nameVi.toLowerCase().includes(lowerQuery)) ||
-        (med.genericName && med.genericName.toLowerCase().includes(lowerQuery)) ||
-        (med.genericNameVi && med.genericNameVi.toLowerCase().includes(lowerQuery)) ||
-        (med.category && med.category.toLowerCase().includes(lowerQuery)) ||
-        (med.categoryVi && med.categoryVi.toLowerCase().includes(lowerQuery)) ||
-        (med.primaryUse && med.primaryUse.toLowerCase().includes(lowerQuery)) ||
-        (med.primaryUseVi && med.primaryUseVi.toLowerCase().includes(lowerQuery))
+    if (!query.trim()) {
+      return await db.select().from(schema.medications).limit(50);
+    }
+
+    const medications = await db.select().from(schema.medications).where(
+      or(
+        like(schema.medications.name, `%${query}%`),
+        like(schema.medications.nameVi, `%${query}%`),
+        like(schema.medications.genericName, `%${query}%`),
+        like(schema.medications.genericNameVi, `%${query}%`),
+        like(schema.medications.category, `%${query}%`),
+        like(schema.medications.categoryVi, `%${query}%`)
+      )
     );
+    return medications;
   }
 
   async getSearchHistory(userId?: string): Promise<SearchHistory[]> {
-    let history = Array.from(this.searchHistory.values());
     if (userId) {
-      history = history.filter(h => h.userId === userId);
+      return await db.select().from(schema.searchHistory)
+        .where(eq(schema.searchHistory.userId, userId))
+        .orderBy(desc(schema.searchHistory.createdAt));
     }
-    return history.sort((a, b) => 
-      new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-    );
+    return await db.select().from(schema.searchHistory)
+      .orderBy(desc(schema.searchHistory.createdAt));
   }
 
-  async createSearchHistory(insertSearchHistory: InsertSearchHistory): Promise<SearchHistory> {
-    const id = randomUUID();
-    const searchHistory: SearchHistory = {
-      id,
-      userId: insertSearchHistory.userId || null,
-      medicationId: insertSearchHistory.medicationId || null,
-      searchQuery: insertSearchHistory.searchQuery || null,
-      searchMethod: insertSearchHistory.searchMethod || null,
-      createdAt: new Date(),
+  async createSearchHistory(searchHistory: InsertSearchHistory): Promise<SearchHistory> {
+    const newSearchHistory = {
+      ...searchHistory,
+      id: randomUUID()
     };
-    this.searchHistory.set(id, searchHistory);
-    return searchHistory;
+    await db.insert(schema.searchHistory).values(newSearchHistory);
+    return newSearchHistory as SearchHistory;
   }
 }
 
-export const storage = new MemStorage();
+// Use the database storage implementation
+export const storage = new DatabaseStorage();

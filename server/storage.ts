@@ -1,8 +1,27 @@
 import { type User, type InsertUser, type Medication, type InsertMedication, type SearchHistory, type InsertSearchHistory } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { medicationsDatabase } from "./medications-database";
-import { db } from "./db";
-import { eq, desc, or, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import * as schema from "@shared/schema";
+import { eq, like, or, desc, asc } from "drizzle-orm";
+import type { NewMedication, Medication, NewSearchHistory, SearchHistory } from "@shared/schema";
+
+// Database connection with optimizations
+const sqlite = new Database("medication_scanner.db", {
+  verbose: process.env.NODE_ENV === 'development' ? console.log : undefined,
+});
+
+// Performance optimizations
+sqlite.pragma('journal_mode = WAL'); // Write-Ahead Logging for better performance
+sqlite.pragma('synchronous = NORMAL'); // Balance between safety and speed
+sqlite.pragma('cache_size = 1000'); // Increase cache size
+sqlite.pragma('temp_store = MEMORY'); // Store temp tables in memory
+
+const db = drizzle(sqlite, { schema });
+
+// Run migrations
+migrate(db, { migrationsFolder: "./drizzle" });
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
+import React, { useState, useRef, useCallback, useEffect, memo, lazy, Suspense } from 'react';
 import { Camera, SwitchCamera, Zap, ZapOff, Download, RefreshCw, Settings, X, Check, AlertCircle, Scan, Pill } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
@@ -8,7 +8,9 @@ import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { useToast } from '../hooks/use-toast';
-import Tesseract from 'tesseract.js';
+
+// Lazy load Tesseract for better initial loading
+const lazyLoadTesseract = () => import('tesseract.js');
 
 interface CameraInterfaceProps {
   onCapture: (imageData: string) => void;
@@ -47,12 +49,13 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
   const { toast } = useToast(); // Initialize useToast
 
   const getConstraints = useCallback(() => {
+    // Optimized constraints for faster initialization
     const constraints: MediaStreamConstraints = {
       video: {
         facingMode: facingMode,
-        width: { ideal: 1280, min: 640 },
-        height: { ideal: 720, min: 480 },
-        aspectRatio: { ideal: 16/9 },
+        width: { ideal: 720, min: 480 }, // Reduced for faster init
+        height: { ideal: 480, min: 360 },
+        frameRate: { ideal: 15, max: 30 }, // Lower framerate for better performance
       }
     };
 
@@ -63,7 +66,6 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     try {
       setIsInitializing(true);
       setCameraError('');
-      setIsActive(false);
 
       // Stop existing stream
       if (streamRef.current) {
@@ -79,6 +81,9 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       console.log('Requesting camera with constraints:', getConstraints());
       const stream = await navigator.mediaDevices.getUserMedia(getConstraints());
       streamRef.current = stream;
+      
+      // Set active immediately after getting stream
+      setIsActive(true);
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -88,53 +93,20 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         videoRef.current.setAttribute('autoplay', 'true');
         videoRef.current.setAttribute('muted', 'true');
 
-        // Wait for video to load with better error handling
-        await new Promise<void>((resolve, reject) => {
-          if (!videoRef.current) {
-            reject(new Error('Video element not available'));
-            return;
-          }
-
-          const handleLoadedMetadata = () => {
-            console.log('Video metadata loaded, dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
-            setIsActive(true);
-            resolve();
-          };
-
-          const handleCanPlay = () => {
-            console.log('Video can play');
-            if (!isActive) {
-              setIsActive(true);
-            }
-          };
-
-          const handleError = (e: Event) => {
-            console.error('Video load error:', e);
-            reject(new Error('Video load error'));
-          };
-
-          videoRef.current.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
-          videoRef.current.addEventListener('canplay', handleCanPlay, { once: true });
-          videoRef.current.addEventListener('error', handleError, { once: true });
-
-          // Start playing immediately
-          videoRef.current.play().catch((playError) => {
-            console.error('Play error:', playError);
-            reject(playError);
-          });
-
-          // Timeout after 10 seconds
-          setTimeout(() => {
-            if (videoRef.current) {
-              videoRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
-              videoRef.current.removeEventListener('canplay', handleCanPlay);
-              videoRef.current.removeEventListener('error', handleError);
-            }
-            if (!isActive) {
-              reject(new Error('Camera initialization timeout'));
-            }
-          }, 10000);
-        });
+        // Simplified video setup for faster loading
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.setAttribute('autoplay', 'true');
+        videoRef.current.setAttribute('muted', 'true');
+        
+        // Start playing and resolve quickly
+        try {
+          await videoRef.current.play();
+          console.log('Camera is now active');
+        } catch (playError) {
+          console.error('Play error:', playError);
+          // Continue anyway as some browsers play automatically
+        }
 
         console.log('Camera is now active');
 
@@ -376,14 +348,14 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     }
 
     setIsProcessing(true);
-    setProcessingStageLocal('Initializing advanced OCR...');
-    setOcrProgress(0);
+    setProcessingStageLocal('Loading OCR engine...');
+    setOcrProgress(10);
     setDetectedText('');
     setSearchResult({});
 
     try {
-      // Dynamically import Tesseract
-      const Tesseract = await import('tesseract.js');
+      // Lazy load Tesseract for better performance
+      const Tesseract = await lazyLoadTesseract();
 
       setProcessingStageLocal('Loading OCR engine...');
 
@@ -444,44 +416,17 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       tempCtx.putImageData(imageData, 0, 0);
       const preprocessedImage = tempCanvas.toDataURL('image/png', 1.0);
 
-      // Multi-pass OCR strategy for better accuracy
-      const ocrResults = [];
-      
-      // Pass 1: Standard PSM_AUTO with medication-specific whitelist
-      setProcessingStageLocal('Pass 1: Standard recognition...');
+      // Single-pass OCR for faster processing
+      setProcessingStageLocal('Recognizing medication text...');
       await worker.setParameters({
         tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-.,()/ %',
         tessedit_pageseg_mode: 6, // Uniform block of text
         preserve_interword_spaces: '1',
         tessedit_ocr_engine_mode: 1, // Neural nets LSTM engine
-        tessedit_do_invert: '0',
-        classify_bln_numeric_mode: '0'
       });
 
-      const result1 = await worker.recognize(preprocessedImage);
-      ocrResults.push({ text: result1.data.text, confidence: result1.data.confidence, method: 'standard' });
-
-      // Pass 2: Single word mode for brand names
-      setProcessingStageLocal('Pass 2: Brand name recognition...');
-      await worker.setParameters({
-        tessedit_pageseg_mode: 8, // Single word
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
-        tessedit_char_blacklist: '0123456789|\\~`@#$^&*+=[]{};"<>?'
-      });
-
-      const result2 = await worker.recognize(preprocessedImage);
-      ocrResults.push({ text: result2.data.text, confidence: result2.data.confidence, method: 'single_word' });
-
-      // Pass 3: Line mode for product labels
-      setProcessingStageLocal('Pass 3: Line recognition...');
-      await worker.setParameters({
-        tessedit_pageseg_mode: 7, // Single text line
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-. ',
-        preserve_interword_spaces: '1'
-      });
-
-      const result3 = await worker.recognize(capturedImage); // Use original for this pass
-      ocrResults.push({ text: result3.data.text, confidence: result3.data.confidence, method: 'line' });
+      const ocrResult = await worker.recognize(preprocessedImage);
+      const ocrResults = [{ text: ocrResult.data.text, confidence: ocrResult.data.confidence, method: 'optimized' }];
 
       await worker.terminate();
 
@@ -814,13 +759,13 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     return () => stopCamera();
   }, [startCamera, stopCamera]);
 
-  // Live scanning interval
-  useEffect(() => {
-    if (isActive && !capturedImage && !isProcessing) {
-      const interval = setInterval(performLiveScan, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [isActive, capturedImage, isProcessing, performLiveScan]);
+  // Disabled live scanning for better performance - can be re-enabled if needed
+  // useEffect(() => {
+  //   if (isActive && !capturedImage && !isProcessing) {
+  //     const interval = setInterval(performLiveScan, 3000);
+  //     return () => clearInterval(interval);
+  //   }
+  // }, [isActive, capturedImage, isProcessing, performLiveScan]);
 
   // Effect to re-apply settings if needed (e.g., after switching camera, though switchCamera is handled internally)
   // This might be redundant if startCamera is called on switch, but kept for potential future needs.

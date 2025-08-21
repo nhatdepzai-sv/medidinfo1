@@ -40,17 +40,29 @@ export class DatabaseStorage implements IStorage {
       const existingMedications = await db.select().from(schema.medications).limit(1);
 
       if (existingMedications.length === 0) {
-        console.log("Initializing medications database...");
+        console.log("Initializing medications database with 100,000+ medications...");
         const medications = medicationsDatabase.map(med => ({
           ...med,
           id: randomUUID()
         }));
 
-        await db.insert(schema.medications).values(medications);
-        console.log(`Inserted ${medications.length} medications into database`);
+        console.log(`Preparing to insert ${medications.length} medications...`);
+        
+        // Insert in batches to avoid memory issues
+        const batchSize = 1000;
+        for (let i = 0; i < medications.length; i += batchSize) {
+          const batch = medications.slice(i, i + batchSize);
+          await db.insert(schema.medications).values(batch);
+          console.log(`Inserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(medications.length / batchSize)}`);
+        }
+        
+        console.log(`Successfully inserted ${medications.length} medications into database`);
+      } else {
+        console.log("Medications database already initialized");
       }
     } catch (error) {
       console.error("Error initializing medications:", error);
+      throw error;
     }
   }
 

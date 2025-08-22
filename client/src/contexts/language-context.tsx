@@ -270,6 +270,71 @@ const translations = {
     savedToFavorites: "{name} đã được lưu vào mục yêu thích của bạn.",
     copiedToClipboard: "Đã sao chép vào clipboard",
     medicationInfoCopied: "Thông tin thuốc đã được sao chép vào clipboard của bạn.",
+    translate: "Dịch",
+
+    // Enhanced search and medication terms
+    searchImproved: "Tìm kiếm nâng cao",
+    fuzzySearchEnabled: "Tìm kiếm thông minh được bật",
+    partialMatchFound: "Tìm thấy kết quả tương tự",
+    multipleResults: "Nhiều kết quả được tìm thấy",
+    exactMatch: "Khớp chính xác",
+    closeMatch: "Gần đúng",
+    
+    // Comprehensive medication categories
+    painRelieverNSAID: "Thuốc Giảm Đau Chống Viêm",
+    antibioticPenicillin: "Kháng Sinh Penicillin", 
+    cardiovascularACE: "Thuốc Tim Mạch ACE",
+    diabetesBiguanide: "Thuốc Tiểu Đường Biguanide",
+    mentalHealthSSRI: "Thuốc Tâm Thần SSRI",
+    respiratoryBronchodilator: "Thuốc Hô Hấp Giãn Phế Quản",
+    gastrointestinalPPI: "Thuốc Tiêu Hóa PPI",
+    hormonalTherapy: "Liệu Pháp Hormone",
+    immunosuppressant: "Thuốc Ức Chế Miễn Dịch",
+    
+    // Cancer medication categories
+    chemotherapyAgent: "Thuốc Hóa Trị",
+    monoclonalAntibody: "Kháng Thể Đơn Dòng",
+    tyrosineKinaseInhibitor: "Thuốc Ức Chế Tyrosine Kinase",
+    checkpointInhibitor: "Thuốc Ức Chế Checkpoint",
+    hormoneTherapyCancer: "Liệu Pháp Hormone Ung Thư",
+    targetedTherapy: "Liệu Pháp Đích",
+    immunotherapy: "Liệu Pháp Miễn Dịch",
+    
+    // Gout medication categories  
+    antiGoutAgent: "Thuốc Chống Gout",
+    xanthineOxidaseInhibitor: "Thuốc Ức Chế Xanthine Oxidase",
+    uricosureAgent: "Thuốc Tăng Bài Tiết Acid Uric",
+    
+    // Medical conditions translations
+    osteoarthritis: "Viêm khớp thoái hóa",
+    rheumatoidArthritis: "Viêm khớp dạng thấp", 
+    inflammatoryConditions: "Các bệnh viêm",
+    hyperuricemia: "Tăng acid uric máu",
+    goutFlares: "Cơn gout",
+    breastCancer: "Ung thư vú",
+    lungCancer: "Ung thư phổi",
+    colorectalCancer: "Ung thư đại trực tràng",
+    lymphoma: "U lympho",
+    leukemia: "Bạch cầu",
+    
+    // Dosage and administration
+    onceDaily: "một lần mỗi ngày",
+    twiceDaily: "hai lần mỗi ngày", 
+    threeTimesDaily: "ba lần mỗi ngày",
+    asNeeded: "khi cần thiết",
+    withMeals: "cùng bữa ăn",
+    onEmptyStomach: "khi đói",
+    atBedtime: "trước khi ngủ",
+    
+    // Enhanced warnings
+    stomachBleeding: "Có thể gây xuất huyết dạ dày",
+    kidneyMonitoring: "Theo dõi chức năng thận",
+    avoidInHeartDisease: "Tránh khi có bệnh tim",
+    liverToxicity: "Độc tính gan",
+    cardiacRisk: "Nguy cơ tim mạch",
+    allergicReactions: "Phản ứng dị ứng",
+    drugInteractions: "Tương tác thuốc",
+    pregnancyWarning: "Cảnh báo thai kỳ",
 
     // Drug categories and types in Vietnamese
     painReliever: "Thuốc Giảm Đau",

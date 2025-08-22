@@ -983,3 +983,33 @@ function detectMedication(text: string) {
 
   return null;
 }
+
+// Enhanced medication search function with fuzzy matching
+async function searchMedications(searchTerm: string): Promise<Medication[]> {
+  const results = await storage.searchMedications(searchTerm);
+
+  // If no exact results, try partial matches
+  if (results.length === 0) {
+    return await storage.searchMedicationsPartial(searchTerm);
+  }
+
+  return results;
+}
+
+// Fuzzy search for medications with advanced matching
+async function fuzzySearchMedications(searchTerm: string): Promise<Medication[]> {
+  return await storage.fuzzySearchMedications(searchTerm);
+}
+
+// Get search suggestions for failed searches
+async function getSearchSuggestions(searchTerm: string): Promise<string[]> {
+  const commonMedications = [
+    "Aspirin", "Meloxicam", "Ginkgo Biloba", "Ibuprofen", "Acetaminophen",
+    "Amoxicillin", "Lisinopril", "Metformin", "Allopurinol", "Colchicine",
+    "Tamoxifen", "Cisplatin", "Doxorubicin", "Warfarin", "Insulin"
+  ];
+
+  return commonMedications
+    .filter(med => med.toLowerCase().includes(searchTerm.toLowerCase().substring(0, 3)))
+    .slice(0, 5);
+}

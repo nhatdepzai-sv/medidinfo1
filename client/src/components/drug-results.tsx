@@ -171,7 +171,7 @@ const DrugResults: React.FC<DrugResultsProps> = ({ results }) => {
                       ? medication.warningsVi 
                       : medication.warnings || []
                     ).map((warning, index) => (
-                      <li key={index} className="text-sm text-red-600 flex items-start">
+                      <li key={`warning-${medication.id}-${index}`} className="text-sm text-red-600 flex items-start">
                         <span className="w-1 h-1 bg-red-600 rounded-full mt-2 mr-2 flex-shrink-0"></span>
                         {warning}
                       </li>

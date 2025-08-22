@@ -1,5 +1,3 @@
-
-
 export const fullComprehensiveDrugsDatabase = [
   // SPECIFIC DRUGS REQUESTED
   {
@@ -10,13 +8,13 @@ export const fullComprehensiveDrugsDatabase = [
     genericNameVi: "Meloxicam",
     category: "NSAID",
     categoryVi: "Thuốc chống viêm không steroid",
-    primaryUse: "Osteoarthritis, rheumatoid arthritis, and other inflammatory conditions",
+    primaryUse: "Arthritis, rheumatoid arthritis, and other inflammatory conditions",
     primaryUseVi: "Viêm khớp, viêm khớp dạng thấp và các bệnh viêm khác",
     adultDosage: "7.5-15mg once daily",
     adultDosageVi: "7.5-15mg một lần mỗi ngày",
     maxDosage: "15mg per day",
     maxDosageVi: "15mg mỗi ngày",
-    warnings: ["May cause stomach bleeding", "Monitor kidney function", "Avoid in heart disease"],
+    warnings: ["May cause stomach bleeding", "Monitor kidney function", "Avoid with heart disease"],
     warningsVi: ["Có thể gây xuất huyết dạ dày", "Theo dõi chức năng thận", "Tránh khi có bệnh tim"],
     createdAt: new Date().toISOString()
   },
@@ -228,7 +226,7 @@ export const fullComprehensiveDrugsDatabase = [
   // Generate 99,985+ more realistic medications for comprehensive coverage
   ...Array.from({ length: 99985 }, (_, i) => {
     const medNumber = String(i + 100).padStart(6, '0');
-    
+
     // Comprehensive real FDA drug name patterns - expanded for better search coverage
     const realDrugPrefixes = [
       "Acet", "Acicl", "Adal", "Alendr", "Allop", "Alpr", "Amio", "Amlo", "Amor", "Amox",
@@ -286,7 +284,7 @@ export const fullComprehensiveDrugsDatabase = [
       "JAK Inhibitor", "EGFR Inhibitor", "VEGF Inhibitor", "PD-1 Inhibitor", "PD-L1 Inhibitor",
       "CTLA-4 Inhibitor", "HER2 Targeted", "BCR-ABL Inhibitor", "FLT3 Inhibitor", "IDH Inhibitor"
     ];
-    
+
     const realCategoriesVi = [
       "Thuốc ức chế ACE", "Thuốc chống loạn nhịp", "Kháng sinh", "Thuốc chống đông máu", "Thuốc chống co giật",
       "Thuốc chống trầm cảm", "Thuốc chống nôn", "Thuốc chống nấm", "Thuốc kháng histamine", "Thuốc hạ huyết áp",
@@ -352,34 +350,34 @@ export const fullComprehensiveDrugsDatabase = [
     const prefixIndex = (i * 7) % realDrugPrefixes.length;
     const suffixIndex = (i * 11) % realDrugSuffixes.length;
     const useIndex = i % realUses.length;
-    
+
     const drugName = realDrugPrefixes[prefixIndex] + realDrugSuffixes[suffixIndex];
-    
+
     // Realistic dosages based on actual medication patterns
     const commonDosages = [
-      "0.125mg", "0.25mg", "0.5mg", "1mg", "2mg", "2.5mg", "5mg", "7.5mg", "10mg", "12.5mg", "15mg", "20mg", "25mg", 
+      "0.125mg", "0.25mg", "0.5mg", "1mg", "2mg", "2.5mg", "5mg", "7.5mg", "10mg", "12.5mg", "15mg", "20mg", "25mg",
       "30mg", "40mg", "50mg", "60mg", "75mg", "80mg", "100mg", "120mg", "125mg", "150mg", "200mg", "250mg", "300mg",
       "400mg", "500mg", "600mg", "750mg", "800mg", "875mg", "1000mg", "1200mg", "1500mg", "2000mg", "2500mg", "3000mg"
     ];
-    
+
     const frequencies = [
       "once daily", "twice daily", "three times daily", "four times daily",
       "every 4 hours", "every 6 hours", "every 8 hours", "every 12 hours",
       "as needed", "with meals", "at bedtime", "in the morning", "in the evening",
       "every other day", "weekly", "monthly", "before meals", "after meals"
     ];
-    
+
     const frequenciesVi = [
       "một lần mỗi ngày", "hai lần mỗi ngày", "ba lần mỗi ngày", "bốn lần mỗi ngày",
       "mỗi 4 giờ", "mỗi 6 giờ", "mỗi 8 giờ", "mỗi 12 giờ",
       "khi cần", "cùng bữa ăn", "trước khi ngủ", "vào buổi sáng", "vào buổi tối",
       "cách ngày", "hàng tuần", "hàng tháng", "trước bữa ăn", "sau bữa ăn"
     ];
-    
+
     const dosage = commonDosages[i % commonDosages.length];
     const frequency = frequencies[i % frequencies.length];
     const frequencyVi = frequenciesVi[i % frequenciesVi.length];
-    
+
     // Calculate realistic max dosage
     const dosageValue = parseFloat(dosage);
     const maxMultiplier = [2, 3, 4, 6, 8, 10][i % 6];
@@ -411,7 +409,7 @@ export const fullComprehensiveDrugsDatabase = [
       "Pulmonary fibrosis risk", "Peripheral neuropathy possible", "Hand-foot syndrome",
       "Stevens-Johnson syndrome risk", "Serious skin reactions", "QT prolongation possible"
     ];
-    
+
     const comprehensiveWarningsVi = [
       "Uống cùng thức ăn để giảm kích ứng dạ dày", "Có thể gây buồn ngủ - tránh lái xe",
       "Không uống rượu khi đang dùng thuốc", "Hoàn thành liệu trình điều trị đầy đủ",
@@ -464,4 +462,3 @@ export const fullComprehensiveDrugsDatabase = [
     };
   })
 ];
-

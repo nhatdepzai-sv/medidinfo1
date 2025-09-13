@@ -1,9 +1,9 @@
+/* Core font loading with font-display: swap for better performance */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Core font loading with font-display: swap for better performance */
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 
 /* Optimize base styles for performance */
 * {

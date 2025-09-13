@@ -3,6 +3,7 @@ run = "npm run dev"
 
 [nix]
 channel = "stable-25_05"
+packages = ["openjdk17"]
 
 [deployment]
 run = ["sh", "-c", "npm run dev"]
@@ -45,5 +46,5 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 32891
+localPort = 43631
 externalPort = 3000

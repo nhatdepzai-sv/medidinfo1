@@ -754,7 +754,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
   useEffect(() => {
     startCamera();
     return () => stopCamera();
-  }, [startCamera, stopCamera]);
+  }, []); // Remove dependencies to prevent infinite loop
 
   // Disabled live scanning for better performance - can be re-enabled if needed
   // useEffect(() => {
@@ -766,6 +766,14 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
   // Effect to re-apply settings if needed (e.g., after switching camera, though switchCamera is handled internally)
   // This might be redundant if startCamera is called on switch, but kept for potential future needs.
+  // Separate effect for face mode changes that restarts camera
+  useEffect(() => {
+    if (facingMode) {
+      stopCamera();
+      startCamera();
+    }
+  }, [facingMode]);
+
   useEffect(() => {
     if (isActive && !isInitializing) {
       // Re-apply zoom, brightness, contrast if they change after initial load

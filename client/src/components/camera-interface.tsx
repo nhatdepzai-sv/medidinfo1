@@ -356,9 +356,11 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
       setProcessingStageLocal('Loading OCR engine...');
 
-      // Correct Tesseract.js worker initialization with local language data
+      // Use reliable CDN paths for Tesseract.js
       const worker = await Tesseract.createWorker({
-        langPath: `${location.origin}/tessdata`
+        workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+        corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+        langPath: 'https://tessdata.projectnaptha.com/4.0.0'
       });
       
       setProcessingStageLocal('Loading language model...');

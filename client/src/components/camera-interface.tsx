@@ -356,29 +356,17 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
       setProcessingStageLocal('Loading OCR engine...');
 
-      // Use reliable CDN paths for Tesseract.js
-      const worker = await Tesseract.createWorker({
-        workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-        corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
-        langPath: 'https://tessdata.projectnaptha.com/4.0.0'
-      });
+      // Use default Tesseract.js configuration for better compatibility
+      const worker = await Tesseract.createWorker('eng');
       
-      setProcessingStageLocal('Loading language model...');
-      setOcrProgress(30);
-      await worker.loadLanguage('eng');
-      
-      setProcessingStageLocal('Initializing OCR engine...');
-      setOcrProgress(40);
-      await worker.initialize('eng');
-
       setProcessingStageLocal('Setting OCR parameters...');
       setOcrProgress(50);
       
       // Simplified OCR parameters for better stability
       await worker.setParameters({
         tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .-',
-        tessedit_pageseg_mode: 6,
-        preserve_interword_spaces: '1'
+        tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+        preserve_interword_spaces: 1
       });
 
       setProcessingStageLocal('Recognizing medication text...');
@@ -689,21 +677,14 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       ctx.putImageData(imageData, 0, 0);
       const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
 
-      // Quick OCR with basic settings - use modern API
+      // Quick OCR with basic settings - use simplified API
       const Tesseract = await import('tesseract.js');
-      const worker = await Tesseract.createWorker({
-        workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-        corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
-        langPath: 'https://tessdata.projectnaptha.com/4.0.0'
-      });
-      
-      await worker.loadLanguage('eng');
-      await worker.initialize('eng');
+      const worker = await Tesseract.createWorker('eng');
 
       await worker.setParameters({
         tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-.',
-        tessedit_pageseg_mode: 8, // Single word
-        preserve_interword_spaces: '0'
+        tessedit_pageseg_mode: Tesseract.PSM.SINGLE_WORD, // Single word
+        preserve_interword_spaces: 0
       });
 
       const { data: { text } } = await worker.recognize(imageDataUrl);

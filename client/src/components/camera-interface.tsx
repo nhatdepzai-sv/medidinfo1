@@ -356,10 +356,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
       setProcessingStageLocal('Loading OCR engine...');
 
-      // Correct Tesseract.js worker initialization for modern versions
-      const worker = await Tesseract.createWorker({
-        logger: () => {} // Disable logging to prevent errors
-      });
+      // Correct Tesseract.js worker initialization for modern versions  
+      const worker = await Tesseract.createWorker();
       
       setProcessingStageLocal('Loading language model...');
       setOcrProgress(30);

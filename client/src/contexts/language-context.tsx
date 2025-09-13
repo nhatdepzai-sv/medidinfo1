@@ -69,9 +69,7 @@ const translations = {
     noMedicationFound: "No medication found in database",
     noTextDetected: "No text detected in image",
     noRelevantTextFound: "No relevant text found for search",
-    failedToProcessImage: "Failed to process image",
     downloadImageSuccess: "Image downloaded successfully",
-    unableToControlFlash: "Unable to control camera flash",
 
     // Results
     medicationFound: "Medication Found",
@@ -187,6 +185,19 @@ const translations = {
     warning: "Warning",
     info: "Info",
     error: "Error",
+    
+    // Navigation actions
+    scanMedication: "Scan Medication",
+    searchDrugs: "Search Drugs", 
+    pillId: "Pill ID",
+    
+    // Tips
+    tipClearPhoto: "Clear Photo",
+    tipReadableText: "Readable Text",
+    tipConsultDoctor: "Consult Doctor",
+    tipClearPhotoDesc: "Hold steady, fill the frame, avoid glare, use back camera, good lighting",
+    tipReadableTextDesc: "Center the medication name and dosage, keep text sharp and upright, avoid blur",
+    tipConsultDoctorDesc: "Not medical advice. Always consult a healthcare professional, especially for dosage, interactions, children, pregnancy, or emergencies",
   },
   vi: {
     // App
@@ -248,9 +259,7 @@ const translations = {
     noMedicationFound: "Không tìm thấy thuốc trong cơ sở dữ liệu",
     noTextDetected: "Không phát hiện văn bản trong hình ảnh",
     noRelevantTextFound: "Không tìm thấy văn bản liên quan để tìm kiếm",
-    failedToProcessImage: "Không thể xử lý hình ảnh",
     downloadImageSuccess: "Tải hình ảnh thành công",
-    unableToControlFlash: "Không thể điều khiển đèn flash camera",
 
     // Results
     medicationFound: "Đã Tìm Thấy Thuốc",
@@ -270,8 +279,6 @@ const translations = {
     savedToFavorites: "{name} đã được lưu vào mục yêu thích của bạn.",
     copiedToClipboard: "Đã sao chép vào clipboard",
     medicationInfoCopied: "Thông tin thuốc đã được sao chép vào clipboard của bạn.",
-    translate: "Dịch",
-
     // Enhanced search and medication terms
     searchImproved: "Tìm kiếm nâng cao",
     fuzzySearchEnabled: "Tìm kiếm thông minh được bật",
@@ -389,9 +396,9 @@ const translations = {
     noImageProvided: "Không có tệp hình ảnh được cung cấp",
     noTextExtracted: "Không thể trích xuất văn bản từ hình ảnh",
     couldNotIdentifyMedication: "Không thể nhận dạng thuốc này",
-    imageProcessingFailed: "Không thể xử lý hình ảnh",
-    medicationSearchFailed: "Không thể tìm kiếm thuốc",
-    historyFetchFailed: "Không thể lấy lịch sử tìm kiếm",
+    failedToProcessImage: "Không thể xử lý hình ảnh",
+    failedToSearchMedication: "Không thể tìm kiếm thuốc",
+    failedToFetchHistory: "Không thể lấy lịch sử tìm kiếm",
     goBack: "Quay Lại",
 
     // Translator
@@ -452,6 +459,19 @@ const translations = {
     warning: "Cảnh Báo",
     info: "Thông Tin",
     error: "Lỗi",
+    
+    // Navigation actions
+    scanMedication: "Quét Thuốc",
+    searchDrugs: "Tìm Thuốc", 
+    pillId: "Nhận Dạng Viên",
+    
+    // Tips
+    tipClearPhoto: "Ảnh Rõ Nét",
+    tipReadableText: "Văn Bản Rõ Ràng",
+    tipConsultDoctor: "Tham Khảo Bác Sĩ",
+    tipClearPhotoDesc: "Giữ ổn định, khung hình đầy đủ, tránh chói sáng, dùng camera sau, ánh sáng tốt",
+    tipReadableTextDesc: "Căn giữa tên thuốc và liều lượng, giữ văn bản sắc nét và thẳng, tránh mờ",
+    tipConsultDoctorDesc: "Không phải lời khuyên y tế. Luôn tham khảo ý kiến chuyên gia y tế, đặc biệt về liều lượng, tương tác, trẻ em, thai kỳ hoặc cấp cứu",
   }
 };
 

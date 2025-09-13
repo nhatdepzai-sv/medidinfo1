@@ -356,74 +356,35 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
       setProcessingStageLocal('Loading OCR engine...');
 
-      // Initialize worker with multiple languages for better recognition
-      const worker = await Tesseract.createWorker(['eng'], 1, {
-        logger: m => {
-          if (m.status === 'recognizing text') {
-            setProcessingStageLocal(`Recognizing text... ${Math.round(m.progress * 100)}%`);
-            setOcrProgress(Math.round(m.progress * 100));
-          } else {
-            setProcessingStageLocal(m.status);
-          }
-        }
+      // Correct Tesseract.js worker initialization for modern versions
+      const worker = await Tesseract.createWorker({
+        logger: () => {} // Disable logging to prevent errors
       });
-
-      // Enhanced preprocessing for better medication text recognition
-      setProcessingStageLocal('Preprocessing image...');
       
-      // Create a temporary canvas for image preprocessing
-      const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d');
-      const img = new Image();
+      setProcessingStageLocal('Loading language model...');
+      setOcrProgress(30);
+      await worker.loadLanguage('eng');
       
-      await new Promise((resolve) => {
-        img.onload = resolve;
-        img.src = capturedImage;
-      });
+      setProcessingStageLocal('Initializing OCR engine...');
+      setOcrProgress(40);
+      await worker.initialize('eng');
 
-      tempCanvas.width = img.width;
-      tempCanvas.height = img.height;
-      tempCtx.drawImage(img, 0, 0);
-
-      // Advanced image preprocessing for better OCR
-      const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-      const data = imageData.data;
-
-      // Apply multiple preprocessing techniques
-      for (let i = 0; i < data.length; i += 4) {
-        // Convert to grayscale with optimal weights for text
-        const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-        
-        // Apply threshold to make text more distinct
-        const threshold = 128;
-        const binaryValue = gray > threshold ? 255 : 0;
-        
-        // Apply slight sharpening by increasing contrast
-        const sharpenedValue = gray < 100 ? Math.max(0, gray - 20) : 
-                              gray > 155 ? Math.min(255, gray + 20) : gray;
-        
-        // Use binary for very clear text, sharpened for medium contrast
-        const finalValue = Math.abs(gray - threshold) > 50 ? binaryValue : sharpenedValue;
-        
-        data[i] = finalValue;
-        data[i + 1] = finalValue;
-        data[i + 2] = finalValue;
-      }
-
-      tempCtx.putImageData(imageData, 0, 0);
-      const preprocessedImage = tempCanvas.toDataURL('image/png', 1.0);
-
-      // Single-pass OCR for faster processing
-      setProcessingStageLocal('Recognizing medication text...');
+      setProcessingStageLocal('Setting OCR parameters...');
+      setOcrProgress(50);
+      
+      // Simplified OCR parameters for better stability
       await worker.setParameters({
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-.,()/ %',
-        tessedit_pageseg_mode: 6, // Uniform block of text
-        preserve_interword_spaces: '1',
-        tessedit_ocr_engine_mode: 1, // Neural nets LSTM engine
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .-',
+        tessedit_pageseg_mode: 6,
+        preserve_interword_spaces: '1'
       });
 
-      const ocrResult = await worker.recognize(preprocessedImage);
-      const ocrResults = [{ text: ocrResult.data.text, confidence: ocrResult.data.confidence, method: 'optimized' }];
+      setProcessingStageLocal('Recognizing medication text...');
+      setOcrProgress(70);
+      
+      // Use original captured image directly to avoid preprocessing corruption
+      const { data: { text, confidence } } = await worker.recognize(capturedImage);
+      const ocrResults = [{ text, confidence, method: 'simplified' }];
 
       await worker.terminate();
 

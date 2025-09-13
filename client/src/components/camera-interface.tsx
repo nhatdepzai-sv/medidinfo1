@@ -49,13 +49,13 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
   const { toast } = useToast(); // Initialize useToast
 
   const getConstraints = useCallback(() => {
-    // Optimized constraints for faster initialization
+    // Simplified constraints for much faster initialization
     const constraints: MediaStreamConstraints = {
       video: {
         facingMode: facingMode,
-        width: { ideal: 720, min: 480 }, // Reduced for faster init
-        height: { ideal: 480, min: 360 },
-        frameRate: { ideal: 15, max: 30 }, // Lower framerate for better performance
+        width: { ideal: 640 }, // Simplified for faster startup
+        height: { ideal: 480 },
+        frameRate: { ideal: 20 } // Balanced framerate
       }
     };
 
@@ -84,39 +84,34 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       
       // Set active immediately after getting stream
       setIsActive(true);
+      // Always set initializing to false after getting stream
+      setIsInitializing(false);
 
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-
-        // Set video properties for better display
-        videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.setAttribute('autoplay', 'true');
-        videoRef.current.setAttribute('muted', 'true');
-
-        // Simplified video setup for faster loading
+        // Optimized single video setup for fastest loading
         videoRef.current.srcObject = stream;
         videoRef.current.setAttribute('playsinline', 'true');
         videoRef.current.setAttribute('autoplay', 'true');
         videoRef.current.setAttribute('muted', 'true');
+        videoRef.current.muted = true; // Set property for iOS autoplay
         
-        // Start playing and resolve quickly
-        try {
-          await videoRef.current.play();
+        // Immediate user feedback - don't wait for video to play
+        setIsInitializing(false);
+        
+        // Start playing asynchronously - don't block initialization
+        videoRef.current.play().then(() => {
           console.log('Camera is now active');
-        } catch (playError) {
+          
+          // Check for flash capability after successful play
+          const videoTrack = stream.getVideoTracks()[0];
+          if (videoTrack) {
+            const capabilities = videoTrack.getCapabilities();
+            setHasFlash(!!capabilities.torch);
+          }
+        }).catch(playError => {
           console.error('Play error:', playError);
-          // Continue anyway as some browsers play automatically
-        }
-
-        console.log('Camera is now active');
-
-        // Check for flash capability
-        const videoTrack = stream.getVideoTracks()[0];
-        if (videoTrack) {
-          const capabilities = videoTrack.getCapabilities();
-          setHasFlash(!!capabilities.torch);
-          console.log('Camera capabilities:', capabilities);
-        }
+          // Continue anyway - many browsers autoplay
+        });
       }
     } catch (error: any) {
       console.error('Camera error:', error);
@@ -134,13 +129,14 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         try {
           const basicStream = await navigator.mediaDevices.getUserMedia({ video: true });
           streamRef.current = basicStream;
+          setIsActive(true);
           if (videoRef.current) {
             videoRef.current.srcObject = basicStream;
             videoRef.current.setAttribute('playsinline', 'true');
             videoRef.current.setAttribute('autoplay', 'true');
             videoRef.current.setAttribute('muted', 'true');
-            await videoRef.current.play();
-            setIsActive(true);
+            videoRef.current.muted = true; // Set property for iOS
+            videoRef.current.play().catch(() => {}); // Don't wait for play
             console.log('Basic camera access successful');
             return;
           }
@@ -155,9 +151,10 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       setCameraError(errorMessage);
       setError(errorMessage);
     } finally {
+      // Always ensure initialization is complete
       setIsInitializing(false);
     }
-  }, [getConstraints, setError, isActive]);
+  }, [getConstraints, setError]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {

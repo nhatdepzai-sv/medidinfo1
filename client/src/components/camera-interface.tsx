@@ -180,8 +180,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       } catch (error) {
         console.error('Flash toggle error:', error);
         toast({
-          title: t.error,
-          description: t.unableToControlFlash,
+          title: t('error'),
+          description: t('unableToControlFlash'),
           variant: "destructive",
         });
       }
@@ -213,7 +213,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     if (!ctx) {
       setError("Canvas not available");
       toast({
-        title: t.error,
+        title: t('error'),
         description: "Canvas not available",
         variant: "destructive",
       });
@@ -337,8 +337,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
   const processOCR = useCallback(async () => {
     if (!capturedImage) {
       toast({
-        title: t.error,
-        description: t.noImageProvided,
+        title: t('error'),
+        description: t('noImageProvided'),
         variant: "destructive",
       });
       return;
@@ -428,8 +428,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       });
       setProcessingStageLocal("Processing error");
       toast({
-        title: t.error,
-        description: t.failedToProcessImage,
+        title: t('error'),
+        description: t('failedToProcessImage'),
         variant: "destructive",
       });
     } finally {
@@ -446,8 +446,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       });
       setProcessingStageLocal("No text detected");
       toast({
-        title: t.warning,
-        description: t.textNotDetected,
+        title: t('warning'),
+        description: t('textNotDetected'),
       });
       return;
     }
@@ -486,8 +486,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       });
       setProcessingStageLocal("No valid names found");
       toast({
-        title: t.warning,
-        description: t.noRelevantTextFound,
+        title: t('warning'),
+        description: t('noRelevantTextFound'),
       });
       return;
     }
@@ -571,7 +571,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         const finalMatch = bestMatch || sortedMedications[0];
         
         toast({
-          title: t.success || "Success",
+          title: t('success') || "Success",
           description: `Found: ${finalMatch.name}`,
         });
 
@@ -588,8 +588,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         });
         setProcessingStageLocal("No matches found");
         toast({
-          title: t.info || "Info",
-          description: t.noMedicationFound || "No medication found in our database",
+          title: t('info') || "Info",
+          description: t('noMedicationFound') || "No medication found in our database",
         });
       }
 
@@ -601,8 +601,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       });
       setProcessingStageLocal("Search error");
       toast({
-        title: t.error,
-        description: t.failedToProcessImage || "Search failed",
+        title: t('error'),
+        description: t('failedToProcessImage') || "Search failed",
         variant: "destructive",
       });
     }
@@ -634,8 +634,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       document.body.removeChild(link);
 
       toast({
-        title: t.success,
-        description: t.downloadImageSuccess, // More descriptive success message
+        title: t('success'),
+        description: t('downloadImageSuccess'), // More descriptive success message
       });
     }
   }, [capturedImage, toast, t]);
@@ -950,7 +950,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
                 </div>
               </div>
 
-              <h2 className="text-2xl font-bold mb-3">{t.processingImage || 'Processing Image'}</h2>
+              <h2 className="text-2xl font-bold mb-3">{t('processingImage') || 'Processing Image'}</h2>
               <p className="text-lg opacity-90 mb-6">{processingStage}</p>
 
               {/* Progress bar with percentage */}
@@ -988,7 +988,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
               </div>
 
               <p className="text-xs opacity-70 mt-4">
-                {t.processingNote || 'Analyzing medication name and searching our comprehensive database...'}
+                {t('processingNote') || 'Analyzing medication name and searching our comprehensive database...'}
               </p>
             </div>
           </div>
@@ -1012,8 +1012,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
               <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center">
                 <div className="text-white text-center p-8">
                   <div className="animate-spin w-12 h-12 border-4 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
-                  <h3 className="text-xl font-semibold mb-2">{t.startingCamera || 'Starting Camera...'}</h3>
-                  <p className="text-sm opacity-80">{t.pleaseWait || 'Please wait while we initialize your camera'}</p>
+                  <h3 className="text-xl font-semibold mb-2">{t('startingCamera') || 'Starting Camera...'}</h3>
+                  <p className="text-sm opacity-80">{t('pleaseWait') || 'Please wait while we initialize your camera'}</p>
 
                   {/* Camera setup progress */}
                   <div className="mt-6 bg-white/10 rounded-lg p-4 max-w-sm mx-auto">
@@ -1037,7 +1037,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
             {/* Medication Capture Guide */}
             <div className="absolute inset-0 pointer-events-none">
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-48 border-2 border-yellow-400 bg-yellow-400/10 rounded-lg flex items-center justify-center text-white text-sm text-center p-2">
-                {t.alignMedicationLabel}
+                {t('alignMedicationLabel')}
                 {/* Corner markers */}
                 <div className="absolute -top-2 -left-2 w-4 h-4 border-l-2 border-t-2 border-yellow-400"></div>
                 <div className="absolute -top-2 -right-2 w-4 h-4 border-r-2 border-t-2 border-yellow-400"></div>
@@ -1060,8 +1060,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
               )}
 
               <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white text-sm px-4 py-2 rounded-lg text-center">
-                <div className="mb-1">📱 {t.ensureGoodLighting}</div>
-                <div>🔍 {t.focusOnDrugName}</div>
+                <div className="mb-1">📱 {t('ensureGoodLighting')}</div>
+                <div>🔍 {t('focusOnDrugName')}</div>
                 {liveDetection && (
                   <div className="mt-1 text-green-300">✨ Live scanning active</div>
                 )}
@@ -1096,7 +1096,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
               size="lg"
               className="text-white border-white hover:bg-white/20"
             >
-              {t.cancel}
+              {t('cancel')}
             </Button>
           </div>
         ) : !capturedImage ? (
@@ -1143,7 +1143,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
               disabled={isProcessing}
             >
               <RefreshCw className="h-5 w-5" />
-              <span>{t.retakePhoto}</span>
+              <span>{t('retakePhoto')}</span>
             </Button>
 
             <Button
@@ -1154,7 +1154,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
               disabled={isProcessing}
             >
               <Download className="h-5 w-5" />
-              <span>{t.downloadImage}</span>
+              <span>{t('downloadImage')}</span>
             </Button>
 
             <Button
@@ -1164,7 +1164,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
               aria-label="Process OCR"
             >
               <Scan className="h-5 w-5" /> {/* Changed icon to Scan */}
-              <span>{isProcessing ? t.processing : t.scanText}</span>
+              <span>{isProcessing ? t('processing') : t('scanText')}</span>
             </Button>
 
             <Button
@@ -1175,7 +1175,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
               aria-label="Toggle settings"
             >
               <Settings className="h-5 w-5" />
-              <span>{t.settings}</span>
+              <span>{t('settings')}</span>
             </Button>
           </div>
         )}

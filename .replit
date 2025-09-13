@@ -47,6 +47,10 @@ waitForPort = 5000
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 45453
+externalPort = 3000
+
 [agent]
 expertMode = true
 integrations = ["javascript_openai:1.0.0"]

@@ -207,44 +207,69 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchMedications(query: string): Promise<Medication[]> {
-    if (useDatabase && db) {
-      if (!query.trim()) {
-        return await db.select().from(schema.medications).limit(50);
-      }
-
-      const medications = await db.select().from(schema.medications).where(
+    const searchTerm = `%${query.toLowerCase()}%`;
+    
+    // First, try direct database search
+    const directResults = useDatabase && db ? 
+      await db.select().from(schema.medications).where(
         or(
-          like(schema.medications.name, `%${query}%`),
-          like(schema.medications.nameVi, `%${query}%`),
-          like(schema.medications.genericName, `%${query}%`),
-          like(schema.medications.genericNameVi, `%${query}%`),
-          like(schema.medications.category, `%${query}%`),
-          like(schema.medications.categoryVi, `%${query}%`)
+          sql`LOWER(${schema.medications.name}) LIKE ${searchTerm}`,
+          sql`LOWER(${schema.medications.nameVi}) LIKE ${searchTerm}`,
+          sql`LOWER(${schema.medications.genericName}) LIKE ${searchTerm}`,
+          sql`LOWER(${schema.medications.genericNameVi}) LIKE ${searchTerm}`
         )
+      ).limit(20) :
+      Array.from(this.memoryMedications.values()).filter(med =>
+        med.name?.toLowerCase().includes(query.toLowerCase()) ||
+        med.nameVi?.toLowerCase().includes(query.toLowerCase()) ||
+        med.genericName?.toLowerCase().includes(query.toLowerCase()) ||
+        med.genericNameVi?.toLowerCase().includes(query.toLowerCase())
+      ).slice(0, 20);
+    
+    // If we found results, return them
+    if (directResults.length > 0) {
+      return directResults;
+    }
+    
+    // If no direct results, try alias-based search
+    try {
+      const { drugAliasService } = await import('./drug-alias-service');
+      const aliases = await drugAliasService.getAllAliases(query);
+      
+      // Search using all aliases
+      const aliasResults = await Promise.all(
+        aliases.map(async (alias) => {
+          const aliasSearchTerm = `%${alias.toLowerCase()}%`;
+          return useDatabase && db ?
+            await db.select().from(schema.medications).where(
+              or(
+                sql`LOWER(${schema.medications.name}) LIKE ${aliasSearchTerm}`,
+                sql`LOWER(${schema.medications.nameVi}) LIKE ${aliasSearchTerm}`,
+                sql`LOWER(${schema.medications.genericName}) LIKE ${aliasSearchTerm}`,
+                sql`LOWER(${schema.medications.genericNameVi}) LIKE ${aliasSearchTerm}`
+              )
+            ).limit(5) :
+            Array.from(this.memoryMedications.values()).filter(med =>
+              med.name?.toLowerCase().includes(alias.toLowerCase()) ||
+              med.nameVi?.toLowerCase().includes(alias.toLowerCase()) ||
+              med.genericName?.toLowerCase().includes(alias.toLowerCase()) ||
+              med.genericNameVi?.toLowerCase().includes(alias.toLowerCase())
+            ).slice(0, 5);
+        })
       );
-      return medications;
+      
+      // Flatten and deduplicate results
+      const allAliasResults = aliasResults.flat();
+      const uniqueResults = allAliasResults.filter((med, index, arr) => 
+        arr.findIndex(m => m.id === med.id) === index
+      );
+      
+      return uniqueResults.slice(0, 20);
+      
+    } catch (error) {
+      console.error('Alias search failed:', error);
+      return directResults; // Fall back to direct results (empty array)
     }
-
-    if (!query.trim()) {
-      return Array.from(this.memoryMedications.values()).slice(0, 50);
-    }
-
-    const lowerQuery = query.toLowerCase();
-    const results: Medication[] = [];
-
-    for (const med of this.memoryMedications.values()) {
-      if (med.name?.toLowerCase().includes(lowerQuery) ||
-          med.nameVi?.toLowerCase().includes(lowerQuery) ||
-          med.genericName?.toLowerCase().includes(lowerQuery) ||
-          med.genericNameVi?.toLowerCase().includes(lowerQuery) ||
-          med.category?.toLowerCase().includes(lowerQuery) ||
-          med.categoryVi?.toLowerCase().includes(lowerQuery)) {
-        results.push(med);
-      }
-      if (results.length >= 50) break;
-    }
-
-    return results;
   }
 
   async fuzzySearchMedications(searchTerm: string): Promise<Medication[]> {

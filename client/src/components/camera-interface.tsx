@@ -356,8 +356,10 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
       setProcessingStageLocal('Loading OCR engine...');
 
-      // Correct Tesseract.js worker initialization for modern versions  
-      const worker = await Tesseract.createWorker();
+      // Correct Tesseract.js worker initialization with local language data
+      const worker = await Tesseract.createWorker({
+        langPath: `${location.origin}/tessdata`
+      });
       
       setProcessingStageLocal('Loading language model...');
       setOcrProgress(30);
@@ -426,11 +428,13 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       setDetectedText(finalCleanText);
       await searchMedications(finalCleanText);
 
-    } catch (error) {
-      console.error('OCR Error:', error);
+    } catch (error: any) {
+      const errorMsg = `${error?.name || 'Error'}: ${error?.message || 'Unknown error'}`;
+      console.error('OCR Error:', errorMsg);
+      console.error('Full error details:', error?.stack || error);
       setSearchResult({
         success: false,
-        message: 'Error processing image'
+        message: `OCR processing failed: ${errorMsg}`
       });
       setProcessingStageLocal("Processing error");
       toast({

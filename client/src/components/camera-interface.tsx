@@ -345,78 +345,51 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     }
 
     setIsProcessing(true);
-    setProcessingStageLocal('Loading OCR engine...');
+    setProcessingStageLocal('Initializing AI vision...');
     setOcrProgress(10);
     setDetectedText('');
     setSearchResult({});
 
     try {
-      // Lazy load Tesseract for better performance
-      const Tesseract = await lazyLoadTesseract();
+      // Extract base64 from data URL
+      const base64Data = capturedImage.split(',')[1];
+      setOcrProgress(30);
+      setProcessingStageLocal('Analyzing image with AI...');
 
-      setProcessingStageLocal('Loading OCR engine...');
-
-      // Use default Tesseract.js configuration for better compatibility
-      const worker = await Tesseract.createWorker('eng');
-      
-      setProcessingStageLocal('Setting OCR parameters...');
-      setOcrProgress(50);
-      
-      // Simplified OCR parameters for better stability
-      await worker.setParameters({
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .-',
-        tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
-        preserve_interword_spaces: 1
+      // Use OpenAI Vision API for much better text recognition
+      const response = await fetch('/api/extract-medication', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ image: base64Data }),
       });
 
-      setProcessingStageLocal('Recognizing medication text...');
-      setOcrProgress(70);
-      
-      // Use original captured image directly to avoid preprocessing corruption
-      const { data: { text, confidence } } = await worker.recognize(capturedImage);
-      const ocrResults = [{ text, confidence, method: 'simplified' }];
-
-      await worker.terminate();
-
-      // Analyze and combine results
-      setProcessingStageLocal('Analyzing results...');
-      
-      // Sort by confidence and filter meaningful results
-      const validResults = ocrResults
-        .filter(result => result.text.trim().length > 2 && result.confidence > 30)
-        .sort((a, b) => b.confidence - a.confidence);
-
-      console.log('OCR Results:', validResults);
-
-      let finalCleanText = '';
-      
-      if (validResults.length > 0) {
-        // Combine top results intelligently
-        const topResult = validResults[0];
-        finalCleanText = topResult.text.trim();
-        
-        // If we have multiple good results, try to extract the best medication name
-        if (validResults.length > 1) {
-          const allTexts = validResults.map(r => r.text.trim()).join(' ');
-          const medicationPattern = /\b[A-Za-z]{3,20}\b/g;
-          const potentialMeds = [...new Set(allTexts.match(medicationPattern) || [])];
-          
-          if (potentialMeds.length > 0) {
-            // Prioritize longer, more complete medication names
-            const bestMed = potentialMeds.sort((a, b) => b.length - a.length)[0];
-            if (bestMed.length > finalCleanText.length) {
-              finalCleanText = bestMed;
-            }
-          }
-        }
+      if (!response.ok) {
+        throw new Error(`Vision API failed: ${response.statusText}`);
       }
 
-      if (!finalCleanText) {
+      const result = await response.json();
+      setOcrProgress(70);
+      setProcessingStageLocal('Processing medication data...');
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to extract medication info');
+      }
+
+      const { medicationName, dosage, detectedText, confidence } = result;
+      
+      // Use the detected medication name or fall back to all detected text
+      const searchText = medicationName || detectedText;
+      
+      if (!searchText || searchText.trim().length < 2) {
         throw new Error('No readable text found in image');
       }
 
-      setDetectedText(finalCleanText);
-      await searchMedications(finalCleanText);
+      setDetectedText(`${searchText}${dosage ? ` ${dosage}` : ''} (AI Confidence: ${confidence}%)`);
+      setOcrProgress(90);
+
+      await searchMedications(searchText);
 
     } catch (error: any) {
       const errorMsg = `${error?.name || 'Error'}: ${error?.message || 'Unknown error'}`;

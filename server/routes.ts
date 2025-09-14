@@ -129,7 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced search medications endpoint
+  // Enhanced search medications endpoint with fuzzy matching and aliases
   app.get('/api/search-medications', async (req, res) => {
     const query = req.query.query as string;
 
@@ -142,75 +142,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const searchTerm = query.toLowerCase().trim();
-    console.log('Processing search term:', searchTerm);
+    console.log('Processing enhanced search term:', searchTerm);
 
     try {
       // Combine all databases for comprehensive search
       const allDatabases = [
         ...fullComprehensiveDrugsDatabase,
         ...globalMedicationsDatabase,
-        ...medicationsDatabase // Including the new database
+        ...medicationsDatabase
       ];
 
-      // Enhanced search with fuzzy matching and multiple criteria
-      const results = allDatabases.filter(drug => {
-        // Direct matches
-        const nameMatch = drug.name.toLowerCase().includes(searchTerm);
-        const nameViMatch = drug.nameVi?.toLowerCase().includes(searchTerm);
-        const genericMatch = drug.genericName?.toLowerCase().includes(searchTerm);
-        const genericViMatch = drug.genericNameVi?.toLowerCase().includes(searchTerm);
-        const categoryMatch = drug.category?.toLowerCase().includes(searchTerm);
-        const categoryViMatch = drug.categoryVi?.toLowerCase().includes(searchTerm);
+      // Advanced scoring system for better search results
+      const scoredResults = allDatabases.map(drug => {
+        let score = 0;
+        const maxScore = 100;
 
-        // Partial word matches for better search results
-        const nameWords = drug.name.toLowerCase().split(/[\s-]+/);
-        const nameViWords = drug.nameVi?.toLowerCase().split(/[\s-]+/) || [];
-        const genericWords = drug.genericName?.toLowerCase().split(/[\s-]+/) || [];
-        const genericViWords = drug.genericNameVi?.toLowerCase().split(/[\s-]+/) || [];
+        // Exact match gets highest score
+        if (drug.name.toLowerCase() === searchTerm) score += 100;
+        else if (drug.nameVi?.toLowerCase() === searchTerm) score += 95;
+        else if (drug.genericName?.toLowerCase() === searchTerm) score += 90;
+        else if (drug.genericNameVi?.toLowerCase() === searchTerm) score += 85;
 
-        const wordMatch = [...nameWords, ...nameViWords, ...genericWords, ...genericViWords]
-          .some(word => word.startsWith(searchTerm) || searchTerm.startsWith(word));
+        // Starts with search term
+        if (drug.name.toLowerCase().startsWith(searchTerm)) score += 80;
+        else if (drug.nameVi?.toLowerCase().startsWith(searchTerm)) score += 75;
+        else if (drug.genericName?.toLowerCase().startsWith(searchTerm)) score += 70;
+        else if (drug.genericNameVi?.toLowerCase().startsWith(searchTerm)) score += 65;
 
-        // Brand name matching if available
-        const brandMatch = (drug as any).brandNames?.some((brand: string) =>
-          brand.toLowerCase().includes(searchTerm)
-        ) || (drug as any).brandNamesVi?.some((brand: string) =>
-          brand.toLowerCase().includes(searchTerm)
-        );
+        // Contains search term
+        if (drug.name.toLowerCase().includes(searchTerm)) score += 60;
+        else if (drug.nameVi?.toLowerCase().includes(searchTerm)) score += 55;
+        else if (drug.genericName?.toLowerCase().includes(searchTerm)) score += 50;
+        else if (drug.genericNameVi?.toLowerCase().includes(searchTerm)) score += 45;
 
-        return nameMatch || nameViMatch || genericMatch || genericViMatch ||
-               categoryMatch || categoryViMatch || wordMatch || brandMatch;
+        // Brand name matching
+        const brandNames = (drug as any).brandNames || [];
+        const brandNamesVi = (drug as any).brandNamesVi || [];
+        
+        brandNames.forEach((brand: string) => {
+          if (brand.toLowerCase() === searchTerm) score += 85;
+          else if (brand.toLowerCase().startsWith(searchTerm)) score += 65;
+          else if (brand.toLowerCase().includes(searchTerm)) score += 40;
+        });
+
+        brandNamesVi.forEach((brand: string) => {
+          if (brand.toLowerCase() === searchTerm) score += 80;
+          else if (brand.toLowerCase().startsWith(searchTerm)) score += 60;
+          else if (brand.toLowerCase().includes(searchTerm)) score += 35;
+        });
+
+        // Category matching (lower priority)
+        if (drug.category?.toLowerCase().includes(searchTerm)) score += 20;
+        if (drug.categoryVi?.toLowerCase().includes(searchTerm)) score += 15;
+
+        // Word boundary matching
+        const nameWords = drug.name.toLowerCase().split(/[\s\-_]+/);
+        const genericWords = drug.genericName?.toLowerCase().split(/[\s\-_]+/) || [];
+        
+        nameWords.forEach(word => {
+          if (word === searchTerm) score += 75;
+          else if (word.startsWith(searchTerm)) score += 35;
+        });
+
+        genericWords.forEach(word => {
+          if (word === searchTerm) score += 70;
+          else if (word.startsWith(searchTerm)) score += 30;
+        });
+
+        // Fuzzy matching for close spellings
+        if (score === 0 && searchTerm.length > 3) {
+          const fuzzyScore = calculateFuzzyScore(searchTerm, drug.name.toLowerCase());
+          if (fuzzyScore > 0.7) score += Math.floor(fuzzyScore * 25);
+          
+          if (drug.genericName) {
+            const genericFuzzyScore = calculateFuzzyScore(searchTerm, drug.genericName.toLowerCase());
+            if (genericFuzzyScore > 0.7) score += Math.floor(genericFuzzyScore * 20);
+          }
+        }
+
+        // Length penalty for very long names (prefer shorter, more specific matches)
+        if (drug.name.length > 20) score -= 5;
+
+        return { drug, score };
       })
+      .filter(result => result.score > 0)
       .sort((a, b) => {
-        // Prioritize exact matches
-        const aExact = a.name.toLowerCase() === searchTerm || a.nameVi?.toLowerCase() === searchTerm;
-        const bExact = b.name.toLowerCase() === searchTerm || b.nameVi?.toLowerCase() === searchTerm;
-
-        if (aExact && !bExact) return -1;
-        if (bExact && !aExact) return 1;
-
-        // Then prioritize starts with matches
-        const aStartsWith = a.name.toLowerCase().startsWith(searchTerm) || a.nameVi?.toLowerCase().startsWith(searchTerm);
-        const bStartsWith = b.name.toLowerCase().startsWith(searchTerm) || b.nameVi?.toLowerCase().startsWith(searchTerm);
-
-        if (aStartsWith && !bStartsWith) return -1;
-        if (bStartsWith && !aStartsWith) return 1;
-
-        return 0;
+        // Primary sort by score
+        if (a.score !== b.score) return b.score - a.score;
+        
+        // Secondary sort by name length (shorter preferred)
+        return a.drug.name.length - b.drug.name.length;
       })
-      .slice(0, 25); // Limit to 25 results
+      .slice(0, 50) // Increase limit for better results
+      .map(result => result.drug);
 
-      console.log(`Search completed: found ${results.length} results for "${searchTerm}"`);
+      console.log(`Enhanced search completed: found ${scoredResults.length} results for "${searchTerm}"`);
 
       res.json({
-        success: results.length > 0,
-        medications: results,
-        message: results.length > 0 ?
-          `Found ${results.length} medication${results.length > 1 ? 's' : ''}` :
+        success: scoredResults.length > 0,
+        medications: scoredResults,
+        message: scoredResults.length > 0 ?
+          `Found ${scoredResults.length} medication${scoredResults.length > 1 ? 's' : ''}` :
           'No medications found for your search'
       });
     } catch (error) {
-      console.error('Search error:', error);
+      console.error('Enhanced search error:', error);
       res.status(500).json({
         success: false,
         medications: [],
@@ -862,6 +898,35 @@ async function findMedicationByPartialMatch(searchText: string): Promise<any | n
 
 function escapeRegex(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Enhanced fuzzy matching using Levenshtein distance
+function calculateFuzzyScore(str1: string, str2: string): number {
+  const maxLength = Math.max(str1.length, str2.length);
+  if (maxLength === 0) return 1.0;
+  
+  const distance = levenshteinDistance(str1, str2);
+  return 1 - (distance / maxLength);
+}
+
+function levenshteinDistance(str1: string, str2: string): number {
+  const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+
+  for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+
+  for (let j = 1; j <= str2.length; j++) {
+    for (let i = 1; i <= str1.length; i++) {
+      const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1,
+        matrix[j - 1][i] + 1,
+        matrix[j - 1][i - 1] + indicator
+      );
+    }
+  }
+
+  return matrix[str2.length][str1.length];
 }
 
 function detectMedication(text: string) {

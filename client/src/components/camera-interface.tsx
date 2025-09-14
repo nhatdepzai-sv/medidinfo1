@@ -457,7 +457,6 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         console.error('Fallback OCR also failed:', fallbackError);
         throw apiError; // Throw original API error
       }
-
     } catch (error: any) {
       const errorMsg = `${error?.name || 'Error'}: ${error?.message || 'Unknown error'}`;
       console.error('OCR Error:', errorMsg);

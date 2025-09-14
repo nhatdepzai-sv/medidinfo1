@@ -377,7 +377,13 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         throw new Error(result.error || 'Failed to extract medication info');
       }
 
-      const { medicationName, dosage, detectedText, confidence } = result;
+      const { medicationName, dosage, detectedText, confidence, fallbackUsed } = result;
+      
+      // Show user if fallback was used
+      if (fallbackUsed) {
+        setProcessingStageLocal('Using backup OCR system...');
+        console.log('Using Tesseract.js fallback due to OpenAI API unavailability');
+      }
       
       // Use the detected medication name or fall back to all detected text
       const searchText = medicationName || detectedText;

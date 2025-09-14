@@ -13,18 +13,34 @@ export async function addExtractMedicationRoute(app: Express) {
         });
       }
 
-      const { extractMedicationFromImage } = await import('./openai-vision');
-      const result = await extractMedicationFromImage(image);
-      
-      res.json({ 
-        success: true, 
-        ...result
-      });
+      // Try OpenAI Vision first
+      try {
+        const { extractMedicationFromImage } = await import('./openai-vision');
+        const result = await extractMedicationFromImage(image);
+        
+        res.json({ 
+          success: true, 
+          ...result
+        });
+        return;
+      } catch (openaiError: any) {
+        console.log("OpenAI Vision failed, falling back to Tesseract.js:", openaiError.message);
+        
+        // Fallback to Tesseract.js OCR
+        const { extractMedicationWithTesseract } = await import('./tesseract-fallback');
+        const result = await extractMedicationWithTesseract(image);
+        
+        res.json({ 
+          success: true, 
+          ...result,
+          fallbackUsed: true
+        });
+      }
     } catch (error: any) {
-      console.error("Vision API error:", error);
+      console.error("All OCR methods failed:", error);
       res.status(500).json({ 
         success: false, 
-        error: error.message || "Vision processing failed" 
+        error: error.message || "OCR processing failed" 
       });
     }
   });

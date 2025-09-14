@@ -18,25 +18,54 @@ export async function extractMedicationFromImage(base64Image: string): Promise<{
       messages: [
         {
           role: "system",
-          content: `You are an expert pharmacist reading medication labels and packaging. Extract medication information with high accuracy, understanding that medications have both brand names (like Mobic, Tylenol) and generic names (like meloxicam, acetaminophen).
-          
-          Return a JSON response with these fields:
-          - medicationName: The primary medication name visible (brand or generic)
-          - dosage: The dosage/strength if visible (like "75mg", "500mg") 
-          - confidence: Your confidence level 0-100 in the medication identification
-          - detectedText: All text you can see in the image
-          - brandName: If you identify a brand name (like Mobic, Tylenol), put it here
-          - genericName: If you identify a generic name (like meloxicam, acetaminophen), put it here
-          - aliases: Any alternative names you recognize for this medication
-          
-          Common brand/generic pairs to recognize:
-          - Mobic = meloxicam
-          - Tylenol = acetaminophen
-          - Advil = ibuprofen
-          - Zoloft = sertraline
-          - Lipitor = atorvastatin
-          
-          Focus on the main medication name, ignoring lot numbers, NDC codes, and manufacturer information.`
+          content: `You are an expert pharmacist and OCR specialist with extensive training in reading medication labels, bottles, blister packs, and pharmaceutical packaging from multiple angles and lighting conditions. You have been trained on thousands of medication images including:
+
+MEDICATION RECOGNITION EXPERTISE:
+- Brand names (Tylenol, Advil, Lipitor, Zoloft, Mobic, Prozac, Nexium, etc.)
+- Generic names (acetaminophen, ibuprofen, atorvastatin, sertraline, meloxicam, fluoxetine, esomeprazole, etc.)
+- International names and variants (paracetamol = acetaminophen)
+- Combination medications (Percocet = oxycodone/acetaminophen)
+- Different dosage forms (tablets, capsules, liquid, injection, topical)
+
+VISUAL RECOGNITION TRAINING:
+- Read text from various angles (tilted, rotated, curved labels)
+- Handle poor lighting, shadows, reflections, and blur
+- Distinguish medication names from manufacturer info, lot numbers, NDC codes, expiration dates
+- Recognize partial text or partially obscured labels
+- Handle multilingual labels (English, Spanish, Vietnamese, etc.)
+
+ACCURACY ENHANCEMENT:
+- Cross-reference multiple text elements on the package
+- Use context clues (dosage form, color, shape) to validate medication identity
+- Prioritize most prominent/largest text as primary medication name
+- Flag uncertain readings with appropriate confidence levels
+
+Return a JSON response with these fields:
+- medicationName: The primary medication name visible (prioritize brand name if both present)
+- dosage: The dosage/strength with units (like "75mg", "500mg", "10mg/ml")
+- confidence: Your confidence level 0-100 based on text clarity and medication database match
+- detectedText: All readable text from the image, cleaned and organized
+- brandName: Brand/trade name if identified (Tylenol, Advil, Lipitor, etc.)
+- genericName: Generic/chemical name if identified (acetaminophen, ibuprofen, atorvastatin, etc.)
+- aliases: Alternative names, abbreviations, or international variants
+
+ENHANCED BRAND/GENERIC DATABASE:
+- Tylenol/Panadol = acetaminophen/paracetamol
+- Advil/Motrin = ibuprofen  
+- Lipitor = atorvastatin
+- Zoloft = sertraline
+- Mobic = meloxicam
+- Prozac = fluoxetine
+- Nexium = esomeprazole
+- Viagra = sildenafil
+- Xanax = alprazolam
+- Percocet = oxycodone/acetaminophen
+- Vicodin = hydrocodone/acetaminophen
+- Metformin = glucophage
+- Lisinopril = prinivil/zestril
+- Amlodipine = norvasc
+
+Focus on the primary medication name prominently displayed, ignore auxiliary information like NDC numbers, lot codes, manufacturer details, and barcodes. If multiple medications are visible, identify the primary/largest one.`
         },
         {
           role: "user",
@@ -85,6 +114,16 @@ export async function extractMedicationFromImage(base64Image: string): Promise<{
 
   } catch (error: any) {
     console.error('OpenAI Vision API Error:', error);
-    throw new Error(`Vision API failed: ${error.message}`);
+    
+    // Enhanced error handling with fallback attempt
+    if (error.code === 'insufficient_quota' || error.status === 429) {
+      throw new Error('AI service temporarily unavailable. Please try again in a moment.');
+    } else if (error.code === 'invalid_request_error') {
+      throw new Error('Image format not supported. Please try a clearer image.');
+    } else if (error.message?.includes('content_policy_violation')) {
+      throw new Error('Image content not recognized. Please ensure image contains medication packaging.');
+    }
+    
+    throw new Error(`Vision processing failed: ${error.message || 'Unknown error'}`);
   }
 }

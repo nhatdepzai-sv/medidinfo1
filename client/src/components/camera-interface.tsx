@@ -356,20 +356,45 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       setOcrProgress(30);
       setProcessingStageLocal('Analyzing image with AI...');
 
-      // Use OpenAI Vision API for much better text recognition
-      const response = await fetch('/api/extract-medication', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ image: base64Data }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Vision API failed: ${response.statusText}`);
+      // Use OpenAI Vision API with retry mechanism for browser extension issues
+      let response;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          response = await fetch('/api/extract-medication', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ image: base64Data }),
+          });
+          
+          if (response.ok) {
+            break; // Success, exit retry loop
+          } else {
+            throw new Error(`API returned ${response.status}: ${response.statusText}`);
+          }
+        } catch (fetchError: any) {
+          retryCount++;
+          console.warn(`Fetch attempt ${retryCount} failed:`, fetchError.message);
+          
+          if (retryCount >= maxRetries) {
+            // If it's a browser extension interference, provide helpful message
+            if (fetchError.message.includes('Failed to fetch') || 
+                fetchError.message.includes('TypeError: Failed to fetch')) {
+              throw new Error('Network request blocked - please disable browser extensions that might interfere with requests, or try refreshing the page');
+            }
+            throw new Error(`Vision API failed after ${maxRetries} attempts: ${fetchError.message}`);
+          }
+          
+          // Wait before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        }
       }
 
-      const result = await response.json();
+      const result = await response!.json();
       setOcrProgress(70);
       setProcessingStageLocal('Processing medication data...');
 
@@ -397,10 +422,56 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
       await searchMedications(searchText);
 
+    } catch (apiError: any) {
+      // If API is completely unavailable, try direct Tesseract fallback
+      console.warn('API unavailable, trying direct Tesseract fallback:', apiError.message);
+      setProcessingStageLocal('API unavailable, using backup OCR...');
+      
+      try {
+        // Dynamic import of Tesseract for fallback
+        const Tesseract = await import('tesseract.js');
+        const worker = await Tesseract.createWorker('eng');
+        
+        await worker.setParameters({
+          tesseract_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .-',
+          tesseract_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+          preserve_interword_spaces: 1
+        });
+
+        const { data: { text, confidence } } = await worker.recognize(capturedImage);
+        await worker.terminate();
+
+        const cleanText = text
+          .replace(/[^a-zA-Z0-9\s.-]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        if (cleanText && cleanText.length > 2) {
+          setDetectedText(`${cleanText} (Backup OCR: ${confidence}%)`);
+          setOcrProgress(90);
+          await searchMedications(cleanText);
+        } else {
+          throw new Error('Backup OCR could not extract readable text');
+        }
+      } catch (fallbackError: any) {
+        console.error('Fallback OCR also failed:', fallbackError);
+        throw apiError; // Throw original API error
+      }
+
     } catch (error: any) {
       const errorMsg = `${error?.name || 'Error'}: ${error?.message || 'Unknown error'}`;
       console.error('OCR Error:', errorMsg);
       console.error('Full error details:', error?.stack || error);
+      
+      // Provide user-friendly error messages
+      let userMessage = t('failedToProcessImage') || 'Failed to process image';
+      if (error?.message?.includes('Network request blocked') || 
+          error?.message?.includes('browser extensions')) {
+        userMessage = 'Request blocked by browser extension. Please disable ad blockers or privacy extensions and try again.';
+      } else if (error?.message?.includes('Vision API failed')) {
+        userMessage = 'AI vision service temporarily unavailable. The app will automatically use backup OCR.';
+      }
+      
       setSearchResult({
         success: false,
         message: `OCR processing failed: ${errorMsg}`
@@ -408,7 +479,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       setProcessingStageLocal("Processing error");
       toast({
         title: t('error'),
-        description: t('failedToProcessImage'),
+        description: userMessage,
         variant: "destructive",
       });
     } finally {

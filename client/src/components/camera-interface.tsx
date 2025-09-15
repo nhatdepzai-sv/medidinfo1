@@ -81,7 +81,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       console.log('Requesting camera with constraints:', getConstraints());
       const stream = await navigator.mediaDevices.getUserMedia(getConstraints());
       streamRef.current = stream;
-      
+
       // Set active immediately after getting stream
       setIsActive(true);
       // Always set initializing to false after getting stream
@@ -94,14 +94,14 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         videoRef.current.setAttribute('autoplay', 'true');
         videoRef.current.setAttribute('muted', 'true');
         videoRef.current.muted = true; // Set property for iOS autoplay
-        
+
         // Immediate user feedback - don't wait for video to play
         setIsInitializing(false);
-        
+
         // Start playing asynchronously - don't block initialization
         videoRef.current.play().then(() => {
           console.log('Camera is now active');
-          
+
           // Check for flash capability after successful play
           const videoTrack = stream.getVideoTracks()[0];
           if (videoTrack) {
@@ -223,7 +223,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     // Set canvas size to optimal resolution for OCR (balance between quality and processing speed)
     const optimalWidth = Math.min(video.videoWidth || 1920, 2048);
     const optimalHeight = Math.min(video.videoHeight || 1080, 1536);
-    
+
     canvas.width = optimalWidth;
     canvas.height = optimalHeight;
 
@@ -234,7 +234,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
     // Advanced image preprocessing for optimal OCR
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
-    
+
     // Get brightness and contrast values from state
     const brightnessValue = (Number(brightness[0]) - 100) / 100;
     const contrastValue = Number(contrast[0]) / 100;
@@ -246,22 +246,22 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
       // Apply brightness and contrast adjustments
       let processedValue = gray;
-      
+
       // Contrast adjustment
       processedValue = ((processedValue - 128) * contrastValue) + 128;
-      
+
       // Brightness adjustment
       processedValue = processedValue + (processedValue * brightnessValue);
-      
+
       // Clamp initial adjustments
       processedValue = Math.max(0, Math.min(255, processedValue));
 
       // Advanced text enhancement techniques
-      
+
       // 1. Adaptive thresholding for better text separation
       const localThreshold = 128; // Could be made adaptive based on local area
       const thresholdSensitivity = 30;
-      
+
       if (Math.abs(processedValue - localThreshold) > thresholdSensitivity) {
         // Strong contrast areas - enhance further
         if (processedValue > localThreshold) {
@@ -270,14 +270,14 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
           processedValue = Math.max(0, processedValue * 0.85); // Make blacks blacker
         }
       }
-      
+
       // 2. Noise reduction - smooth very dark or very light values
       if (processedValue < 40 || processedValue > 215) {
         // Apply slight smoothing to reduce noise in extreme values
         const smoothingFactor = 0.9;
         processedValue = processedValue * smoothingFactor + (processedValue > 127 ? 255 : 0) * (1 - smoothingFactor);
       }
-      
+
       // 3. Final edge enhancement for text clarity
       if (processedValue > 100 && processedValue < 155) {
         // Medium gray areas - push towards black or white based on local context
@@ -300,30 +300,30 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       -1, 5, -1,
       0, -1, 0
     ];
-    
+
     const sharpened = new Uint8ClampedArray(data);
     const width = canvas.width;
     const height = canvas.height;
-    
+
     for (let y = 1; y < height - 1; y++) {
       for (let x = 1; x < width - 1; x++) {
         const idx = (y * width + x) * 4;
         let sum = 0;
-        
+
         for (let ky = -1; ky <= 1; ky++) {
           for (let kx = -1; kx <= 1; kx++) {
             const kidx = ((y + ky) * width + (x + kx)) * 4;
             sum += data[kidx] * sharpenKernel[(ky + 1) * 3 + (kx + 1)];
           }
         }
-        
+
         const sharpenedValue = Math.max(0, Math.min(255, sum));
         sharpened[idx] = sharpenedValue;
         sharpened[idx + 1] = sharpenedValue;
         sharpened[idx + 2] = sharpenedValue;
       }
     }
-    
+
     const finalImageData = new ImageData(sharpened, width, height);
     ctx.putImageData(finalImageData, 0, 0);
 
@@ -360,7 +360,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       let response;
       let retryCount = 0;
       const maxRetries = 3;
-      
+
       while (retryCount < maxRetries) {
         try {
           response = await fetch('/api/extract-medication', {
@@ -370,7 +370,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
             },
             body: JSON.stringify({ image: base64Data }),
           });
-          
+
           if (response.ok) {
             break; // Success, exit retry loop
           } else {
@@ -379,16 +379,16 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         } catch (fetchError: any) {
           retryCount++;
           console.warn(`Fetch attempt ${retryCount} failed:`, fetchError.message);
-          
+
           if (retryCount >= maxRetries) {
             // If it's a browser extension interference, provide helpful message
-            if (fetchError.message.includes('Failed to fetch') || 
+            if (fetchError.message.includes('Failed to fetch') ||
                 fetchError.message.includes('TypeError: Failed to fetch')) {
               throw new Error('Network request blocked - please disable browser extensions that might interfere with requests, or try refreshing the page');
             }
             throw new Error(`Vision API failed after ${maxRetries} attempts: ${fetchError.message}`);
           }
-          
+
           // Wait before retry (exponential backoff)
           await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
         }
@@ -403,16 +403,16 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       }
 
       const { medicationName, dosage, detectedText, confidence, fallbackUsed } = result;
-      
+
       // Show user if fallback was used
       if (fallbackUsed) {
         setProcessingStageLocal('Using backup OCR system...');
         console.log('Using Tesseract.js fallback due to OpenAI API unavailability');
       }
-      
+
       // Use the detected medication name or fall back to all detected text
       const searchText = medicationName || detectedText;
-      
+
       if (!searchText || searchText.trim().length < 2) {
         throw new Error('No readable text found in image');
       }
@@ -426,12 +426,12 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       // If API is completely unavailable, try direct Tesseract fallback
       console.warn('API unavailable, trying direct Tesseract fallback:', apiError.message);
       setProcessingStageLocal('API unavailable, using backup OCR...');
-      
+
       try {
         // Dynamic import of Tesseract for fallback
         const Tesseract = await import('tesseract.js');
         const worker = await Tesseract.createWorker('eng');
-        
+
         await worker.setParameters({
           tesseract_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .-',
           tesseract_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
@@ -461,16 +461,16 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       const errorMsg = `${error?.name || 'Error'}: ${error?.message || 'Unknown error'}`;
       console.error('OCR Error:', errorMsg);
       console.error('Full error details:', error?.stack || error);
-      
+
       // Provide user-friendly error messages
       let userMessage = t('failedToProcessImage') || 'Failed to process image';
-      if (error?.message?.includes('Network request blocked') || 
+      if (error?.message?.includes('Network request blocked') ||
           error?.message?.includes('browser extensions')) {
         userMessage = 'Request blocked by browser extension. Please disable ad blockers or privacy extensions and try again.';
       } else if (error?.message?.includes('Vision API failed')) {
         userMessage = 'AI vision service temporarily unavailable. The app will automatically use backup OCR.';
       }
-      
+
       setSearchResult({
         success: false,
         message: `OCR processing failed: ${errorMsg}`
@@ -552,36 +552,36 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         try {
           const response = await fetch(`/api/search-medications?query=${encodeURIComponent(term)}`);
           if (!response.ok) continue;
-          
+
           const result = await response.json();
-          
+
           if (result.success && result.medications && result.medications.length > 0) {
             // Calculate relevance score for each result
             for (const med of result.medications) {
               if (!medicationIds.has(med.id)) {
                 medicationIds.add(med.id);
                 allMedications.push(med);
-                
+
                 // Calculate relevance based on exact match and term length
                 const exactMatch = med.name.toLowerCase() === term.toLowerCase() ||
                                  med.genericName?.toLowerCase() === term.toLowerCase();
                 const containsMatch = med.name.toLowerCase().includes(term.toLowerCase());
-                
+
                 let relevance = 0;
                 if (exactMatch) relevance = 100;
                 else if (containsMatch) relevance = 80;
                 else relevance = 60;
-                
+
                 // Boost relevance for longer search terms (more specific)
                 relevance += Math.min(term.length * 2, 20);
-                
+
                 if (relevance > highestRelevance) {
                   highestRelevance = relevance;
                   bestMatch = med;
                 }
               }
             }
-            
+
             // If we found a very high confidence match, break early
             if (highestRelevance >= 95) break;
           }
@@ -594,18 +594,18 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       if (allMedications.length > 0) {
         // Sort medications by relevance
         const sortedMedications = allMedications.sort((a, b) => {
-          const aExact = searchTerms.some(term => 
+          const aExact = searchTerms.some(term =>
             a.name.toLowerCase() === term.toLowerCase() ||
             a.genericName?.toLowerCase() === term.toLowerCase()
           );
-          const bExact = searchTerms.some(term => 
+          const bExact = searchTerms.some(term =>
             b.name.toLowerCase() === term.toLowerCase() ||
             b.genericName?.toLowerCase() === term.toLowerCase()
           );
-          
+
           if (aExact && !bExact) return -1;
           if (!aExact && bExact) return 1;
-          
+
           return a.name.length - b.name.length; // Shorter names often more relevant
         });
 
@@ -618,7 +618,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
         // Automatically use the best match
         const finalMatch = bestMatch || sortedMedications[0];
-        
+
         toast({
           title: t('success') || "Success",
           description: `Found: ${finalMatch.name}`,
@@ -629,7 +629,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
           onMedicationFound(finalMatch);
           onClose();
         }, 2000);
-        
+
       } else {
         setSearchResult({
           success: false,

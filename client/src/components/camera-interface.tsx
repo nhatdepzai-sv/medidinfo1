@@ -480,7 +480,6 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
           description: userMessage,
           variant: "destructive",
         });
-        return; // Exit the function here
       }
     } catch (generalError: any) {
       // This catch block handles any other errors not caught above

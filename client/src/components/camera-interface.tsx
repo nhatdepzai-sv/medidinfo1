@@ -480,19 +480,20 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
           description: userMessage,
           variant: "destructive",
         });
+        return; // Exit the function here
       }
-
-    } catch (error: any) {
-      const errorMsg = `${error?.name || 'Error'}: ${error?.message || 'Unknown error'}`;
-      console.error('OCR Error:', errorMsg);
-      console.error('Full error details:', error?.stack || error);
+    } catch (generalError: any) {
+      // This catch block handles any other errors not caught above
+      const errorMsg = `${generalError?.name || 'Error'}: ${generalError?.message || 'Unknown error'}`;
+      console.error('General OCR Error:', errorMsg);
+      console.error('Full error details:', generalError?.stack || generalError);
 
       // Provide user-friendly error messages
       let userMessage = t('failedToProcessImage') || 'Failed to process image';
-      if (error?.message?.includes('Network request blocked') ||
-          error?.message?.includes('browser extensions')) {
+      if (generalError?.message?.includes('Network request blocked') ||
+          generalError?.message?.includes('browser extensions')) {
         userMessage = 'Request blocked by browser extension. Please disable ad blockers or privacy extensions and try again.';
-      } else if (error?.message?.includes('Vision API failed')) {
+      } else if (generalError?.message?.includes('Vision API failed')) {
         userMessage = 'AI vision service temporarily unavailable. The app will automatically use backup OCR.';
       }
 

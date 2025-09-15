@@ -202,7 +202,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
     // Add capture sound effect (optional)
     try {
-      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmNBCCl+zPLOekYHHWq+8qGOWRAJU6v7vG1fGTNhkfKxjUIJLXzE8dnAFUkPIXfb92OGWAkzU4fgutdBCTFjkfOzgVYKJXfO7+n9CFgQOGu83YFuCAU0e8jT2nyiCgggCG+mEJr2jjsKO3e7xHpOCBA9dtzs2YaLKQQcjVzocxoGJf1u2OwCAMN+zFqGZY+EMQdXlr3C1IRkOA==');
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmNBCCl+zPLOekYHHWq+8qGOWRAJU6v7v1fGTNhkfKxjUIJLXzE8dnAFUkPIXfb92OGWAkzU4fgutdBCTFjkfOzgVYKJXfO7+n9CFgQOGu83YFuCAU0e8jT2nyiCgggCG+mEJr2jjsKO3e7xHpOCBA9dtzs2YaLKQQcjVzocxoGJf1u2OwCAMN+zFqGZY+EMQdXlr3C1IRkOA==');
       audio.play().catch(() => {}); // Ignore audio errors
     } catch (e) {}
 
@@ -455,8 +455,33 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         }
       } catch (fallbackError: any) {
         console.error('Fallback OCR also failed:', fallbackError);
-        throw apiError; // Throw original API error
+        // Handle both errors - prioritize the API error message
+        const primaryError = apiError || fallbackError;
+        const errorMsg = `${primaryError?.name || 'Error'}: ${primaryError?.message || 'Unknown error'}`;
+        console.error('OCR Error:', errorMsg);
+        console.error('Full error details:', primaryError?.stack || primaryError);
+
+        // Provide user-friendly error messages
+        let userMessage = t('failedToProcessImage') || 'Failed to process image';
+        if (primaryError?.message?.includes('Network request blocked') || 
+            primaryError?.message?.includes('browser extensions')) {
+          userMessage = 'Request blocked by browser extension. Please disable ad blockers or privacy extensions and try again.';
+        } else if (primaryError?.message?.includes('Vision API failed')) {
+          userMessage = 'AI vision service temporarily unavailable. Both AI and backup OCR failed.';
+        }
+
+        setSearchResult({
+          success: false,
+          message: `OCR processing failed: ${errorMsg}`
+        });
+        setProcessingStageLocal("Processing error");
+        toast({
+          title: t('error'),
+          description: userMessage,
+          variant: "destructive",
+        });
       }
+
     } catch (error: any) {
       const errorMsg = `${error?.name || 'Error'}: ${error?.message || 'Unknown error'}`;
       console.error('OCR Error:', errorMsg);

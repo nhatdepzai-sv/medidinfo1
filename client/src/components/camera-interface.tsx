@@ -455,6 +455,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         }
       } catch (fallbackError: any) {
         console.error('Fallback OCR also failed:', fallbackError);
+        
         // Handle both errors - prioritize the API error message
         const primaryError = apiError || fallbackError;
         const errorMsg = `${primaryError?.name || 'Error'}: ${primaryError?.message || 'Unknown error'}`;
@@ -480,32 +481,6 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
           description: userMessage,
           variant: "destructive",
         });
-      }
-    } catch (generalError: any) {
-      // This catch block handles any other errors not caught above
-      const errorMsg = `${generalError?.name || 'Error'}: ${generalError?.message || 'Unknown error'}`;
-      console.error('General OCR Error:', errorMsg);
-      console.error('Full error details:', generalError?.stack || generalError);
-
-      // Provide user-friendly error messages
-      let userMessage = t('failedToProcessImage') || 'Failed to process image';
-      if (generalError?.message?.includes('Network request blocked') ||
-          generalError?.message?.includes('browser extensions')) {
-        userMessage = 'Request blocked by browser extension. Please disable ad blockers or privacy extensions and try again.';
-      } else if (generalError?.message?.includes('Vision API failed')) {
-        userMessage = 'AI vision service temporarily unavailable. The app will automatically use backup OCR.';
-      }
-
-      setSearchResult({
-        success: false,
-        message: `OCR processing failed: ${errorMsg}`
-      });
-      setProcessingStageLocal("Processing error");
-      toast({
-        title: t('error'),
-        description: userMessage,
-        variant: "destructive",
-      });
     } finally {
       setIsProcessing(false);
       setOcrProgress(0);

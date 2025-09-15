@@ -481,6 +481,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
           description: userMessage,
           variant: "destructive",
         });
+      }
     } finally {
       setIsProcessing(false);
       setOcrProgress(0);

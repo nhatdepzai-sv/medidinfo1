@@ -17,8 +17,8 @@ export async function extractMedicationWithTesseract(base64Image: string): Promi
     // Configure Tesseract for better medication text recognition
     await worker.setParameters({
       tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .-',
-      tessedit_pageseg_mode: 6, // Assume uniform block of text
-      preserve_interword_spaces: 1
+      tessedit_pageseg_mode: '6' as any, // Assume uniform block of text
+      preserve_interword_spaces: '1' as any
     });
 
     // Convert base64 to buffer for Tesseract

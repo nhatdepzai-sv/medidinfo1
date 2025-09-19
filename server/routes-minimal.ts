@@ -20,13 +20,35 @@ export async function addExtractMedicationRoute(app: Express) {
 
         res.json({
           success: true,
-          ...result
+          ...result,
+          aiMethod: 'openai-vision'
         });
         return;
       } catch (openaiError: any) {
-        console.log("OpenAI Vision failed, falling back to Tesseract.js:", openaiError.message);
+        console.log("OpenAI Vision failed, falling back to Enhanced AI Trainer:", openaiError.message);
 
-        // Fallback to Tesseract.js OCR
+        // Try Enhanced AI Trainer with multiple OCR strategies
+        try {
+          const { enhancedAITrainer } = await import('./enhanced-ai-training');
+          const enhancedResult = await enhancedAITrainer.performEnhancedOCR(image);
+          
+          if (enhancedResult.confidence > 60 && enhancedResult.medicationName) {
+            res.json({
+              success: true,
+              medicationName: enhancedResult.medicationName,
+              dosage: enhancedResult.dosage,
+              confidence: enhancedResult.confidence,
+              detectedText: enhancedResult.detectedText,
+              strategies: enhancedResult.strategies,
+              aiMethod: 'enhanced-ai-trainer'
+            });
+            return;
+          }
+        } catch (enhancedError: any) {
+          console.log("Enhanced AI Trainer failed, falling back to basic Tesseract:", enhancedError.message);
+        }
+
+        // Final fallback to basic Tesseract.js OCR
         const { extractMedicationWithTesseract } = await import('./tesseract-fallback');
         const extractedText = await extractMedicationWithTesseract(image);
 

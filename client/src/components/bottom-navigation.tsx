@@ -15,8 +15,8 @@ export default function BottomNavigation() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200 px-4 py-2">
-      <div className="flex justify-around items-center">
+    <nav className="fixed bottom-0 left-0 right-0 w-full bg-white border-t border-gray-200 px-4 py-2 z-50 safe-area-inset-bottom">
+      <div className="flex justify-around items-center max-w-md mx-auto">
         {tabs.map(({ path, icon: Icon, label }) => {
           const isActive = location === path;
 
@@ -25,14 +25,15 @@ export default function BottomNavigation() {
               key={path}
               variant="ghost"
               size="sm"
-              className={`flex flex-col items-center py-2 px-3 transition-colors ${
+              className={`flex flex-col items-center py-3 px-4 transition-colors min-h-[60px] touch-manipulation ${
                 isActive
-                  ? "text-primary"
-                  : "text-gray-400 hover:text-gray-600"
+                  ? "text-primary bg-primary/10"
+                  : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
               }`}
               onClick={() => setLocation(path)}
+              aria-label={label}
             >
-              <Icon className="w-5 h-5 mb-1" />
+              <Icon className="w-6 h-6 mb-1" />
               <span className="text-xs font-medium">{label}</span>
             </Button>
           );

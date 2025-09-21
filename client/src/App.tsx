@@ -22,7 +22,7 @@ function App() {
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
             <div className="min-h-screen bg-gray-50 flex flex-col">
-              <main className="flex-1 overflow-auto">
+              <main className="flex-1 overflow-auto pb-20 safe-area-inset-top">
                 <Suspense fallback={
                   <div className="flex items-center justify-center min-h-screen">
                     <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>

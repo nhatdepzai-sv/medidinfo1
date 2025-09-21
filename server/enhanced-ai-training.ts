@@ -162,66 +162,183 @@ export class EnhancedAITrainer {
 
     const words = text.toLowerCase().split(/\s+/);
     
+    // Comprehensive medication database for pattern matching
+    const knownMedications = {
+      brands: [
+        'tylenol', 'advil', 'motrin', 'aleve', 'aspirin', 'bayer', 'excedrin',
+        'lipitor', 'crestor', 'zoloft', 'prozac', 'lexapro', 'wellbutrin',
+        'xanax', 'ativan', 'valium', 'klonopin', 'ambien', 'lunesta',
+        'viagra', 'cialis', 'levitra', 'nexium', 'prilosec', 'prevacid',
+        'zantac', 'pepcid', 'tums', 'rolaids', 'mobic', 'celebrex',
+        'voltaren', 'diclofenac', 'naproxen', 'meloxicam', 'tramadol',
+        'ultram', 'norco', 'vicodin', 'percocet', 'oxycontin', 'morphine',
+        'fentanyl', 'codeine', 'hydrocodone', 'oxycodone', 'metformin',
+        'glucophage', 'januvia', 'victoza', 'trulicity', 'lantus',
+        'humalog', 'novolog', 'lisinopril', 'enalapril', 'losartan',
+        'valsartan', 'amlodipine', 'norvasc', 'nifedipine', 'diltiazem',
+        'metoprolol', 'atenolol', 'propranolol', 'carvedilol', 'warfarin',
+        'coumadin', 'eliquis', 'xarelto', 'pradaxa', 'plavix', 'aspirin'
+      ],
+      generics: [
+        'acetaminophen', 'paracetamol', 'ibuprofen', 'naproxen', 'diclofenac',
+        'atorvastatin', 'simvastatin', 'rosuvastatin', 'pravastatin',
+        'sertraline', 'fluoxetine', 'paroxetine', 'citalopram', 'escitalopram',
+        'alprazolam', 'lorazepam', 'diazepam', 'clonazepam', 'zolpidem',
+        'sildenafil', 'tadalafil', 'vardenafil', 'omeprazole', 'lansoprazole',
+        'pantoprazole', 'esomeprazole', 'ranitidine', 'famotidine',
+        'meloxicam', 'celecoxib', 'tramadol', 'gabapentin', 'pregabalin',
+        'amitriptyline', 'nortriptyline', 'duloxetine', 'venlafaxine',
+        'metformin', 'glipizide', 'glyburide', 'pioglitazone', 'sitagliptin',
+        'insulin', 'lisinopril', 'enalapril', 'captopril', 'losartan',
+        'valsartan', 'irbesartan', 'amlodipine', 'nifedipine', 'diltiazem',
+        'verapamil', 'metoprolol', 'atenolol', 'propranolol', 'carvedilol',
+        'hydrochlorothiazide', 'furosemide', 'spironolactone', 'warfarin',
+        'rivaroxaban', 'apixaban', 'dabigatran', 'clopidogrel', 'aspirin'
+      ],
+      antibiotics: [
+        'amoxicillin', 'azithromycin', 'ciprofloxacin', 'levofloxacin',
+        'doxycycline', 'clindamycin', 'metronidazole', 'cephalexin',
+        'trimethoprim', 'sulfamethoxazole', 'penicillin', 'erythromycin'
+      ]
+    };
+    
     // Advanced medication name patterns with scoring
     const medicationPatterns = [
+      // Exact matches (highest confidence)
+      { pattern: new RegExp(`\\b(${[...knownMedications.brands, ...knownMedications.generics, ...knownMedications.antibiotics].join('|')})\\b`, 'i'), score: 1.0 },
       // Common pharmaceutical suffixes (high confidence)
-      { pattern: /([\w]+(?:cillin|mycin|prazole|statin|dipine|fenac|nazole|zole|ide|ium|phen))/, score: 0.9 },
-      // Common prefixes (medium confidence)
-      { pattern: /((?:acet|amox|azith|ibu|aspir|melox|metro|cipro)[\w]+)/, score: 0.8 },
+      { pattern: /([\w]+(?:cillin|mycin|prazole|statin|dipine|fenac|nazole|zole|ide|ium|phen|ine|ate|ol|al|ic))/, score: 0.9 },
+      // Common prefixes (medium confidence)  
+      { pattern: /((?:acet|amox|azith|ibu|aspir|melox|metro|cipro|hydro|oxy|mor|tram|gaba|pre|ami|nor|dul|ven|met|gli|pio|sit|cap|ena|val|irb|aml|nif|dil|ver|ate|pro|car|furo|spir|war|riv|api|dab|clo)[\w]+)/, score: 0.8 },
       // Brand name patterns (capitalized, 4-12 chars)
       { pattern: /([A-Z][a-z]{3,11})/, score: 0.7 },
       // Generic patterns (lowercase, medical endings)
-      { pattern: /([\w]{4,}(?:ine|ate|ol|al|ic))/, score: 0.6 }
+      { pattern: /([\w]{4,}(?:ine|ate|ol|al|ic|an|in))/, score: 0.6 }
     ];
 
     let bestMatch = null;
     let bestScore = 0;
+    let matchType = 'unknown';
 
-    // Score each potential medication name
+    // First pass: Look for exact medication matches
+    const allKnownMeds = [...knownMedications.brands, ...knownMedications.generics, ...knownMedications.antibiotics];
     for (const word of words) {
-      for (const { pattern, score } of medicationPatterns) {
-        const match = word.match(pattern);
-        if (match) {
-          const lengthBonus = Math.min(word.length / 10, 0.2); // Bonus for reasonable length
-          const totalScore = score + lengthBonus;
-          
-          if (totalScore > bestScore) {
-            bestScore = totalScore;
-            bestMatch = match[1];
+      for (const knownMed of allKnownMeds) {
+        const similarity = this.calculateAdvancedSimilarity(word, knownMed);
+        if (similarity > 0.8) { // High similarity threshold
+          const score = similarity * 1.0; // Highest confidence for known meds
+          if (score > bestScore) {
+            bestScore = score;
+            bestMatch = knownMed;
+            matchType = knownMedications.brands.includes(knownMed) ? 'brand' : 'generic';
           }
         }
       }
     }
 
-    // Enhanced dosage extraction
+    // Second pass: Pattern matching if no exact match found
+    if (bestScore < 0.8) {
+      for (const word of words) {
+        for (const { pattern, score } of medicationPatterns) {
+          const match = word.match(pattern);
+          if (match && match[1]) {
+            const lengthBonus = Math.min(word.length / 10, 0.2);
+            const contextBonus = this.getContextBonus(word, words);
+            const totalScore = score + lengthBonus + contextBonus;
+            
+            if (totalScore > bestScore) {
+              bestScore = totalScore;
+              bestMatch = match[1].toLowerCase();
+              matchType = 'pattern';
+            }
+          }
+        }
+      }
+    }
+
+    // Enhanced dosage extraction with more comprehensive patterns
     const dosagePatterns = [
-      /(\d+(?:\.\d+)?)\s*(mg|ml|g|mcg|ug|units?|tablets?|caps?|capsules?)/i,
-      /(\d+)\s*\/\s*(\d+)\s*(mg|ml)/i, // Combination dosages
-      /(\d+)\s*x\s*(\d+)\s*(mg|ml)/i   // Multiple strength notations
+      // Standard dosages
+      /(\d+(?:\.\d+)?)\s*(mg|ml|g|mcg|ug|µg|units?|iu|tablets?|caps?|capsules?|drops?|sprays?|patches?|grams?)/i,
+      // Combination dosages (e.g., "5/325 mg", "10mg/25mg")
+      /(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*(mg|ml|g|mcg|ug|µg)/i,
+      // Multiplication notation (e.g., "2 x 500mg")
+      /(\d+)\s*[x×]\s*(\d+(?:\.\d+)?)\s*(mg|ml|g|mcg|ug|µg)/i,
+      // Percentage concentrations (e.g., "1%", "2.5%")
+      /(\d+(?:\.\d+)?)\s*%/i,
+      // Ratio concentrations (e.g., "1:1000")
+      /(\d+)\s*:\s*(\d+)/i,
+      // International units
+      /(\d+(?:\.\d+)?)\s*(iu|international\s+units?)/i,
+      // Time-release indicators
+      /(\d+(?:\.\d+)?)\s*(mg|ml|g)\s*(er|xr|cr|sr|xl|la|od|bid|tid|qid)/i
     ];
 
     let dosage = null;
+    let dosageConfidence = 0;
+    
     for (const pattern of dosagePatterns) {
       const match = text.match(pattern);
       if (match) {
-        dosage = match[0];
+        dosage = match[0].trim();
+        // Calculate dosage confidence based on pattern complexity
+        if (match[0].includes('/') || match[0].includes('x') || match[0].includes('%')) {
+          dosageConfidence = 0.9; // Complex patterns are usually more reliable
+        } else {
+          dosageConfidence = 0.8;
+        }
         break;
       }
     }
 
-    // Determine if brand or generic
-    const commonBrands = ['tylenol', 'advil', 'motrin', 'aleve', 'lipitor', 'zoloft', 'prozac', 'xanax'];
-    const commonGenerics = ['acetaminophen', 'ibuprofen', 'atorvastatin', 'sertraline', 'fluoxetine'];
-
-    const isBrand = bestMatch && commonBrands.includes(bestMatch.toLowerCase());
-    const isGeneric = bestMatch && commonGenerics.includes(bestMatch.toLowerCase());
+    // Enhanced brand/generic classification
+    const isBrand = bestMatch && knownMedications.brands.includes(bestMatch.toLowerCase());
+    const isGeneric = bestMatch && knownMedications.generics.includes(bestMatch.toLowerCase());
+    const isAntibiotic = bestMatch && knownMedications.antibiotics.includes(bestMatch.toLowerCase());
 
     return {
       name: bestMatch,
       dosage: dosage,
-      brandName: isBrand ? bestMatch : null,
-      genericName: isGeneric ? bestMatch : null
+      brandName: isBrand ? this.capitalizeMedication(bestMatch) : null,
+      genericName: (isGeneric || isAntibiotic) ? bestMatch.toLowerCase() : null
     };
+  }
+
+  /**
+   * Calculate context bonus for medication recognition
+   */
+  private getContextBonus(word: string, allWords: string[]): number {
+    let bonus = 0;
+    
+    // Medical context words that increase confidence
+    const medicalContextWords = [
+      'tablet', 'capsule', 'mg', 'ml', 'dose', 'medication', 'drug', 'pill',
+      'prescription', 'rx', 'generic', 'brand', 'active', 'ingredient',
+      'strength', 'concentration', 'daily', 'twice', 'morning', 'evening'
+    ];
+    
+    const contextCount = allWords.filter(w => 
+      medicalContextWords.some(context => w.toLowerCase().includes(context))
+    ).length;
+    
+    if (contextCount >= 3) bonus += 0.3;
+    else if (contextCount >= 2) bonus += 0.2;
+    else if (contextCount >= 1) bonus += 0.1;
+    
+    // Length bonus for reasonable medication names
+    if (word.length >= 4 && word.length <= 15) {
+      bonus += 0.1;
+    }
+    
+    return bonus;
+  }
+
+  /**
+   * Properly capitalize medication names
+   */
+  private capitalizeMedication(name: string): string {
+    // Brand names are typically capitalized
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
   }
 
   /**

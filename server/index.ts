@@ -60,15 +60,6 @@ app.use((req, res, next) => {
     log(`Error ${status}: ${message} - ${err.stack || err}`);
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
-
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
@@ -77,4 +68,13 @@ app.use((req, res, next) => {
   const server = app.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
   });
+
+  // importantly only setup vite in development and after
+  // setting up all the other routes so the catch-all route
+  // doesn't interfere with the other routes
+  if (app.get("env") === "development") {
+    await setupVite(app, server);
+  } else {
+    serveStatic(app);
+  }
 })();

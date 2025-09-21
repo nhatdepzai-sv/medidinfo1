@@ -185,12 +185,12 @@ const translations = {
     warning: "Warning",
     info: "Info",
     error: "Error",
-    
+
     // Navigation actions
     scanMedication: "Scan Medication",
     searchDrugs: "Search Drugs", 
     pillId: "Pill ID",
-    
+
     // Tips
     tipClearPhoto: "Clear Photo",
     tipReadableText: "Readable Text",
@@ -238,7 +238,17 @@ const translations = {
     flashNotAvailable: "Flash Không Có Sẵn",
     deviceDoesNotSupportFlash: "Thiết bị của bạn không hỗ trợ flash",
     imageCaptured: "Đã Chụp Ảnh",
-    imageReadyForAnalysis: "Ảnh sẵn sàng để phân tích",
+    imageReadyForAnalysis: "Hình ảnh sẵn sàng để phân tích",
+
+      // Offline Mode
+      offlineMode: "Chế độ ngoại tuyến",
+      onlineMode: "Chế độ trực tuyến",
+      searchMedicationsOffline: "Tìm kiếm thuốc (Ngoại tuyến)",
+      cameraOfflineMode: "Quét camera không khả dụng ở chế độ ngoại tuyến",
+      offlineFallback: "Sử dụng cơ sở dữ liệu ngoại tuyến",
+      cachedResults: "Hiển thị kết quả đã lưu",
+      limitedOfflineFeatures: "Tính năng hạn chế khi ngoại tuyến",
+
     failedToCaptureImage: "Không thể chụp ảnh",
     cameraError: "Lỗi Camera",
     alignMedicationInFrame: "Căn chỉnh nhãn thuốc trong khung hình",
@@ -286,7 +296,7 @@ const translations = {
     multipleResults: "Nhiều kết quả được tìm thấy",
     exactMatch: "Khớp chính xác",
     closeMatch: "Gần đúng",
-    
+
     // Comprehensive medication categories
     painRelieverNSAID: "Thuốc Giảm Đau Chống Viêm",
     antibioticPenicillin: "Kháng Sinh Penicillin", 
@@ -297,7 +307,7 @@ const translations = {
     gastrointestinalPPI: "Thuốc Tiêu Hóa PPI",
     hormonalTherapy: "Liệu Pháp Hormone",
     immunosuppressant: "Thuốc Ức Chế Miễn Dịch",
-    
+
     // Cancer medication categories
     chemotherapyAgent: "Thuốc Hóa Trị",
     monoclonalAntibody: "Kháng Thể Đơn Dòng",
@@ -306,12 +316,12 @@ const translations = {
     hormoneTherapyCancer: "Liệu Pháp Hormone Ung Thư",
     targetedTherapy: "Liệu Pháp Đích",
     immunotherapy: "Liệu Pháp Miễn Dịch",
-    
+
     // Gout medication categories  
     antiGoutAgent: "Thuốc Chống Gout",
     xanthineOxidaseInhibitor: "Thuốc Ức Chế Xanthine Oxidase",
     uricosureAgent: "Thuốc Tăng Bài Tiết Acid Uric",
-    
+
     // Medical conditions translations
     osteoarthritis: "Viêm khớp thoái hóa",
     rheumatoidArthritis: "Viêm khớp dạng thấp", 
@@ -323,7 +333,7 @@ const translations = {
     colorectalCancer: "Ung thư đại trực tràng",
     lymphoma: "U lympho",
     leukemia: "Bạch cầu",
-    
+
     // Dosage and administration
     onceDaily: "một lần mỗi ngày",
     twiceDaily: "hai lần mỗi ngày", 
@@ -332,7 +342,7 @@ const translations = {
     withMeals: "cùng bữa ăn",
     onEmptyStomach: "khi đói",
     atBedtime: "trước khi ngủ",
-    
+
     // Enhanced warnings
     stomachBleeding: "Có thể gây xuất huyết dạ dày",
     kidneyMonitoring: "Theo dõi chức năng thận",
@@ -459,12 +469,12 @@ const translations = {
     warning: "Cảnh Báo",
     info: "Thông Tin",
     error: "Lỗi",
-    
+
     // Navigation actions
     scanMedication: "Quét Thuốc",
     searchDrugs: "Tìm Thuốc", 
     pillId: "Nhận Dạng Viên",
-    
+
     // Tips
     tipClearPhoto: "Ảnh Rõ Nét",
     tipReadableText: "Văn Bản Rõ Ràng",

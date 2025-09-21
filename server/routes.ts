@@ -129,22 +129,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced search medications endpoint with fuzzy matching and aliases
-  app.get('/api/search-medications', async (req, res) => {
-    const query = req.query.query as string;
-
-    if (!query || typeof query !== "string" || query.trim().length < 2) {
-      return res.json({
-        success: false,
-        message: "Search query must be at least 2 characters",
-        medications: []
-      });
-    }
-
-    const searchTerm = query.toLowerCase().trim();
-    console.log('Processing enhanced search term:', searchTerm);
-
+  // Enhanced medication search with AI learning
+  app.get("/api/search-medications", async (req, res) => {
     try {
+      const query = req.query.query as string;
+
+      if (!query || query.trim().length < 2) {
+        return res.json({
+          success: false,
+          message: "Query must be at least 2 characters long",
+          medications: []
+        });
+      }
+
+      // Get AI predictions first
+      const { enhancedAITrainer } = await import('./enhanced-ai-training');
+      const aiPredictions = enhancedAITrainer.predictMedication(query);
+
       // Combine all databases for comprehensive search
       const allDatabases = [
         ...fullComprehensiveDrugsDatabase,
@@ -178,7 +179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Brand name matching
         const brandNames = (drug as any).brandNames || [];
         const brandNamesVi = (drug as any).brandNamesVi || [];
-        
+
         brandNames.forEach((brand: string) => {
           if (brand.toLowerCase() === searchTerm) score += 85;
           else if (brand.toLowerCase().startsWith(searchTerm)) score += 65;
@@ -198,7 +199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Word boundary matching
         const nameWords = drug.name.toLowerCase().split(/[\s\-_]+/);
         const genericWords = drug.genericName?.toLowerCase().split(/[\s\-_]+/) || [];
-        
+
         nameWords.forEach(word => {
           if (word === searchTerm) score += 75;
           else if (word.startsWith(searchTerm)) score += 35;
@@ -213,7 +214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (score === 0 && searchTerm.length > 3) {
           const fuzzyScore = calculateFuzzyScore(searchTerm, drug.name.toLowerCase());
           if (fuzzyScore > 0.7) score += Math.floor(fuzzyScore * 25);
-          
+
           if (drug.genericName) {
             const genericFuzzyScore = calculateFuzzyScore(searchTerm, drug.genericName.toLowerCase());
             if (genericFuzzyScore > 0.7) score += Math.floor(genericFuzzyScore * 20);
@@ -229,7 +230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .sort((a, b) => {
         // Primary sort by score
         if (a.score !== b.score) return b.score - a.score;
-        
+
         // Secondary sort by name length (shorter preferred)
         return a.drug.name.length - b.drug.name.length;
       })
@@ -238,19 +239,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Enhanced search completed: found ${scoredResults.length} results for "${searchTerm}"`);
 
+      // Combine database results with AI predictions
+      const combinedResults = [...scoredResults];
+
+      // Add high-confidence AI predictions that aren't already in results
+      aiPredictions.forEach(prediction => {
+        if (prediction.confidence > 0.7 && 
+            !scoredResults.some(r => r.name.toLowerCase() === prediction.medication.toLowerCase())) {
+          combinedResults.push({
+            id: `ai-${prediction.medication}`,
+            name: prediction.medication,
+            category: 'AI Predicted',
+            primaryUse: 'AI suggested medication',
+            confidence: prediction.confidence
+          });
+        }
+      });
+
       res.json({
-        success: scoredResults.length > 0,
-        medications: scoredResults,
-        message: scoredResults.length > 0 ?
-          `Found ${scoredResults.length} medication${scoredResults.length > 1 ? 's' : ''}` :
-          'No medications found for your search'
+        success: combinedResults.length > 0,
+        medications: combinedResults,
+        aiPredictions: aiPredictions.slice(0, 3), // Top 3 AI predictions
+        message: combinedResults.length > 0 
+          ? `Found ${combinedResults.length} medication(s) matching "${query}"`
+          : `No medications found for "${query}"`
       });
     } catch (error) {
-      console.error('Enhanced search error:', error);
+      console.error("Search error:", error);
       res.status(500).json({
         success: false,
-        medications: [],
-        message: 'Search failed due to server error'
+        message: "Search failed",
+        medications: []
+      });
+    }
+  });
+
+  // AI Training feedback endpoint
+  app.post("/api/ai-feedback", async (req, res) => {
+    try {
+      const { searchQuery, selectedResult, rejectedResults, userRating } = req.body;
+
+      if (!searchQuery || !selectedResult) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required fields"
+        });
+      }
+
+      const { enhancedAITrainer } = await import('./enhanced-ai-training');
+
+      // Learn from user behavior
+      enhancedAITrainer.learnFromUserBehavior(
+        searchQuery,
+        selectedResult,
+        rejectedResults || []
+      );
+
+      // If user provided OCR training data
+      if (req.body.imageData && req.body.expectedText) {
+        await enhancedAITrainer.trainAdvancedOCR(
+          req.body.imageData,
+          req.body.expectedText
+        );
+      }
+
+      res.json({
+        success: true,
+        message: "Feedback received and processed"
+      });
+    } catch (error) {
+      console.error("AI feedback error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to process feedback"
+      });
+    }
+  });
+
+  // Get AI training statistics
+  app.get("/api/ai-stats", async (req, res) => {
+    try {
+      const { enhancedAITrainer } = await import('./enhanced-ai-training');
+      const stats = enhancedAITrainer.getPerformanceMetrics();
+
+      res.json({
+        success: true,
+        stats: {
+          accuracy: Math.round(stats.accuracy * 100),
+          trainingPoints: stats.trainingDataPoints,
+          lastUpdated: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.error("AI stats error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get AI statistics"
       });
     }
   });
@@ -704,58 +788,6 @@ async function searchGlobalMedicationDatabase(drugName: string): Promise<any | n
 }
 
 
-// Placeholder for findMedicationByText function - replace with actual implementation
-async function findMedicationByText(text: string): Promise<any | null> {
-  // This is a mock implementation. In a real scenario, this would query the database.
-  console.log(`Mock DB Search: "${text}"`);
-  // Example: If text is "Aspirin", return a mock medication object
-  if (text.toLowerCase().includes("aspirin")) {
-    return {
-      id: "med-123",
-      name: "Aspirin",
-      genericName: "Acetylsalicylic Acid",
-      category: "NSAID",
-      primaryUse: "Pain relief, fever reduction, anti-inflammatory",
-      adultDosage: "325-650 mg every 4 hours as needed",
-      warnings: ["May cause stomach upset.", "Avoid alcohol."],
-    };
-  }
-  if (text.toLowerCase().includes("paracetamol") || text.toLowerCase().includes("acetaminophen")) {
-    return {
-      id: "med-456",
-      name: "Paracetamol",
-      genericName: "Acetaminophen",
-      category: "Analgesic, Antipyretic",
-      primaryUse: "Pain relief and fever reduction",
-      adultDosage: "500-1000 mg every 4-6 hours as needed",
-      warnings: ["May cause liver damage in high doses."],
-    };
-  }
-  if (text.toLowerCase().includes("mobic")) {
-    return {
-      id: "med-789",
-      name: "Mobic",
-      genericName: "Meloxicam",
-      category: "NSAID",
-      primaryUse: "Pain and inflammation due to arthritis",
-      adultDosage: "7.5-15 mg once daily",
-      warnings: ["May cause stomach bleeding."],
-    };
-  }
-  if (text.toLowerCase().includes("meloxicam")) {
-    return {
-      id: "med-789", // Same ID as Mobic, as Meloxicam is the generic name
-      name: "Mobic",
-      genericName: "Meloxicam",
-      category: "NSAID",
-      primaryUse: "Pain and inflammation due to arthritis",
-      adultDosage: "7.5-15 mg once daily",
-      warnings: ["May cause stomach bleeding."],
-    };
-  }
-  return null;
-}
-
 // Enhanced fuzzy matching function with Levenshtein distance and pattern matching
 async function findMedicationByFuzzyMatch(searchText: string): Promise<any | null> {
   console.log(`Enhanced Fuzzy Search: "${searchText}"`);
@@ -904,7 +936,7 @@ function escapeRegex(string: string): string {
 function calculateFuzzyScore(str1: string, str2: string): number {
   const maxLength = Math.max(str1.length, str2.length);
   if (maxLength === 0) return 1.0;
-  
+
   const distance = levenshteinDistance(str1, str2);
   return 1 - (distance / maxLength);
 }

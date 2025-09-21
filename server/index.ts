@@ -40,7 +40,19 @@ app.use((req, res, next) => {
 
 
 (async () => {
-  const server = await registerRoutes(app);
+  // Import and setup routes
+  import { registerRoutes } from "./routes";
+
+  // Add health check endpoint for network detection
+  app.get("/api/health", (req, res) => {
+    res.json({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      offline: false
+    });
+  });
+
+  registerRoutes(app);
   addExtractMedicationRoute(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

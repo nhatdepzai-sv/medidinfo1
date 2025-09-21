@@ -39,6 +39,10 @@ export class EnhancedAITrainer {
   private trainingData: TrainingDataPoint[] = [];
   private ocrConfig: OCRTrainingConfig;
   private performanceMetrics: Map<string, number> = new Map();
+  private neuralPatterns: Map<string, number> = new Map();
+  private medicationFrequency: Map<string, number> = new Map();
+  private contextualPatterns: Map<string, string[]> = new Map();
+  private errorCorrections: Map<string, string> = new Map();
 
   constructor() {
     this.ocrConfig = {
@@ -502,10 +506,288 @@ export class EnhancedAITrainer {
   }
 
   /**
-   * Export training data for external ML training
+   * Advanced pattern learning from user interactions
    */
-  exportTrainingData(): TrainingDataPoint[] {
-    return [...this.trainingData];
+  learnFromUserBehavior(searchQuery: string, selectedResult: string, rejectedResults: string[]): void {
+    // Update medication frequency
+    const currentFreq = this.medicationFrequency.get(selectedResult) || 0;
+    this.medicationFrequency.set(selectedResult, currentFreq + 1);
+
+    // Learn contextual patterns
+    const queryWords = searchQuery.toLowerCase().split(/\s+/);
+    const existingPatterns = this.contextualPatterns.get(selectedResult) || [];
+    this.contextualPatterns.set(selectedResult, [...new Set([...existingPatterns, ...queryWords])]);
+
+    // Learn error corrections from rejected results
+    rejectedResults.forEach(rejected => {
+      if (this.calculateAdvancedSimilarity(rejected, selectedResult) > 0.7) {
+        this.errorCorrections.set(rejected, selectedResult);
+      }
+    });
+
+    // Update neural patterns with weighted scoring
+    this.updateNeuralPatterns(searchQuery, selectedResult, 1.0);
+    rejectedResults.forEach(rejected => {
+      this.updateNeuralPatterns(searchQuery, rejected, -0.5);
+    });
+  }
+
+  /**
+   * Update neural network-like patterns for medication recognition
+   */
+  private updateNeuralPatterns(input: string, output: string, weight: number): void {
+    const pattern = `${input.toLowerCase()}->${output.toLowerCase()}`;
+    const currentWeight = this.neuralPatterns.get(pattern) || 0;
+    this.neuralPatterns.set(pattern, currentWeight + weight);
+  }
+
+  /**
+   * Enhanced medication prediction using learned patterns
+   */
+  predictMedication(query: string): { medication: string; confidence: number }[] {
+    const queryLower = query.toLowerCase();
+    const predictions: { medication: string; confidence: number }[] = [];
+
+    // Use neural patterns for prediction
+    for (const [pattern, weight] of this.neuralPatterns.entries()) {
+      const [inputPattern, outputMed] = pattern.split('->');
+      const similarity = this.calculateAdvancedSimilarity(queryLower, inputPattern);
+      
+      if (similarity > 0.6) {
+        const confidence = similarity * Math.min(weight + 1, 2) * 0.5;
+        predictions.push({ medication: outputMed, confidence });
+      }
+    }
+
+    // Use frequency-based scoring
+    for (const [medication, frequency] of this.medicationFrequency.entries()) {
+      const similarity = this.calculateAdvancedSimilarity(queryLower, medication.toLowerCase());
+      if (similarity > 0.5) {
+        const frequencyBonus = Math.log(frequency + 1) * 0.1;
+        const confidence = similarity + frequencyBonus;
+        predictions.push({ medication, confidence });
+      }
+    }
+
+    // Use contextual patterns
+    for (const [medication, patterns] of this.contextualPatterns.entries()) {
+      const queryWords = queryLower.split(/\s+/);
+      const matchingPatterns = patterns.filter(pattern => 
+        queryWords.some(word => word.includes(pattern) || pattern.includes(word))
+      );
+      
+      if (matchingPatterns.length > 0) {
+        const contextConfidence = (matchingPatterns.length / patterns.length) * 0.8;
+        predictions.push({ medication, confidence: contextConfidence });
+      }
+    }
+
+    // Apply error corrections
+    const correctedQuery = this.errorCorrections.get(queryLower);
+    if (correctedQuery) {
+      predictions.push({ medication: correctedQuery, confidence: 0.9 });
+    }
+
+    // Deduplicate and sort by confidence
+    const uniquePredictions = new Map<string, number>();
+    predictions.forEach(({ medication, confidence }) => {
+      const existing = uniquePredictions.get(medication) || 0;
+      uniquePredictions.set(medication, Math.max(existing, confidence));
+    });
+
+    return Array.from(uniquePredictions.entries())
+      .map(([medication, confidence]) => ({ medication, confidence }))
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 10);
+  }
+
+  /**
+   * Advanced OCR training with multiple neural network strategies
+   */
+  async trainAdvancedOCR(imageData: string, expectedText: string): Promise<void> {
+    try {
+      // Perform OCR with multiple strategies
+      const strategies = [
+        { name: 'high_dpi', config: { psm: '6', dpi: 300 } },
+        { name: 'text_block', config: { psm: '8', dpi: 150 } },
+        { name: 'sparse_text', config: { psm: '11', dpi: 200 } },
+        { name: 'single_char', config: { psm: '10', dpi: 250 } }
+      ];
+
+      for (const strategy of strategies) {
+        const Tesseract = await import('tesseract.js');
+        const worker = await Tesseract.createWorker('eng');
+        
+        await worker.setParameters({
+          tessedit_pageseg_mode: strategy.config.psm as any,
+          user_defined_dpi: strategy.config.dpi.toString()
+        });
+
+        const { data: { text, confidence } } = await worker.recognize(imageData);
+        await worker.terminate();
+
+        // Calculate accuracy for this strategy
+        const similarity = this.calculateAdvancedSimilarity(text.toLowerCase(), expectedText.toLowerCase());
+        
+        // Store strategy performance
+        const strategyKey = `strategy_${strategy.name}`;
+        const currentPerf = this.performanceMetrics.get(strategyKey) || 0;
+        const currentCount = this.performanceMetrics.get(`${strategyKey}_count`) || 0;
+        
+        this.performanceMetrics.set(strategyKey, (currentPerf * currentCount + similarity) / (currentCount + 1));
+        this.performanceMetrics.set(`${strategyKey}_count`, currentCount + 1);
+
+        // Learn from this training example
+        if (similarity > 0.7) {
+          this.updateNeuralPatterns(text, expectedText, similarity);
+        }
+      }
+
+      // Add to training data
+      this.trainingData.push({
+        imageBase64: imageData,
+        expectedMedication: expectedText,
+        expectedDosage: '',
+        difficulty: 'medium',
+        conditions: []
+      });
+
+    } catch (error) {
+      console.error('Advanced OCR training failed:', error);
+    }
+  }
+
+  /**
+   * Get the best OCR strategy based on learned performance
+   */
+  getBestOCRStrategy(): { name: string; config: any } {
+    const strategies = ['high_dpi', 'text_block', 'sparse_text', 'single_char'];
+    let bestStrategy = 'high_dpi';
+    let bestPerformance = 0;
+
+    for (const strategy of strategies) {
+      const performance = this.performanceMetrics.get(`strategy_${strategy}`) || 0;
+      if (performance > bestPerformance) {
+        bestPerformance = performance;
+        bestStrategy = strategy;
+      }
+    }
+
+    const configs = {
+      high_dpi: { psm: '6', dpi: 300 },
+      text_block: { psm: '8', dpi: 150 },
+      sparse_text: { psm: '11', dpi: 200 },
+      single_char: { psm: '10', dpi: 250 }
+    };
+
+    return { name: bestStrategy, config: configs[bestStrategy as keyof typeof configs] };
+  }
+
+  /**
+   * Advanced medication database learning
+   */
+  learnMedicationPatterns(medications: any[]): void {
+    medications.forEach(med => {
+      // Learn name patterns
+      if (med.name) {
+        const namePatterns = this.extractLinguisticPatterns(med.name);
+        namePatterns.forEach(pattern => {
+          this.updateNeuralPatterns(pattern, med.name, 0.8);
+        });
+      }
+
+      // Learn generic-brand associations
+      if (med.genericName && med.name !== med.genericName) {
+        this.updateNeuralPatterns(med.genericName, med.name, 0.9);
+        this.updateNeuralPatterns(med.name, med.genericName, 0.9);
+      }
+
+      // Learn category patterns
+      if (med.category) {
+        this.updateNeuralPatterns(med.category, med.name, 0.6);
+      }
+    });
+  }
+
+  /**
+   * Extract linguistic patterns from medication names
+   */
+  private extractLinguisticPatterns(name: string): string[] {
+    const patterns = [];
+    const cleanName = name.toLowerCase();
+
+    // Add prefixes (first 3-5 characters)
+    if (cleanName.length >= 3) patterns.push(cleanName.substring(0, 3));
+    if (cleanName.length >= 4) patterns.push(cleanName.substring(0, 4));
+    if (cleanName.length >= 5) patterns.push(cleanName.substring(0, 5));
+
+    // Add suffixes (last 3-5 characters)
+    if (cleanName.length >= 3) patterns.push(cleanName.substring(cleanName.length - 3));
+    if (cleanName.length >= 4) patterns.push(cleanName.substring(cleanName.length - 4));
+    if (cleanName.length >= 5) patterns.push(cleanName.substring(cleanName.length - 5));
+
+    // Add middle patterns for longer names
+    if (cleanName.length >= 6) {
+      const middle = Math.floor(cleanName.length / 2);
+      patterns.push(cleanName.substring(middle - 2, middle + 2));
+    }
+
+    // Add phonetic patterns
+    patterns.push(this.generatePhoneticPattern(cleanName));
+
+    return patterns;
+  }
+
+  /**
+   * Generate phonetic patterns for better matching
+   */
+  private generatePhoneticPattern(word: string): string {
+    return word
+      .replace(/ph/g, 'f')
+      .replace(/[ckq]/g, 'k')
+      .replace(/[xyz]/g, 's')
+      .replace(/[aeiou]/g, 'a')
+      .replace(/[bp]/g, 'b')
+      .replace(/[dt]/g, 'd')
+      .replace(/[gj]/g, 'g')
+      .replace(/[mn]/g, 'm')
+      .replace(/[rv]/g, 'r');
+  }
+
+  /**
+   * Export comprehensive training data
+   */
+  exportTrainingData(): {
+    trainingPoints: TrainingDataPoint[];
+    neuralPatterns: [string, number][];
+    medicationFrequency: [string, number][];
+    performanceMetrics: [string, number][];
+    errorCorrections: [string, string][];
+  } {
+    return {
+      trainingPoints: [...this.trainingData],
+      neuralPatterns: Array.from(this.neuralPatterns.entries()),
+      medicationFrequency: Array.from(this.medicationFrequency.entries()),
+      performanceMetrics: Array.from(this.performanceMetrics.entries()),
+      errorCorrections: Array.from(this.errorCorrections.entries())
+    };
+  }
+
+  /**
+   * Import training data to continue learning
+   */
+  importTrainingData(data: {
+    trainingPoints?: TrainingDataPoint[];
+    neuralPatterns?: [string, number][];
+    medicationFrequency?: [string, number][];
+    performanceMetrics?: [string, number][];
+    errorCorrections?: [string, string][];
+  }): void {
+    if (data.trainingPoints) this.trainingData.push(...data.trainingPoints);
+    if (data.neuralPatterns) data.neuralPatterns.forEach(([k, v]) => this.neuralPatterns.set(k, v));
+    if (data.medicationFrequency) data.medicationFrequency.forEach(([k, v]) => this.medicationFrequency.set(k, v));
+    if (data.performanceMetrics) data.performanceMetrics.forEach(([k, v]) => this.performanceMetrics.set(k, v));
+    if (data.errorCorrections) data.errorCorrections.forEach(([k, v]) => this.errorCorrections.set(k, v));
   }
 }
 

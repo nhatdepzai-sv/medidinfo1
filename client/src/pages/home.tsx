@@ -1,14 +1,16 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { Search, Scan, History, User, Pill, X } from 'lucide-react';
+import { Search, Scan, History, User, Pill, X, WifiOff, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import CameraInterface from '@/components/camera-interface';
 import DrugResults from '@/components/drug-results';
 import BottomNavigation from '@/components/bottom-navigation';
 import { useLanguage } from '@/contexts/language-context';
 import { useLocation } from 'wouter';
+import { useNetwork, useOfflineStorage } from '@/hooks/use-network';
 import LanguageSwitcher from '../components/language-switcher';
 
 // Memoized quick actions to prevent re-renders
@@ -73,6 +75,8 @@ RecentSearches.displayName = 'RecentSearches';
 
 export default function Home() {
   const { t } = useLanguage();
+  const networkStatus = useNetwork();
+  const { saveOfflineData, getOfflineData } = useOfflineStorage();
   const [showCamera, setShowCamera] = useState(false);
   const [searchResults, setSearchResults] = useState<{
     success: boolean;
@@ -84,14 +88,43 @@ export default function Home() {
   const [location, setLocation] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [offlineResults, setOfflineResults] = useState<any[]>([]);
 
-  // Use the original handleSearch logic, but fix the endpoint and response handling
+  // Enhanced search with offline mode support
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
     setError("");
 
+    // Check for offline cached results first
+    const cachedResults = getOfflineData(`search_${searchQuery.trim().toLowerCase()}`);
+    
+    if (networkStatus.isOfflineMode && cachedResults) {
+      setSearchResults({
+        success: true,
+        medications: cachedResults,
+        message: `Found ${cachedResults.length} cached medication(s) (Offline Mode)`
+      });
+      setIsSearching(false);
+      return;
+    }
+
+    // If offline and no cache, use built-in offline database
+    if (networkStatus.isOfflineMode) {
+      const offlineSearchResults = await performOfflineSearch(searchQuery.trim());
+      setSearchResults({
+        success: offlineSearchResults.length > 0,
+        medications: offlineSearchResults,
+        message: offlineSearchResults.length > 0 
+          ? `Found ${offlineSearchResults.length} medication(s) (Offline Mode)`
+          : 'No medications found in offline database'
+      });
+      setIsSearching(false);
+      return;
+    }
+
+    // Online search
     try {
       const response = await fetch(`/api/search-medications?query=${encodeURIComponent(searchQuery.trim())}`);
 
@@ -103,6 +136,9 @@ export default function Home() {
       const result = await response.json();
 
       if (result.success && result.medications && result.medications.length > 0) {
+        // Cache successful results for offline use
+        saveOfflineData(`search_${searchQuery.trim().toLowerCase()}`, result.medications);
+        
         setSearchResults({
           success: true,
           medications: result.medications,
@@ -117,17 +153,109 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Search error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      setError(t.searchFailed || `Search failed: ${errorMessage}`);
-      setSearchResults({
-        success: false,
-        medications: [],
-        message: t.searchFailed || 'Search failed. Please try again.'
-      });
+      
+      // Fallback to offline search if online search fails
+      const offlineSearchResults = await performOfflineSearch(searchQuery.trim());
+      if (offlineSearchResults.length > 0) {
+        setSearchResults({
+          success: true,
+          medications: offlineSearchResults,
+          message: `Found ${offlineSearchResults.length} medication(s) (Offline Fallback)`
+        });
+      } else {
+        const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
+        setError(t.searchFailed || `Search failed: ${errorMessage}`);
+        setSearchResults({
+          success: false,
+          medications: [],
+          message: t.searchFailed || 'Search failed. Please try again.'
+        });
+      }
     } finally {
       setIsSearching(false);
     }
-  }, [searchQuery, t, setError]);
+  }, [searchQuery, t, networkStatus.isOfflineMode, getOfflineData, saveOfflineData]);
+
+  // Offline search function using built-in medication database
+  const performOfflineSearch = useCallback(async (query: string): Promise<any[]> => {
+    const commonMedications = [
+      {
+        id: 'offline-1',
+        name: 'Acetaminophen',
+        nameVi: 'Paracetamol',
+        category: 'Pain Reliever',
+        categoryVi: 'Thuốc giảm đau',
+        primaryUse: 'Pain relief and fever reduction',
+        primaryUseVi: 'Giảm đau và hạ sốt',
+        adultDosage: '500-1000mg every 4-6 hours',
+        adultDosageVi: '500-1000mg mỗi 4-6 giờ',
+        warnings: ['Do not exceed 4000mg daily', 'Avoid alcohol'],
+        warningsVi: ['Không vượt quá 4000mg mỗi ngày', 'Tránh rượu bia']
+      },
+      {
+        id: 'offline-2',
+        name: 'Ibuprofen',
+        nameVi: 'Ibuprofen',
+        category: 'NSAID',
+        categoryVi: 'Thuốc chống viêm',
+        primaryUse: 'Pain, inflammation, and fever reduction',
+        primaryUseVi: 'Giảm đau, chống viêm và hạ sốt',
+        adultDosage: '200-400mg every 4-6 hours',
+        adultDosageVi: '200-400mg mỗi 4-6 giờ',
+        warnings: ['Take with food', 'Not for children under 6 months'],
+        warningsVi: ['Dùng cùng thức ăn', 'Không dành cho trẻ dưới 6 tháng']
+      },
+      {
+        id: 'offline-3',
+        name: 'Aspirin',
+        nameVi: 'Aspirin',
+        category: 'NSAID',
+        categoryVi: 'Thuốc chống viêm',
+        primaryUse: 'Pain relief, anti-inflammatory, blood thinner',
+        primaryUseVi: 'Giảm đau, chống viêm, làm loãng máu',
+        adultDosage: '325-650mg every 4 hours',
+        adultDosageVi: '325-650mg mỗi 4 giờ',
+        warnings: ['Risk of bleeding', 'Not for children under 16'],
+        warningsVi: ['Nguy cơ chảy máu', 'Không dành cho trẻ dưới 16 tuổi']
+      },
+      {
+        id: 'offline-4',
+        name: 'Amoxicillin',
+        nameVi: 'Amoxicillin',
+        category: 'Antibiotic',
+        categoryVi: 'Kháng sinh',
+        primaryUse: 'Bacterial infections',
+        primaryUseVi: 'Nhiễm trùng do vi khuẩn',
+        adultDosage: '250-500mg every 8 hours',
+        adultDosageVi: '250-500mg mỗi 8 giờ',
+        warnings: ['Complete full course', 'May cause allergic reactions'],
+        warningsVi: ['Dùng hết liệu trình', 'Có thể gây dị ứng']
+      },
+      {
+        id: 'offline-5',
+        name: 'Omeprazole',
+        nameVi: 'Omeprazole',
+        category: 'PPI',
+        categoryVi: 'Thuốc ức chế bơm proton',
+        primaryUse: 'Acid reflux and stomach ulcers',
+        primaryUseVi: 'Trào ngược axit và loét dạ dày',
+        adultDosage: '20-40mg once daily',
+        adultDosageVi: '20-40mg một lần mỗi ngày',
+        warnings: ['Take before meals', 'Long-term use may affect absorption'],
+        warningsVi: ['Dùng trước bữa ăn', 'Dùng lâu dài có thể ảnh hưởng hấp thu']
+      }
+    ];
+
+    const searchTerm = query.toLowerCase();
+    const results = commonMedications.filter(med => 
+      med.name.toLowerCase().includes(searchTerm) ||
+      med.nameVi.toLowerCase().includes(searchTerm) ||
+      med.category.toLowerCase().includes(searchTerm) ||
+      med.categoryVi.toLowerCase().includes(searchTerm)
+    );
+
+    return results;
+  }, []);
 
   const handleCameraToggle = useCallback(() => {
     setShowCamera(prev => !prev);
@@ -147,8 +275,12 @@ export default function Home() {
   }, []);
 
   const handleScanClick = useCallback(() => {
+    if (networkStatus.isOfflineMode) {
+      setError(t('cameraOfflineMode') || 'Camera scanning is not available in offline mode. Please use search instead.');
+      return;
+    }
     setShowCamera(true);
-  }, []);
+  }, [networkStatus.isOfflineMode, t]);
 
   const handleSearchClick = useCallback(() => {
     const searchInput = document.querySelector('input[placeholder*="Search medications"]');
@@ -217,7 +349,20 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-xl font-bold">DrugScan</h1>
-              <p className="text-blue-100 text-sm">{t('medicationScanner') || 'Medication Scanner'}</p>
+              <div className="flex items-center space-x-2">
+                <p className="text-blue-100 text-sm">{t('medicationScanner') || 'Medication Scanner'}</p>
+                {networkStatus.isOfflineMode ? (
+                  <Badge variant="secondary" className="bg-orange-500/20 text-orange-200 text-xs">
+                    <WifiOff className="w-3 h-3 mr-1" />
+                    Offline
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="bg-green-500/20 text-green-200 text-xs">
+                    <Wifi className="w-3 h-3 mr-1" />
+                    Online
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
           <LanguageSwitcher />
@@ -227,7 +372,10 @@ export default function Home() {
         <div className="flex space-x-2">
           <Input
             type="text"
-            placeholder={t('searchMedications') || 'Search medications...'}
+            placeholder={networkStatus.isOfflineMode 
+              ? (t('searchMedicationsOffline') || 'Search medications (Offline)...') 
+              : (t('searchMedications') || 'Search medications...')
+            }
             value={searchQuery}
             onChange={handleSearchChange}
             className="flex-1 bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/40"
@@ -251,8 +399,9 @@ export default function Home() {
           </Button>
           <Button
             onClick={handleCameraToggle}
-            disabled={isSearching || isLoading}
-            className="bg-white hover:bg-gray-100 text-blue-600"
+            disabled={isSearching || isLoading || networkStatus.isOfflineMode}
+            className="bg-white hover:bg-gray-100 text-blue-600 disabled:opacity-50"
+            title={networkStatus.isOfflineMode ? 'Camera disabled in offline mode' : 'Scan medication'}
           >
             <Scan className="w-4 h-4" />
           </Button>

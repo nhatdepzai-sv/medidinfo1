@@ -103,7 +103,7 @@ export async function addExtractMedicationRoute(app: Express) {
         aiMethod: 'local-ai-trainer',
         trainingPoints: enhancedAITrainer.getTrainingDataCount()
       });
-      }
+
     } catch (error: any) {
       console.error("All OCR methods failed:", error);
       res.status(500).json({

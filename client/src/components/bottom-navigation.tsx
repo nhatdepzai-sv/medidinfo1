@@ -1,7 +1,9 @@
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Home, History, User, Languages } from "lucide-react";
+import { Home, History, User, Languages, BrainCircuit } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
+import { cn } from "@/lib/utils";
+import { Link } from "wouter-preact";
 
 export default function BottomNavigation() {
   const [location, setLocation] = useLocation();
@@ -12,6 +14,7 @@ export default function BottomNavigation() {
     { id: "history", label: t("history"), icon: History, path: "/history" },
     { id: "translator", label: "Translate", icon: Languages, path: "/translator" },
     { id: "profile", label: t("profile"), icon: User, path: "/profile" },
+    { id: "training", label: "Training", icon: BrainCircuit, path: "/training" }, // Added training tab
   ];
 
   return (

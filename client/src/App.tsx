@@ -13,6 +13,7 @@ const Home = lazy(() => import("./pages/home"));
 const History = lazy(() => import("./pages/history"));
 const Profile = lazy(() => import("./pages/profile"));
 const Translator = lazy(() => import("./pages/translator"));
+const Training = lazy(() => import("./pages/training")); // Import the Training page
 const NotFound = lazy(() => import("./pages/not-found"));
 
 function App() {
@@ -32,7 +33,7 @@ function App() {
                     <Route path="/" component={Home} />
                     <Route path="/history" component={History} />
                     <Route path="/translator" component={Translator} />
-                    <Route path="/profile" component={Profile} />
+                    <Route path="/training" component={Training} /> {/* Add the training route */}
                     <Route component={NotFound} />
                   </Switch>
                 </Suspense>

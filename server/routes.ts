@@ -337,14 +337,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/ai-stats", async (req, res) => {
     try {
       const { enhancedAITrainer } = await import('./enhanced-ai-training');
+      const { massTrainingSystem } = await import('./mass-training-system');
+      
       const stats = enhancedAITrainer.getPerformanceMetrics();
+      const trainingProgress = massTrainingSystem.getTrainingProgress();
 
       res.json({
         success: true,
         stats: {
           accuracy: Math.round(stats.accuracy * 100),
           trainingPoints: stats.trainingDataPoints,
-          lastUpdated: new Date().toISOString()
+          lastUpdated: new Date().toISOString(),
+          massTraining: trainingProgress
         }
       });
     } catch (error) {
@@ -352,6 +356,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         success: false,
         message: "Failed to get AI statistics"
+      });
+    }
+  });
+
+  // Start mass training with millions of images
+  app.post("/api/start-mass-training", async (req, res) => {
+    try {
+      const { massTrainingSystem } = await import('./mass-training-system');
+      
+      // Start training in background
+      massTrainingSystem.startMassTraining().catch(error => {
+        console.error("Mass training failed:", error);
+      });
+
+      res.json({
+        success: true,
+        message: "Mass training started with 1 million image target",
+        target: 1000000,
+        estimatedTime: "24-48 hours"
+      });
+    } catch (error) {
+      console.error("Failed to start mass training:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to start mass training"
+      });
+    }
+  });
+
+  // Stop mass training
+  app.post("/api/stop-mass-training", async (req, res) => {
+    try {
+      const { massTrainingSystem } = await import('./mass-training-system');
+      massTrainingSystem.stopTraining();
+
+      res.json({
+        success: true,
+        message: "Mass training stopped"
+      });
+    } catch (error) {
+      console.error("Failed to stop mass training:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to stop mass training"
+      });
+    }
+  });
+
+  // Get mass training progress
+  app.get("/api/mass-training-progress", async (req, res) => {
+    try {
+      const { massTrainingSystem } = await import('./mass-training-system');
+      const progress = massTrainingSystem.getTrainingProgress();
+
+      res.json({
+        success: true,
+        progress: {
+          processed: progress.processed.toLocaleString(),
+          target: progress.target.toLocaleString(),
+          percentage: ((progress.processed / progress.target) * 100).toFixed(2),
+          successRate: progress.successRate.toFixed(2),
+          isTraining: progress.isTraining,
+          remainingImages: (progress.target - progress.processed).toLocaleString()
+        }
+      });
+    } catch (error) {
+      console.error("Failed to get training progress:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get training progress"
       });
     }
   });

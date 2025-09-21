@@ -40,9 +40,6 @@ app.use((req, res, next) => {
 
 
 (async () => {
-  // Import and setup routes
-  import { registerRoutes } from "./routes";
-
   // Add health check endpoint for network detection
   app.get("/api/health", (req, res) => {
     res.json({
@@ -77,11 +74,7 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  const server = app.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
   });
 })();

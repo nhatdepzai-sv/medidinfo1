@@ -38,6 +38,91 @@ const themes: Theme[] = [
     }
   },
   {
+    id: 'minimal-white',
+    name: 'Minimal White',
+    colors: {
+      primary: '#000000',
+      secondary: '#374151',
+      background: '#ffffff',
+      surface: '#f9fafb',
+      text: '#111827',
+      textSecondary: '#6b7280',
+      accent: '#4b5563',
+      success: '#059669',
+      warning: '#d97706',
+      error: '#dc2626',
+      gradient: 'from-gray-800 to-gray-900'
+    }
+  },
+  {
+    id: 'minimal-dark',
+    name: 'Minimal Dark',
+    colors: {
+      primary: '#ffffff',
+      secondary: '#e5e7eb',
+      background: '#111827',
+      surface: '#1f2937',
+      text: '#f9fafb',
+      textSecondary: '#d1d5db',
+      accent: '#9ca3af',
+      success: '#10b981',
+      warning: '#f59e0b',
+      error: '#ef4444',
+      gradient: 'from-gray-100 to-gray-200'
+    }
+  },
+  {
+    id: 'medical-clean',
+    name: 'Medical Clean',
+    colors: {
+      primary: '#0f766e',
+      secondary: '#0d9488',
+      background: '#ffffff',
+      surface: '#f0fdfa',
+      text: '#134e4a',
+      textSecondary: '#6b7280',
+      accent: '#14b8a6',
+      success: '#059669',
+      warning: '#d97706',
+      error: '#dc2626',
+      gradient: 'from-teal-600 to-teal-700'
+    }
+  },
+  {
+    id: 'soft-blue',
+    name: 'Soft Blue',
+    colors: {
+      primary: '#0369a1',
+      secondary: '#0284c7',
+      background: '#fefefe',
+      surface: '#f0f9ff',
+      text: '#0c4a6e',
+      textSecondary: '#64748b',
+      accent: '#0ea5e9',
+      success: '#059669',
+      warning: '#d97706',
+      error: '#dc2626',
+      gradient: 'from-sky-600 to-sky-700'
+    }
+  },
+  {
+    id: 'warm-gray',
+    name: 'Warm Gray',
+    colors: {
+      primary: '#78716c',
+      secondary: '#a8a29e',
+      background: '#fafaf9',
+      surface: '#f5f5f4',
+      text: '#44403c',
+      textSecondary: '#78716c',
+      accent: '#a8a29e',
+      success: '#16a34a',
+      warning: '#ea580c',
+      error: '#dc2626',
+      gradient: 'from-stone-500 to-stone-600'
+    }
+  },
+  {
     id: 'pokemon-scarlet',
     name: 'Pokemon Scarlet',
     colors: {

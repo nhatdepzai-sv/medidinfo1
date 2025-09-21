@@ -371,18 +371,32 @@ export default function Home() {
         {/* Search Bar */}
         <div className="flex space-x-2">
           <Input
-            type="text"
+            type="search"
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
+            inputMode="search"
             placeholder={networkStatus.isOfflineMode 
               ? (t('searchMedicationsOffline') || 'Search medications (Offline)...') 
               : (t('searchMedications') || 'Search medications...')
             }
             value={searchQuery}
             onChange={handleSearchChange}
-            className="flex-1 bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/40"
+            className="flex-1 bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/40 touch-manipulation"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && searchQuery.trim()) {
                 e.preventDefault();
+                e.currentTarget.blur(); // Hide mobile keyboard after search
                 handleSearch();
+              }
+            }}
+            onFocus={(e) => {
+              // Scroll to top when input is focused on mobile
+              if (window.innerWidth <= 768) {
+                setTimeout(() => {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }, 100);
               }
             }}
           />
@@ -409,7 +423,7 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 pb-20 overflow-y-auto">
+      <main className="flex-1 p-4 pb-24 overflow-y-auto min-h-screen">
         {error && (
           <Card className="mb-4 text-center py-4 border-red-200">
             <CardContent>

@@ -85,7 +85,7 @@ export class EnhancedAITrainer {
     for (const strategy of strategies) {
       try {
         const worker = await createWorker('eng');
-        
+
         await worker.setParameters({
           tessedit_char_whitelist: strategy.config.charWhitelist,
           tessedit_pageseg_mode: strategy.config.pageSegMode as any,
@@ -165,7 +165,7 @@ export class EnhancedAITrainer {
     }
 
     const words = text.toLowerCase().split(/\s+/);
-    
+
     // Comprehensive medication database for pattern matching
     const knownMedications = {
       brands: [
@@ -205,7 +205,7 @@ export class EnhancedAITrainer {
         'trimethoprim', 'sulfamethoxazole', 'penicillin', 'erythromycin'
       ]
     };
-    
+
     // Advanced medication name patterns with scoring
     const medicationPatterns = [
       // Exact matches (highest confidence)
@@ -249,7 +249,7 @@ export class EnhancedAITrainer {
             const lengthBonus = Math.min(word.length / 10, 0.2);
             const contextBonus = this.getContextBonus(word, words);
             const totalScore = score + lengthBonus + contextBonus;
-            
+
             if (totalScore > bestScore) {
               bestScore = totalScore;
               bestMatch = match[1].toLowerCase();
@@ -280,7 +280,7 @@ export class EnhancedAITrainer {
 
     let dosage = null;
     let dosageConfidence = 0;
-    
+
     for (const pattern of dosagePatterns) {
       const match = text.match(pattern);
       if (match) {
@@ -313,27 +313,27 @@ export class EnhancedAITrainer {
    */
   private getContextBonus(word: string, allWords: string[]): number {
     let bonus = 0;
-    
+
     // Medical context words that increase confidence
     const medicalContextWords = [
       'tablet', 'capsule', 'mg', 'ml', 'dose', 'medication', 'drug', 'pill',
       'prescription', 'rx', 'generic', 'brand', 'active', 'ingredient',
       'strength', 'concentration', 'daily', 'twice', 'morning', 'evening'
     ];
-    
+
     const contextCount = allWords.filter(w => 
       medicalContextWords.some(context => w.toLowerCase().includes(context))
     ).length;
-    
+
     if (contextCount >= 3) bonus += 0.3;
     else if (contextCount >= 2) bonus += 0.2;
     else if (contextCount >= 1) bonus += 0.1;
-    
+
     // Length bonus for reasonable medication names
     if (word.length >= 4 && word.length <= 15) {
       bonus += 0.1;
     }
-    
+
     return bonus;
   }
 
@@ -371,7 +371,7 @@ export class EnhancedAITrainer {
 
   private levenshteinSimilarity(str1: string, str2: string): number {
     const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
-    
+
     for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
     for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
 
@@ -393,22 +393,22 @@ export class EnhancedAITrainer {
 
   private jaroSimilarity(str1: string, str2: string): number {
     if (str1 === str2) return 1;
-    
+
     const len1 = str1.length;
     const len2 = str2.length;
     const matchDistance = Math.floor(Math.max(len1, len2) / 2) - 1;
-    
+
     const str1Matches = new Array(len1).fill(false);
     const str2Matches = new Array(len2).fill(false);
-    
+
     let matches = 0;
     let transpositions = 0;
-    
+
     // Find matches
     for (let i = 0; i < len1; i++) {
       const start = Math.max(0, i - matchDistance);
       const end = Math.min(i + matchDistance + 1, len2);
-      
+
       for (let j = start; j < end; j++) {
         if (str2Matches[j] || str1[i] !== str2[j]) continue;
         str1Matches[i] = str2Matches[j] = true;
@@ -416,9 +416,9 @@ export class EnhancedAITrainer {
         break;
       }
     }
-    
+
     if (matches === 0) return 0;
-    
+
     // Count transpositions
     let k = 0;
     for (let i = 0; i < len1; i++) {
@@ -427,30 +427,30 @@ export class EnhancedAITrainer {
       if (str1[i] !== str2[k]) transpositions++;
       k++;
     }
-    
+
     return (matches / len1 + matches / len2 + (matches - transpositions / 2) / matches) / 3;
   }
 
   private jaroWinklerSimilarity(str1: string, str2: string): number {
     const jaroSim = this.jaroSimilarity(str1, str2);
-    
+
     if (jaroSim < 0.7) return jaroSim;
-    
+
     let prefixLength = 0;
     for (let i = 0; i < Math.min(str1.length, str2.length, 4); i++) {
       if (str1[i] === str2[i]) prefixLength++;
       else break;
     }
-    
+
     return jaroSim + (0.1 * prefixLength * (1 - jaroSim));
   }
 
   private diceCoefficient(str1: string, str2: string): number {
     const bigrams1 = this.getBigrams(str1);
     const bigrams2 = this.getBigrams(str2);
-    
+
     const intersection = bigrams1.filter(bigram => bigrams2.includes(bigram));
-    
+
     return (2 * intersection.length) / (bigrams1.length + bigrams2.length);
   }
 
@@ -485,12 +485,12 @@ export class EnhancedAITrainer {
 
   private updatePerformanceMetrics(predicted: string, actual: string): void {
     const similarity = this.calculateAdvancedSimilarity(predicted.toLowerCase(), actual.toLowerCase());
-    
+
     const currentAvg = this.performanceMetrics.get('accuracy') || 0;
     const currentCount = this.performanceMetrics.get('count') || 0;
-    
+
     const newAvg = (currentAvg * currentCount + similarity) / (currentCount + 1);
-    
+
     this.performanceMetrics.set('accuracy', newAvg);
     this.performanceMetrics.set('count', currentCount + 1);
   }
@@ -552,7 +552,7 @@ export class EnhancedAITrainer {
     for (const [pattern, weight] of this.neuralPatterns.entries()) {
       const [inputPattern, outputMed] = pattern.split('->');
       const similarity = this.calculateAdvancedSimilarity(queryLower, inputPattern);
-      
+
       if (similarity > 0.6) {
         const confidence = similarity * Math.min(weight + 1, 2) * 0.5;
         predictions.push({ medication: outputMed, confidence });
@@ -575,7 +575,7 @@ export class EnhancedAITrainer {
       const matchingPatterns = patterns.filter(pattern => 
         queryWords.some(word => word.includes(pattern) || pattern.includes(word))
       );
-      
+
       if (matchingPatterns.length > 0) {
         const contextConfidence = (matchingPatterns.length / patterns.length) * 0.8;
         predictions.push({ medication, confidence: contextConfidence });
@@ -617,7 +617,7 @@ export class EnhancedAITrainer {
       for (const strategy of strategies) {
         const Tesseract = await import('tesseract.js');
         const worker = await Tesseract.createWorker('eng');
-        
+
         await worker.setParameters({
           tessedit_pageseg_mode: strategy.config.psm as any,
           user_defined_dpi: strategy.config.dpi.toString()
@@ -628,12 +628,12 @@ export class EnhancedAITrainer {
 
         // Calculate accuracy for this strategy
         const similarity = this.calculateAdvancedSimilarity(text.toLowerCase(), expectedText.toLowerCase());
-        
+
         // Store strategy performance
         const strategyKey = `strategy_${strategy.name}`;
         const currentPerf = this.performanceMetrics.get(strategyKey) || 0;
         const currentCount = this.performanceMetrics.get(`${strategyKey}_count`) || 0;
-        
+
         this.performanceMetrics.set(strategyKey, (currentPerf * currentCount + similarity) / (currentCount + 1));
         this.performanceMetrics.set(`${strategyKey}_count`, currentCount + 1);
 
@@ -696,7 +696,7 @@ export class EnhancedAITrainer {
         });
       }
 
-      // Learn generic-brand associations
+      // Learn brand-generic associations
       if (med.genericName && med.name !== med.genericName) {
         this.updateNeuralPatterns(med.genericName, med.name, 0.9);
         this.updateNeuralPatterns(med.name, med.genericName, 0.9);
@@ -755,6 +755,154 @@ export class EnhancedAITrainer {
   }
 
   /**
+   * Add successful recognition for training
+   */
+  addSuccessfulRecognition(
+    imageBase64: string,
+    medicationName: string,
+    dosage: string,
+    confidence: number
+  ): void {
+    const trainingPoint: TrainingDataPoint = {
+      imageBase64,
+      expectedMedication: medicationName,
+      expectedDosage: dosage,
+      difficulty: confidence > 0.8 ? 'easy' : confidence > 0.6 ? 'medium' : 'hard',
+      conditions: ['successful_recognition']
+    };
+
+    this.trainingData.push(trainingPoint);
+
+    // Learn from successful pattern
+    this.updateNeuralPatterns(medicationName.toLowerCase(), medicationName, confidence);
+
+    // Update medication frequency
+    const currentFreq = this.medicationFrequency.get(medicationName.toLowerCase()) || 0;
+    this.medicationFrequency.set(medicationName.toLowerCase(), currentFreq + 1);
+
+    console.log(`✅ Added successful recognition: ${medicationName} (confidence: ${confidence})`);
+  }
+
+  /**
+   * Add training data from any source
+   */
+  addTrainingData(
+    imageBase64: string,
+    medicationName: string,
+    dosage: string,
+    confidence: number,
+    source: string
+  ): void {
+    const trainingPoint: TrainingDataPoint = {
+      imageBase64,
+      expectedMedication: medicationName,
+      expectedDosage: dosage,
+      difficulty: confidence > 0.7 ? 'easy' : confidence > 0.5 ? 'medium' : 'hard',
+      conditions: [source, `confidence_${Math.round(confidence * 100)}`]
+    };
+
+    this.trainingData.push(trainingPoint);
+
+    // Update patterns
+    this.updateNeuralPatterns(medicationName.toLowerCase(), medicationName, confidence);
+
+    console.log(`📚 Added training data from ${source}: ${medicationName}`);
+  }
+
+  /**
+   * Get training data count
+   */
+  getTrainingDataCount(): number {
+    return this.trainingData.length;
+  }
+
+  /**
+   * Advanced self-learning from successful identifications
+   */
+  selfLearn(ocrText: string, identifiedMedication: string, userConfirmed: boolean): void {
+    if (userConfirmed && identifiedMedication) {
+      // Strengthen the pattern association
+      this.updateNeuralPatterns(ocrText.toLowerCase(), identifiedMedication.toLowerCase(), 0.9);
+
+      // Learn text preprocessing patterns
+      const cleanedText = this.preprocessText(ocrText);
+      this.updateNeuralPatterns(cleanedText.toLowerCase(), identifiedMedication.toLowerCase(), 0.8);
+
+      // Extract and learn word patterns
+      const words = ocrText.toLowerCase().split(/\s+/);
+      words.forEach(word => {
+        if (word.length > 3 && identifiedMedication.toLowerCase().includes(word)) {
+          this.updateNeuralPatterns(word, identifiedMedication.toLowerCase(), 0.7);
+        }
+      });
+
+      console.log(`🧠 Self-learning: Strengthened pattern for ${identifiedMedication}`);
+    }
+  }
+
+  /**
+   * Batch train from medication database
+   */
+  batchTrainFromDatabase(medications: any[]): void {
+    console.log(`🎯 Starting batch training with ${medications.length} medications`);
+
+    medications.forEach((med, index) => {
+      // Learn name patterns
+      if (med.name) {
+        const patterns = this.extractLinguisticPatterns(med.name);
+        patterns.forEach(pattern => {
+          this.updateNeuralPatterns(pattern, med.name.toLowerCase(), 0.6);
+        });
+      }
+
+      // Learn brand-generic associations
+      if (med.genericName && med.name !== med.genericName) {
+        this.updateNeuralPatterns(med.genericName.toLowerCase(), med.name.toLowerCase(), 0.8);
+        this.updateNeuralPatterns(med.name.toLowerCase(), med.genericName.toLowerCase(), 0.8);
+      }
+
+      // Learn Vietnamese translations
+      if (med.nameVi) {
+        this.updateNeuralPatterns(med.nameVi.toLowerCase(), med.name.toLowerCase(), 0.7);
+      }
+
+      // Learn category associations
+      if (med.category) {
+        this.updateNeuralPatterns(med.category.toLowerCase(), med.name.toLowerCase(), 0.5);
+      }
+
+      // Update frequency based on commonality
+      const frequency = Math.floor(Math.random() * 10) + 1; // Simulate usage frequency
+      this.medicationFrequency.set(med.name.toLowerCase(), frequency);
+    });
+
+    console.log(`✅ Batch training completed: ${medications.length} medications processed`);
+  }
+
+  /**
+   * Continuous learning from user interactions
+   */
+  continuousLearning(searchQuery: string, selectedMedication: string, rejectedMedications: string[] = []): void {
+    // Strengthen successful selection
+    this.updateNeuralPatterns(searchQuery.toLowerCase(), selectedMedication.toLowerCase(), 1.0);
+
+    // Weaken rejected selections
+    rejectedMedications.forEach(rejected => {
+      this.updateNeuralPatterns(searchQuery.toLowerCase(), rejected.toLowerCase(), -0.3);
+    });
+
+    // Learn contextual words
+    const queryWords = searchQuery.toLowerCase().split(/\s+/);
+    queryWords.forEach(word => {
+      if (word.length > 2) {
+        this.updateNeuralPatterns(word, selectedMedication.toLowerCase(), 0.4);
+      }
+    });
+
+    console.log(`🔄 Continuous learning: ${searchQuery} → ${selectedMedication}`);
+  }
+
+  /**
    * Export comprehensive training data
    */
   exportTrainingData(): {
@@ -763,13 +911,15 @@ export class EnhancedAITrainer {
     medicationFrequency: [string, number][];
     performanceMetrics: [string, number][];
     errorCorrections: [string, string][];
+    totalTrainingPoints: number;
   } {
     return {
       trainingPoints: [...this.trainingData],
       neuralPatterns: Array.from(this.neuralPatterns.entries()),
       medicationFrequency: Array.from(this.medicationFrequency.entries()),
       performanceMetrics: Array.from(this.performanceMetrics.entries()),
-      errorCorrections: Array.from(this.errorCorrections.entries())
+      errorCorrections: Array.from(this.errorCorrections.entries()),
+      totalTrainingPoints: this.trainingData.length
     };
   }
 

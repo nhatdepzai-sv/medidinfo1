@@ -13,85 +13,96 @@ export async function addExtractMedicationRoute(app: Express) {
         });
       }
 
-      // Try OpenAI Vision first
+      // Use Enhanced AI Trainer with multiple OCR strategies
+      const { enhancedAITrainer } = await import('./enhanced-ai-training');
+      
       try {
-        const { extractMedicationFromImage } = await import('./openai-vision');
-        const result = await extractMedicationFromImage(image);
+        const enhancedResult = await enhancedAITrainer.performEnhancedOCR(image);
+        
+        if (enhancedResult.confidence > 50 && enhancedResult.medicationName) {
+          // Train the AI with successful recognition
+          enhancedAITrainer.addSuccessfulRecognition(
+            image,
+            enhancedResult.medicationName,
+            enhancedResult.dosage || '',
+            enhancedResult.confidence / 100
+          );
 
-        res.json({
-          success: true,
-          ...result,
-          aiMethod: 'openai-vision'
-        });
-        return;
-      } catch (openaiError: any) {
-        console.log("OpenAI Vision failed, falling back to Enhanced AI Trainer:", openaiError.message);
-
-        // Try Enhanced AI Trainer with multiple OCR strategies
-        try {
-          const { enhancedAITrainer } = await import('./enhanced-ai-training');
-          const enhancedResult = await enhancedAITrainer.performEnhancedOCR(image);
-          
-          if (enhancedResult.confidence > 60 && enhancedResult.medicationName) {
-            res.json({
-              success: true,
-              medicationName: enhancedResult.medicationName,
-              dosage: enhancedResult.dosage,
-              confidence: enhancedResult.confidence,
-              detectedText: enhancedResult.detectedText,
-              strategies: enhancedResult.strategies,
-              aiMethod: 'enhanced-ai-trainer'
-            });
-            return;
-          }
-        } catch (enhancedError: any) {
-          console.log("Enhanced AI Trainer failed, falling back to basic Tesseract:", enhancedError.message);
+          res.json({
+            success: true,
+            medicationName: enhancedResult.medicationName,
+            dosage: enhancedResult.dosage,
+            confidence: enhancedResult.confidence,
+            detectedText: enhancedResult.detectedText,
+            strategies: enhancedResult.strategies,
+            aiMethod: 'enhanced-ai-trainer',
+            trainingPoints: enhancedAITrainer.getTrainingDataCount()
+          });
+          return;
         }
+      } catch (enhancedError: any) {
+        console.log("Enhanced AI Trainer failed, using fallback strategy:", enhancedError.message);
+      }
 
-        // Final fallback to basic Tesseract.js OCR
-        const { extractMedicationWithTesseract } = await import('./tesseract-fallback');
-        const extractedText = await extractMedicationWithTesseract(image);
+      // Fallback to basic Tesseract with enhanced processing
+      const { extractMedicationWithTesseract } = await import('./tesseract-fallback');
+      const fallbackResult = await extractMedicationWithTesseract(image);
 
-        // Enhanced text preprocessing for medication names
-        const cleanedText = extractedText
-          .replace(/[^\w\s.-]/g, ' ') // Keep only alphanumeric, spaces, dots, hyphens
-          .replace(/\d+\s*(mg|g|ml|mcg|iu|units?|tablets?|capsules?|pills?)/gi, '') // Remove dosage info
-          .replace(/\b(take|with|food|daily|twice|morning|evening|before|after|meals?)\b/gi, '') // Remove instruction words
-          .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-          .trim();
+      if (fallbackResult.medicationName) {
+        // Train the AI even with fallback results
+        enhancedAITrainer.addTrainingData(
+          image,
+          fallbackResult.medicationName,
+          fallbackResult.dosage || '',
+          fallbackResult.confidence / 100,
+          'fallback'
+        );
+      }
 
-        // Extract potential medication names using multiple strategies
-        const words = cleanedText.split(' ').filter(word => word.length > 2);
-        const phrases = cleanedText.split(/[,.]/).map(phrase => phrase.trim()).filter(phrase => phrase.length > 3);
+      // Enhanced text preprocessing for medication names
+      const cleanedText = fallbackResult.detectedText
+        .replace(/[^\w\s.-]/g, ' ') // Keep only alphanumeric, spaces, dots, hyphens
+        .replace(/\d+\s*(mg|g|ml|mcg|iu|units?|tablets?|capsules?|pills?)/gi, '') // Remove dosage info
+        .replace(/\b(take|with|food|daily|twice|morning|evening|before|after|meals?)\b/gi, '') // Remove instruction words
+        .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+        .trim();
 
-        // Intelligent medication name patterns
-        const medicationPatterns = [
-          // Common prefixes and suffixes
-          ...words.filter(word => /^(acet|amox|azith|ibu|aspir|melox|metro|cipro)/i.test(word)),
-          ...words.filter(word => /(mycin|cillin|prazole|statin|dipine|fenac|nazole)$/i.test(word)),
-          // Brand name patterns (capitalized words)
-          ...words.filter(word => /^[A-Z][a-z]{3,}$/.test(word)),
-          // Generic patterns (common pharmaceutical endings)
-          ...words.filter(word => /(ine|ate|ide|ium|phen|zole|tide)$/i.test(word))
-        ];
+      // Extract potential medication names using multiple strategies
+      const words = cleanedText.split(' ').filter(word => word.length > 2);
+      const phrases = cleanedText.split(/[,.]/).map(phrase => phrase.trim()).filter(phrase => phrase.length > 3);
 
-        const potentialMedicationNames = [
-          cleanedText, // Full cleaned text
-          ...medicationPatterns, // Pattern-matched names
-          ...phrases.slice(0, 3), // Top phrases
-          ...words.filter(word => word.length > 3).slice(0, 5) // Top individual words
-        ];
+      // Intelligent medication name patterns
+      const medicationPatterns = [
+        // Common prefixes and suffixes
+        ...words.filter(word => /^(acet|amox|azith|ibu|aspir|melox|metro|cipro)/i.test(word)),
+        ...words.filter(word => /(mycin|cillin|prazole|statin|dipine|fenac|nazole)$/i.test(word)),
+        // Brand name patterns (capitalized words)
+        ...words.filter(word => /^[A-Z][a-z]{3,}$/.test(word)),
+        // Generic patterns (common pharmaceutical endings)
+        ...words.filter(word => /(ine|ate|ide|ium|phen|zole|tide)$/i.test(word))
+      ];
 
-        // Remove duplicates and sort by length (longer names often more specific)
-        const uniqueNames = [...new Set(potentialMedicationNames)]
-          .sort((a, b) => b.length - a.length)
-          .slice(0, 8); // Limit for performance
+      const potentialMedicationNames = [
+        cleanedText, // Full cleaned text
+        ...medicationPatterns, // Pattern-matched names
+        ...phrases.slice(0, 3), // Top phrases
+        ...words.filter(word => word.length > 3).slice(0, 5) // Top individual words
+      ];
 
-        res.json({
-          success: true,
-          medications: uniqueNames,
-          fallbackUsed: true
-        });
+      // Remove duplicates and sort by length (longer names often more specific)
+      const uniqueNames = [...new Set(potentialMedicationNames)]
+        .sort((a, b) => b.length - a.length)
+        .slice(0, 8); // Limit for performance
+
+      res.json({
+        success: true,
+        medications: uniqueNames,
+        confidence: fallbackResult.confidence,
+        detectedText: fallbackResult.detectedText,
+        fallbackUsed: true,
+        aiMethod: 'local-ai-trainer',
+        trainingPoints: enhancedAITrainer.getTrainingDataCount()
+      });
       }
     } catch (error: any) {
       console.error("All OCR methods failed:", error);

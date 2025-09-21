@@ -158,6 +158,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let score = 0;
         const maxScore = 100;
 
+        const searchTerm = query.toLowerCase().trim();
+
         // Exact match gets highest score
         if (drug.name.toLowerCase() === searchTerm) score += 100;
         else if (drug.nameVi?.toLowerCase() === searchTerm) score += 95;
@@ -274,10 +276,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI Training feedback endpoint
+  // Enhanced AI Training feedback endpoint
   app.post("/api/ai-feedback", async (req, res) => {
     try {
-      const { searchQuery, selectedResult, rejectedResults, userRating } = req.body;
+      const { searchQuery, selectedResult, rejectedResults, userRating, imageData, expectedText, ocrText } = req.body;
 
       if (!searchQuery || !selectedResult) {
         return res.status(400).json({
@@ -288,30 +290,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { enhancedAITrainer } = await import('./enhanced-ai-training');
 
-      // Learn from user behavior
-      enhancedAITrainer.learnFromUserBehavior(
-        searchQuery,
-        selectedResult,
-        rejectedResults || []
-      );
+      // Enhanced learning from user behavior
+      enhancedAITrainer.continuousLearning(searchQuery, selectedResult, rejectedResults || []);
 
-      // If user provided OCR training data
-      if (req.body.imageData && req.body.expectedText) {
-        await enhancedAITrainer.trainAdvancedOCR(
-          req.body.imageData,
-          req.body.expectedText
-        );
+      // Self-learning from successful identifications
+      if (ocrText && selectedResult) {
+        enhancedAITrainer.selfLearn(ocrText, selectedResult, true);
       }
+
+      // Advanced OCR training with user corrections
+      if (imageData && expectedText) {
+        enhancedAITrainer.addTrainingData(
+          imageData,
+          expectedText,
+          '',
+          userRating || 0.8,
+          'user_correction'
+        );
+        
+        await enhancedAITrainer.trainAdvancedOCR(imageData, expectedText);
+      }
+
+      // Get updated training statistics
+      const stats = enhancedAITrainer.getPerformanceMetrics();
+      const trainingCount = enhancedAITrainer.getTrainingDataCount();
 
       res.json({
         success: true,
-        message: "Feedback received and processed"
+        message: "Enhanced feedback processed and learned",
+        stats: {
+          trainingPoints: trainingCount,
+          accuracy: Math.round(stats.accuracy * 100),
+          lastUpdated: new Date().toISOString()
+        }
       });
     } catch (error) {
-      console.error("AI feedback error:", error);
+      console.error("Enhanced AI feedback error:", error);
       res.status(500).json({
         success: false,
-        message: "Failed to process feedback"
+        message: "Failed to process enhanced feedback"
       });
     }
   });
@@ -401,6 +418,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("History fetch error:", error);
       res.status(500).json({ message: "Failed to fetch search history" });
+    }
+  });
+
+  // Batch training endpoint for initializing AI with medication database
+  app.post("/api/batch-train", async (req, res) => {
+    try {
+      const { enhancedAITrainer } = await import('./enhanced-ai-training');
+      const { fullComprehensiveDrugsDatabase } = await import('./comprehensive-drugs-database');
+      const { globalMedicationsDatabase } = await import('./global-medications-database');
+      const { medicationsDatabase } = await import('./medications-database');
+
+      // Combine all databases for comprehensive training
+      const allMedications = [
+        ...fullComprehensiveDrugsDatabase,
+        ...globalMedicationsDatabase,
+        ...medicationsDatabase
+      ];
+
+      // Perform batch training
+      enhancedAITrainer.batchTrainFromDatabase(allMedications);
+
+      const stats = enhancedAITrainer.getPerformanceMetrics();
+      const trainingCount = enhancedAITrainer.getTrainingDataCount();
+
+      res.json({
+        success: true,
+        message: `Batch training completed with ${allMedications.length} medications`,
+        stats: {
+          medicationsProcessed: allMedications.length,
+          trainingPoints: trainingCount,
+          accuracy: Math.round(stats.accuracy * 100),
+          lastUpdated: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.error("Batch training error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to perform batch training"
+      });
     }
   });
 

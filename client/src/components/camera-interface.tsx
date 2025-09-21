@@ -356,7 +356,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       setOcrProgress(30);
       setProcessingStageLocal('Analyzing image with AI...');
 
-      // Use OpenAI Vision API with retry mechanism for browser extension issues
+      // Use local Enhanced AI Trainer with retry mechanism
       let response;
       let retryCount = 0;
       const maxRetries = 3;

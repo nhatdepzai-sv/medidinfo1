@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { PlayIcon, StopIcon, BarChart3Icon, BrainCircuitIcon } from 'lucide-react';
+import { PlayIcon, Stop, BarChart3 } from 'lucide-react';
 
 interface TrainingProgress {
   processed: string;
@@ -35,7 +34,7 @@ export function TrainingDashboard() {
   useEffect(() => {
     // Fetch initial stats
     fetchStats();
-    
+
     // Set up polling for progress updates
     const interval = setInterval(() => {
       fetchProgress();
@@ -76,7 +75,7 @@ export function TrainingDashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
-      
+
       const data = await response.json();
       if (data.success) {
         console.log('Mass training started:', data.message);
@@ -96,7 +95,7 @@ export function TrainingDashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
-      
+
       const data = await response.json();
       if (data.success) {
         console.log('Mass training stopped');
@@ -134,7 +133,7 @@ export function TrainingDashboard() {
             variant="destructive"
             size="lg"
           >
-            <StopIcon className="w-4 h-4 mr-2" />
+            <Stop className="w-4 h-4 mr-2" />
             Stop Training
           </Button>
         </div>
@@ -157,7 +156,7 @@ export function TrainingDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Training Points</CardTitle>
-            <BarChart3Icon className="h-4 w-4 text-muted-foreground" />
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -195,7 +194,7 @@ export function TrainingDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-            <BarChart3Icon className="h-4 w-4 text-muted-foreground" />
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -224,7 +223,7 @@ export function TrainingDashboard() {
               </div>
               <Progress value={parseFloat(progress.percentage)} className="h-2" />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="font-medium">Processed:</span> {progress.processed}
@@ -284,7 +283,7 @@ export function TrainingDashboard() {
               </ul>
             </div>
           </div>
-          
+
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <p className="text-sm text-yellow-800">
               <strong>Note:</strong> Mass training will run in the background and may take 

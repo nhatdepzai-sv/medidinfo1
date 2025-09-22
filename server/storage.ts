@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Medication, type InsertMedication, type SearchHistory, type InsertSearchHistory } from "@shared/schema";
+import { type User, type InsertUser, type Medication, type InsertMedication, type SearchHistory, type InsertSearchHistory, type TrainingProgress, type InsertTrainingProgress, type AiStats, type InsertAiStats } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { medicationsDatabase } from "./medications-database";
 import { drizzle } from "drizzle-orm/neon-http";
@@ -39,6 +39,14 @@ export interface IStorage {
 
   getSearchHistory(userId?: string): Promise<SearchHistory[]>;
   createSearchHistory(searchHistory: InsertSearchHistory): Promise<SearchHistory>;
+
+  getTrainingProgress(): Promise<TrainingProgress | undefined>;
+  updateTrainingProgress(progress: Partial<InsertTrainingProgress>): Promise<TrainingProgress>;
+  createTrainingProgress(progress: InsertTrainingProgress): Promise<TrainingProgress>;
+
+  getAiStats(): Promise<AiStats | undefined>;
+  updateAiStats(stats: Partial<InsertAiStats>): Promise<AiStats>;
+  createAiStats(stats: InsertAiStats): Promise<AiStats>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -481,6 +489,98 @@ export class DatabaseStorage implements IStorage {
       this.memorySearchHistory.push(newSearchHistory);
     }
     return newSearchHistory;
+  }
+
+  async getTrainingProgress(): Promise<TrainingProgress | undefined> {
+    if (useDatabase && db) {
+      const [progress] = await db.select().from(schema.trainingProgress)
+        .orderBy(desc(schema.trainingProgress.lastUpdated))
+        .limit(1);
+      return progress || undefined;
+    }
+    return undefined;
+  }
+
+  async createTrainingProgress(progress: InsertTrainingProgress): Promise<TrainingProgress> {
+    const newProgress = {
+      ...progress,
+      id: randomUUID(),
+      createdAt: new Date(),
+      lastUpdated: new Date()
+    } as TrainingProgress;
+
+    if (useDatabase && db) {
+      const [created] = await db.insert(schema.trainingProgress).values(newProgress).returning();
+      return created;
+    }
+    return newProgress;
+  }
+
+  async updateTrainingProgress(progressUpdate: Partial<InsertTrainingProgress>): Promise<TrainingProgress> {
+    if (useDatabase && db) {
+      // Get existing progress or create new one
+      let existing = await this.getTrainingProgress();
+      if (!existing) {
+        return await this.createTrainingProgress({
+          processed: progressUpdate.processed || 0,
+          target: progressUpdate.target || 1000000,
+          isTraining: progressUpdate.isTraining || false,
+          currentPhase: progressUpdate.currentPhase || "Phase 1",
+          successRate: progressUpdate.successRate || 0
+        });
+      }
+
+      const [updated] = await db.update(schema.trainingProgress)
+        .set({ ...progressUpdate, lastUpdated: new Date() })
+        .where(eq(schema.trainingProgress.id, existing.id))
+        .returning();
+      return updated;
+    }
+    throw new Error("Database not available");
+  }
+
+  async getAiStats(): Promise<AiStats | undefined> {
+    if (useDatabase && db) {
+      const [stats] = await db.select().from(schema.aiStats)
+        .orderBy(desc(schema.aiStats.lastUpdated))
+        .limit(1);
+      return stats || undefined;
+    }
+    return undefined;
+  }
+
+  async createAiStats(stats: InsertAiStats): Promise<AiStats> {
+    const newStats = {
+      ...stats,
+      id: randomUUID(),
+      lastUpdated: new Date()
+    } as AiStats;
+
+    if (useDatabase && db) {
+      const [created] = await db.insert(schema.aiStats).values(newStats).returning();
+      return created;
+    }
+    return newStats;
+  }
+
+  async updateAiStats(statsUpdate: Partial<InsertAiStats>): Promise<AiStats> {
+    if (useDatabase && db) {
+      // Get existing stats or create new one
+      let existing = await this.getAiStats();
+      if (!existing) {
+        return await this.createAiStats({
+          accuracy: statsUpdate.accuracy || 0,
+          trainingPoints: statsUpdate.trainingPoints || 0
+        });
+      }
+
+      const [updated] = await db.update(schema.aiStats)
+        .set({ ...statsUpdate, lastUpdated: new Date() })
+        .where(eq(schema.aiStats.id, existing.id))
+        .returning();
+      return updated;
+    }
+    throw new Error("Database not available");
   }
 }
 

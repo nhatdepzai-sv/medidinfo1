@@ -368,19 +368,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Start mass training with millions of images
-  app.post("/api/start-mass-training", async (req, res) => {
+  // Get automated AI training status
+  app.get("/api/ai-training-status", async (req, res) => {
     try {
-      // Initialize or update training progress in database
-      const existingProgress = await storage.getTrainingProgress();
-      
-      if (existingProgress && existingProgress.isTraining) {
-        return res.json({
-          success: true,
-          message: "Mass training is already in progress",
-          progress: existingProgress
-        });
-      }
+      const { automatedAITrainingSystem } = await import('./mass-training-system');
+      const progress = automatedAITrainingSystem.getProgress();
+      const stats = automatedAITrainingSystem.getTrainingStats();
+
+      res.json({
+        success: true,
+        training: {
+          isActive: progress.isTraining,
+          processed: progress.processed,
+          target: progress.target,
+          percentage: Math.round((progress.processed / progress.target) * 100),
+          speed: Math.round(progress.trainingSpeed),
+          eta: progress.estimatedCompletion,
+          duration: progress.startTime
+        },
+        aiStats: stats
+      });
+    } catch (error) {
+      console.error("AI training status error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get training status"
+      });
+    }
+  });
+
+  // Force restart automated training
+  app.post("/api/restart-ai-training", async (req, res) => {
+    try {
+      const { automatedAITrainingSystem } = await import('./mass-training-system');
+      automatedAITrainingSystem.restartTraining();
+
+      res.json({
+        success: true,
+        message: "Automated AI training restarted",
+        progress: automatedAITrainingSystem.getProgress()
+      });
+    } catch (error) {
+      console.error("Restart training error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to restart training"
+      });
+    }
+  });
 
       // Create or update training progress
       const progressData = {

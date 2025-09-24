@@ -7,6 +7,7 @@ import { globalMedicationsDatabase } from "./global-medications-database";
 import { medicationsDatabase } from "./medications-database";
 import { drugAliasService } from "./drug-alias-service";
 import { storage } from "./storage";
+import { AuthService, registerSchema, loginSchema, authenticateToken } from "./auth";
 
 export function setupRoutes(app: express.Application) {
   console.log("🔧 Setting up API routes...");
@@ -17,6 +18,60 @@ export function setupRoutes(app: express.Application) {
       status: "ok",
       timestamp: new Date().toISOString(),
       version: "1.0.0"
+    });
+  });
+
+  // Authentication endpoints
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const userData = registerSchema.parse(req.body);
+      const result = await AuthService.register(userData);
+      
+      res.json({
+        success: true,
+        user: result.user,
+        token: result.token,
+        message: "Registration successful"
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || "Registration failed"
+      });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const loginData = loginSchema.parse(req.body);
+      const result = await AuthService.login(loginData);
+      
+      res.json({
+        success: true,
+        user: result.user,
+        token: result.token,
+        message: "Login successful"
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || "Login failed"
+      });
+    }
+  });
+
+  app.get("/api/auth/verify", authenticateToken, (req: any, res) => {
+    res.json({
+      success: true,
+      user: req.user,
+      message: "Token valid"
+    });
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    res.json({
+      success: true,
+      message: "Logout successful"
     });
   });
 

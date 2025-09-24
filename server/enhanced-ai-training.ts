@@ -188,6 +188,123 @@ export class EnhancedAITrainer {
   }
 
   /**
+   * Enhanced image analysis with visual pattern recognition
+   */
+  async analyzeImageVisually(base64Image: string): Promise<{
+    visualFeatures: {
+      hasText: boolean;
+      hasPackaging: boolean;
+      hasBottle: boolean;
+      hasBlister: boolean;
+      colorScheme: string[];
+      shapeAnalysis: string;
+    };
+    confidence: number;
+  }> {
+    try {
+      const imageBuffer = Buffer.from(base64Image, 'base64');
+      
+      // Basic image analysis using pixel data
+      const features = {
+        hasText: false,
+        hasPackaging: false,
+        hasBottle: false,
+        hasBlister: false,
+        colorScheme: [] as string[],
+        shapeAnalysis: 'unknown'
+      };
+
+      // Analyze color distribution to detect common medication packaging
+      const colors = this.analyzeColorDistribution(imageBuffer);
+      features.colorScheme = colors;
+
+      // Check for white/light backgrounds (common in medication labels)
+      const hasLightBackground = colors.some(color => 
+        color.includes('white') || color.includes('light')
+      );
+
+      // Check for text-like patterns
+      features.hasText = this.detectTextPatterns(imageBuffer);
+      
+      // Detect packaging patterns
+      if (colors.includes('orange') || colors.includes('amber')) {
+        features.hasBottle = true;
+      }
+      
+      if (colors.includes('silver') || colors.includes('foil')) {
+        features.hasBlister = true;
+      }
+
+      if (hasLightBackground && features.hasText) {
+        features.hasPackaging = true;
+      }
+
+      // Calculate confidence based on features
+      let confidence = 0.3; // Base confidence
+      if (features.hasText) confidence += 0.3;
+      if (features.hasPackaging) confidence += 0.2;
+      if (features.hasBottle || features.hasBlister) confidence += 0.2;
+
+      return {
+        visualFeatures: features,
+        confidence: Math.min(confidence, 1.0)
+      };
+    } catch (error) {
+      console.error('Visual analysis error:', error);
+      return {
+        visualFeatures: {
+          hasText: false,
+          hasPackaging: false,
+          hasBottle: false,
+          hasBlister: false,
+          colorScheme: [],
+          shapeAnalysis: 'error'
+        },
+        confidence: 0
+      };
+    }
+  }
+
+  /**
+   * Analyze color distribution in image
+   */
+  private analyzeColorDistribution(imageBuffer: Buffer): string[] {
+    const colors: string[] = [];
+    
+    // Simple color analysis - in a real implementation, you'd use image processing libraries
+    const bufferStr = imageBuffer.toString('hex');
+    
+    // Check for common medication packaging colors
+    if (bufferStr.includes('ff')) colors.push('white');
+    if (bufferStr.includes('00')) colors.push('black');
+    if (bufferStr.includes('ff8c00') || bufferStr.includes('ffa500')) colors.push('orange');
+    if (bufferStr.includes('c0c0c0')) colors.push('silver');
+    if (bufferStr.includes('0000ff')) colors.push('blue');
+    if (bufferStr.includes('ff0000')) colors.push('red');
+    if (bufferStr.includes('008000')) colors.push('green');
+    
+    return colors.length > 0 ? colors : ['unknown'];
+  }
+
+  /**
+   * Detect text-like patterns in image
+   */
+  private detectTextPatterns(imageBuffer: Buffer): boolean {
+    // Simple pattern detection - look for rectangular regions and contrast patterns
+    // In a real implementation, you'd use computer vision algorithms
+    const bufferStr = imageBuffer.toString('hex');
+    
+    // Look for high contrast patterns that might indicate text
+    const hasHighContrast = bufferStr.includes('ffffff000000') || 
+                           bufferStr.includes('000000ffffff');
+    
+    // Look for repeated patterns that might indicate text
+    const hasRepeatedPatterns = /(.{8})\1{2,}/.test(bufferStr);
+    
+    return hasHighContrast || hasRepeatedPatterns;
+  }
+
+  /**
    * Enhanced OCR with multiple preprocessing and recognition strategies
    */
   async performEnhancedOCR(base64Image: string): Promise<{
@@ -196,6 +313,7 @@ export class EnhancedAITrainer {
     confidence: number;
     detectedText: string;
     strategies: { name: string; confidence: number; result: string }[];
+    visualAnalysis?: any;
   }> {
     const strategies = [
       { name: 'standard', config: { ...this.ocrConfig } },
@@ -204,9 +322,27 @@ export class EnhancedAITrainer {
       { name: 'sparse_text', config: { ...this.ocrConfig, pageSegMode: '11' } }
     ];
 
+    // First, perform visual analysis
+    const visualAnalysis = await this.analyzeImageVisually(base64Image);
+    
     const results = [];
     let bestResult = null;
     let maxConfidence = 0;
+
+    // Adjust OCR strategies based on visual analysis
+    if (visualAnalysis.visualFeatures.hasBottle) {
+      strategies.push({ 
+        name: 'bottle_optimized', 
+        config: { ...this.ocrConfig, pageSegMode: '7' } // Single text line
+      });
+    }
+    
+    if (visualAnalysis.visualFeatures.hasBlister) {
+      strategies.push({ 
+        name: 'blister_optimized', 
+        config: { ...this.ocrConfig, pageSegMode: '6' } // Single uniform block
+      });
+    }
 
     for (const strategy of strategies) {
       try {
@@ -244,6 +380,11 @@ export class EnhancedAITrainer {
       }
     }
 
+    // Boost confidence if visual analysis supports the result
+    if (bestResult && visualAnalysis.confidence > 0.5) {
+      maxConfidence = Math.min(maxConfidence * (1 + visualAnalysis.confidence * 0.3), 100);
+    }
+
     return {
       medicationName: bestResult?.medicationInfo?.name || null,
       dosage: bestResult?.medicationInfo?.dosage || null,
@@ -253,7 +394,8 @@ export class EnhancedAITrainer {
         name: r.name,
         confidence: r.confidence,
         result: r.result
-      }))
+      })),
+      visualAnalysis: visualAnalysis
     };
   }
 

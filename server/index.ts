@@ -65,8 +65,32 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
+
+  // Graceful shutdown handling
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully...');
+    process.exit(0);
+  });
+
+  process.on('SIGINT', () => {
+    console.log('SIGINT received, shutting down gracefully...');
+    process.exit(0);
+  });
+
   const server = app.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
+  });
+
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.log(`Port ${port} is busy, trying port ${port + 1}...`);
+      const newPort = port + 1;
+      server.listen(newPort, '0.0.0.0', () => {
+        log(`serving on port ${newPort}`);
+      });
+    } else {
+      console.error('Server error:', err);
+    }
   });
 
   // importantly only setup vite in development and after

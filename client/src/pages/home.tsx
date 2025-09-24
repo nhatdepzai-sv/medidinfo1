@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Search, Scan, History, User, Pill, X, WifiOff, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,14 +30,14 @@ const QuickActions = React.memo(({ onScanClick, onSearchClick, onHistoryClick, o
   ], [t, onScanClick, onSearchClick, onHistoryClick, onPillIdClick]);
 
   return (
-    <div className="grid grid-cols-2 gap-3 mb-6">
+    <div className="grid grid-cols-2 gap-4 mb-6">
       {actions.map((action, index) => (
-        <Card key={index} className="transition-all hover:shadow-md cursor-pointer" onClick={action.onClick}>
-          <CardContent className="p-4 text-center">
-            <div className={`w-12 h-12 ${action.color} rounded-full mx-auto mb-2 flex items-center justify-center`}>
-              <action.icon className="w-6 h-6 text-white" />
+        <Card key={index} className="card-interactive transition-all hover:shadow-md cursor-pointer tap-highlight-transparent" onClick={action.onClick}>
+          <CardContent className="p-6 text-center">
+            <div className={`w-14 h-14 ${action.color} rounded-full mx-auto mb-3 flex items-center justify-center shadow-sm`}>
+              <action.icon className="w-7 h-7 text-white" />
             </div>
-            <p className="text-sm font-medium">{action.label}</p>
+            <p className="text-sm font-medium text-gray-700">{action.label}</p>
           </CardContent>
         </Card>
       ))}
@@ -55,12 +56,17 @@ const RecentSearches = React.memo(() => {
   ], []);
 
   return (
-    <Card className="mb-4">
-      <CardContent className="p-4">
-        <h3 className="font-semibold mb-3 text-blue-600">{t('recentSearches') || 'Recent Searches'}</h3>
+    <Card className="mb-6 card-mobile">
+      <CardContent className="p-5">
+        <h3 className="font-semibold mb-4 text-blue-600 text-base">{t('recentSearches') || 'Recent Searches'}</h3>
         <div className="flex flex-wrap gap-2">
           {recentItems.map((item, index) => (
-            <Button key={index} variant="outline" size="sm" className="text-xs border-blue-500 text-blue-600">
+            <Button 
+              key={index} 
+              variant="outline" 
+              size="sm" 
+              className="text-xs border-blue-500 text-blue-600 hover:bg-blue-50 tap-highlight-transparent min-h-8 px-3"
+            >
               {item}
             </Button>
           ))}
@@ -384,7 +390,7 @@ export default function Home() {
   const handleSearchClick = useCallback(() => {
     const searchInput = document.querySelector('input[placeholder*="Search medications"]');
     if (searchInput) {
-      searchInput.focus();
+      (searchInput as HTMLInputElement).focus();
     }
   }, []);
 
@@ -409,7 +415,6 @@ export default function Home() {
 
     return () => clearTimeout(debounceTimer);
   }, [searchQuery, handleSearch]);
-
 
   if (showCamera) {
     return (
@@ -453,25 +458,25 @@ export default function Home() {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg overflow-hidden">
       {/* Header */}
-      <header className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 shadow-lg sticky top-0 z-10">
+      <header className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 shadow-lg sticky top-0 z-10 safe-top">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-800 rounded-lg flex items-center justify-center">
-              <Pill className="w-6 h-6" />
+            <div className="w-12 h-12 bg-blue-800 rounded-xl flex items-center justify-center shadow-sm">
+              <Pill className="w-7 h-7" />
             </div>
             <div>
               <h1 className="text-xl font-bold">DrugScan</h1>
               <div className="flex items-center space-x-2">
                 <p className="text-blue-100 text-sm">{t('medicationScanner') || 'Medication Scanner'}</p>
                 {networkStatus.isOfflineMode ? (
-                  <Badge variant="secondary" className="bg-orange-500/20 text-orange-200 text-xs">
+                  <Badge variant="secondary" className="bg-orange-500/20 text-orange-200 text-xs h-5">
                     <WifiOff className="w-3 h-3 mr-1" />
                     Offline
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" className="bg-green-500/20 text-green-200 text-xs">
+                  <Badge variant="secondary" className="bg-green-500/20 text-green-200 text-xs h-5">
                     <Wifi className="w-3 h-3 mr-1" />
                     Online
                   </Badge>
@@ -484,80 +489,85 @@ export default function Home() {
 
         {/* Search Bar */}
         <div className="flex space-x-2">
-          <Input
-            type="search"
-            autoComplete="off"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck="false"
-            inputMode="search"
-            placeholder={networkStatus.isOfflineMode 
-              ? (t('searchMedicationsOffline') || 'Search medications (Offline)...') 
-              : (t('searchMedications') || 'Search medications...')
-            }
-            value={searchQuery}
-            onChange={handleSearchChange}
-            className="flex-1 bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/40 touch-manipulation"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && searchQuery.trim().length >= 1) {
-                e.preventDefault();
-                e.currentTarget.blur(); // Hide mobile keyboard after search
-                handleSearch(searchQuery);
+          <div className="flex-1 relative">
+            <Input
+              type="search"
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
+              inputMode="search"
+              placeholder={networkStatus.isOfflineMode 
+                ? (t('searchMedicationsOffline') || 'Search medications (Offline)...') 
+                : (t('searchMedications') || 'Search medications...')
               }
-            }}
-            onFocus={(e) => {
-              // Scroll to top when input is focused on mobile
-              if (window.innerWidth <= 768) {
-                setTimeout(() => {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }, 100);
-              }
-            }}
-          />
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="form-input-mobile bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/40 h-12"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && searchQuery.trim().length >= 1) {
+                  e.preventDefault();
+                  e.currentTarget.blur(); // Hide mobile keyboard after search
+                  handleSearch(searchQuery);
+                }
+              }}
+              onFocus={(e) => {
+                // Scroll to top when input is focused on mobile
+                if (window.innerWidth <= 768) {
+                  setTimeout(() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }, 100);
+                }
+              }}
+            />
+          </div>
           <Button
             onClick={() => handleSearch(searchQuery)}
             disabled={isSearching || isLoading || searchQuery.trim().length < 1}
-            className="bg-white hover:bg-gray-100 text-blue-600"
+            className="btn-mobile bg-white hover:bg-gray-100 text-blue-600 w-12 h-12 p-0"
           >
             {isSearching ? (
-              <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full" />
+              <div className="loading-spinner w-4 h-4 border-blue-600" />
             ) : (
-              <Search className="w-4 h-4" />
+              <Search className="w-5 h-5" />
             )}
           </Button>
           <Button
             onClick={handleCameraToggle}
             disabled={isSearching || isLoading || networkStatus.isOfflineMode}
-            className="bg-white hover:bg-gray-100 text-blue-600 disabled:opacity-50"
+            className="btn-mobile bg-white hover:bg-gray-100 text-blue-600 disabled:opacity-50 w-12 h-12 p-0"
             title={networkStatus.isOfflineMode ? 'Camera disabled in offline mode' : 'Scan medication'}
           >
-            <Scan className="w-4 h-4" />
+            <Scan className="w-5 h-5" />
           </Button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 pb-24 overflow-y-auto min-h-screen">
+      <main className="flex-1 p-4 pb-24 overflow-y-auto min-h-screen scroll-smooth safe-bottom">
         {error && (
-          <Card className="mb-4 text-center py-4 border-red-200">
-            <CardContent>
-              <p className="text-red-600">{error}</p>
+          <Card className="mb-4 text-center py-6 border-red-200 bg-red-50">
+            <CardContent className="p-0">
+              <p className="text-red-600 font-medium">{error}</p>
             </CardContent>
           </Card>
         )}
 
         {isLoading && (
           <div className="flex justify-center items-center h-32">
-            <p>{t('processing') || 'Processing...'}</p>
+            <div className="flex flex-col items-center space-y-3">
+              <div className="loading-spinner w-8 h-8 border-blue-600" />
+              <p className="text-gray-600">{t('processing') || 'Processing...'}</p>
+            </div>
           </div>
         )}
 
         {!isLoading && !error && searchResults && searchResults.medications && searchResults.medications.length > 0 ? (
           <DrugResults results={searchResults} />
         ) : !isLoading && !error && searchResults && searchResults.message && (searchResults.medications === undefined || searchResults.medications.length === 0) ? (
-          <Card className="mb-4 text-center py-4 border-blue-200">
-            <CardContent>
-              <p className="text-blue-600">{searchResults.message}</p>
+          <Card className="mb-4 text-center py-6 border-blue-200 bg-blue-50">
+            <CardContent className="p-0">
+              <p className="text-blue-600 font-medium">{searchResults.message}</p>
             </CardContent>
           </Card>
         ) : !isLoading && !error && (
@@ -571,15 +581,24 @@ export default function Home() {
             <RecentSearches />
 
             {/* Tips Card */}
-            <Card className="bg-gradient-to-r from-green-50 to-blue-50">
-              <CardContent className="p-4">
-                <h3 className="font-semibold text-green-800 mb-2">
-                  {t('tips') || 'Tips'}
+            <Card className="bg-gradient-to-r from-green-50 to-blue-50 card-mobile">
+              <CardContent className="p-5">
+                <h3 className="font-semibold text-green-800 mb-3 text-base">
+                  {t('tips') || 'Tips for Better Results'}
                 </h3>
-                <ul className="text-sm text-green-700 space-y-1">
-                  <li>• {t('tipClearPhoto') || 'Take clear photos in good lighting'}</li>
-                  <li>• {t('tipReadableText') || 'Ensure text is readable'}</li>
-                  <li>• {t('tipConsultDoctor') || 'Always consult your doctor'}</li>
+                <ul className="text-sm text-green-700 space-y-2">
+                  <li className="flex items-start">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                    {t('tipClearPhoto') || 'Take clear photos in good lighting'}
+                  </li>
+                  <li className="flex items-start">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                    {t('tipReadableText') || 'Ensure medication text is readable'}
+                  </li>
+                  <li className="flex items-start">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                    {t('tipConsultDoctor') || 'Always consult your doctor before taking medications'}
+                  </li>
                 </ul>
               </CardContent>
             </Card>

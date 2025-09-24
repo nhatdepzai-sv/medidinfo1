@@ -43,6 +43,9 @@ export class EnhancedAITrainer {
   private medicationFrequency: Map<string, number> = new Map();
   private contextualPatterns: Map<string, string[]> = new Map();
   private errorCorrections: Map<string, string> = new Map();
+  private isBackgroundTraining: boolean = false;
+  private trainingStartTime: Date | null = null;
+  private backgroundTrainingInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     this.ocrConfig = {
@@ -58,6 +61,129 @@ export class EnhancedAITrainer {
       },
       confidenceThreshold: 60,
       multiLanguageSupport: ['eng', 'vie'] // English and Vietnamese
+    };
+
+    // Start automatic 48-hour background training
+    this.startBackgroundTraining();
+  }
+
+  /**
+   * Start automatic background training for 48 hours
+   */
+  private startBackgroundTraining(): void {
+    if (this.isBackgroundTraining) return;
+
+    this.isBackgroundTraining = true;
+    this.trainingStartTime = new Date();
+
+    console.log('🚀 Starting 48-hour background AI training...');
+
+    // Train immediately
+    this.performBackgroundTrainingCycle();
+
+    // Set up interval training every 5 minutes
+    this.backgroundTrainingInterval = setInterval(() => {
+      const now = new Date();
+      const hoursElapsed = (now.getTime() - (this.trainingStartTime?.getTime() || 0)) / (1000 * 60 * 60);
+
+      if (hoursElapsed >= 48) {
+        console.log('✅ 48-hour background training completed!');
+        this.stopBackgroundTraining();
+        return;
+      }
+
+      this.performBackgroundTrainingCycle();
+    }, 5 * 60 * 1000); // Every 5 minutes
+
+    console.log('🧠 Background AI training will run for 48 hours');
+  }
+
+  /**
+   * Perform a training cycle in the background
+   */
+  private async performBackgroundTrainingCycle(): Promise<void> {
+    try {
+      // Comprehensive medication training data
+      const medicationPatterns = [
+        { name: 'acetaminophen', aliases: ['tylenol', 'paracetamol'], category: 'pain_reliever' },
+        { name: 'ibuprofen', aliases: ['advil', 'motrin'], category: 'nsaid' },
+        { name: 'aspirin', aliases: ['bayer', 'asa'], category: 'nsaid' },
+        { name: 'amoxicillin', aliases: ['amoxil'], category: 'antibiotic' },
+        { name: 'lisinopril', aliases: ['prinivil', 'zestril'], category: 'ace_inhibitor' },
+        { name: 'metformin', aliases: ['glucophage'], category: 'diabetes' },
+        { name: 'atorvastatin', aliases: ['lipitor'], category: 'statin' },
+        { name: 'omeprazole', aliases: ['prilosec'], category: 'ppi' },
+        { name: 'losartan', aliases: ['cozaar'], category: 'arb' },
+        { name: 'amlodipine', aliases: ['norvasc'], category: 'calcium_channel_blocker' }
+      ];
+
+      // Train with random medication patterns
+      const randomMed = medicationPatterns[Math.floor(Math.random() * medicationPatterns.length)];
+
+      // Generate synthetic training scenarios
+      const scenarios = [
+        `${randomMed.name} 500mg`,
+        `${randomMed.aliases[0]} tablet`,
+        `${randomMed.name.toUpperCase()}`,
+        `${randomMed.name} capsule 250mg`,
+        `${randomMed.aliases[0] || randomMed.name} extended release`
+      ];
+
+      scenarios.forEach(scenario => {
+        this.updateNeuralPatterns(scenario.toLowerCase(), randomMed.name, 0.8);
+        randomMed.aliases.forEach(alias => {
+          this.updateNeuralPatterns(alias.toLowerCase(), randomMed.name, 0.9);
+        });
+      });
+
+      // Train OCR patterns with common variations
+      const ocrVariations = [
+        { original: randomMed.name, corrupted: randomMed.name.replace(/o/g, '0') },
+        { original: randomMed.name, corrupted: randomMed.name.replace(/i/g, '1') },
+        { original: randomMed.name, corrupted: randomMed.name.replace(/l/g, '1') }
+      ];
+
+      ocrVariations.forEach(variation => {
+        this.errorCorrections.set(variation.corrupted, variation.original);
+        this.updateNeuralPatterns(variation.corrupted, variation.original, 0.7);
+      });
+
+      // Update training count
+      const currentCount = this.performanceMetrics.get('background_training_cycles') || 0;
+      this.performanceMetrics.set('background_training_cycles', currentCount + 1);
+
+    } catch (error) {
+      console.error('Background training cycle error:', error);
+    }
+  }
+
+  /**
+   * Stop background training
+   */
+  private stopBackgroundTraining(): void {
+    this.isBackgroundTraining = false;
+    if (this.backgroundTrainingInterval) {
+      clearInterval(this.backgroundTrainingInterval);
+      this.backgroundTrainingInterval = null;
+    }
+  }
+
+  /**
+   * Get background training status
+   */
+  getBackgroundTrainingStatus(): {
+    isTraining: boolean;
+    hoursRemaining: number;
+    cyclesCompleted: number;
+  } {
+    const hoursElapsed = this.trainingStartTime 
+      ? (new Date().getTime() - this.trainingStartTime.getTime()) / (1000 * 60 * 60)
+      : 0;
+
+    return {
+      isTraining: this.isBackgroundTraining,
+      hoursRemaining: Math.max(0, 48 - hoursElapsed),
+      cyclesCompleted: this.performanceMetrics.get('background_training_cycles') || 0
     };
   }
 
@@ -506,49 +632,12 @@ export class EnhancedAITrainer {
   }
 
   /**
-   * Advanced pattern learning from user interactions
-   */
-  learnFromUserBehavior(searchQuery: string, selectedResult: string, rejectedResults: string[]): void {
-    // Update medication frequency
-    const currentFreq = this.medicationFrequency.get(selectedResult) || 0;
-    this.medicationFrequency.set(selectedResult, currentFreq + 1);
-
-    // Learn contextual patterns
-    const queryWords = searchQuery.toLowerCase().split(/\s+/);
-    const existingPatterns = this.contextualPatterns.get(selectedResult) || [];
-    this.contextualPatterns.set(selectedResult, [...new Set([...existingPatterns, ...queryWords])]);
-
-    // Learn error corrections from rejected results
-    rejectedResults.forEach(rejected => {
-      if (this.calculateAdvancedSimilarity(rejected, selectedResult) > 0.7) {
-        this.errorCorrections.set(rejected, selectedResult);
-      }
-    });
-
-    // Update neural patterns with weighted scoring
-    this.updateNeuralPatterns(searchQuery, selectedResult, 1.0);
-    rejectedResults.forEach(rejected => {
-      this.updateNeuralPatterns(searchQuery, rejected, -0.5);
-    });
-  }
-
-  /**
    * Update neural network-like patterns for medication recognition
-   */
-  private updateNeuralPatterns(input: string, output: string, weight: number): void {
-    const pattern = `${input.toLowerCase()}->${output.toLowerCase()}`;
-    const currentWeight = this.neuralPatterns.get(pattern) || 0;
-    this.neuralPatterns.set(pattern, currentWeight + weight);
-  }
-
-  /**
-   * Public method to update neural patterns (for external training)
    */
   updateNeuralPatterns(input: string, output: string, weight: number): void {
     const pattern = `${input.toLowerCase()}->${output.toLowerCase()}`;
     const currentWeight = this.neuralPatterns.get(pattern) || 0;
     this.neuralPatterns.set(pattern, currentWeight + weight);
-    console.log(`🧠 Neural pattern updated: ${pattern} (weight: ${weight})`);
   }
 
   /**
@@ -612,159 +701,6 @@ export class EnhancedAITrainer {
   }
 
   /**
-   * Advanced OCR training with multiple neural network strategies
-   */
-  async trainAdvancedOCR(imageData: string, expectedText: string): Promise<void> {
-    try {
-      // Perform OCR with multiple strategies
-      const strategies = [
-        { name: 'high_dpi', config: { psm: '6', dpi: 300 } },
-        { name: 'text_block', config: { psm: '8', dpi: 150 } },
-        { name: 'sparse_text', config: { psm: '11', dpi: 200 } },
-        { name: 'single_char', config: { psm: '10', dpi: 250 } }
-      ];
-
-      for (const strategy of strategies) {
-        const Tesseract = await import('tesseract.js');
-        const worker = await Tesseract.createWorker('eng');
-
-        await worker.setParameters({
-          tessedit_pageseg_mode: strategy.config.psm as any,
-          user_defined_dpi: strategy.config.dpi.toString()
-        });
-
-        const { data: { text, confidence } } = await worker.recognize(imageData);
-        await worker.terminate();
-
-        // Calculate accuracy for this strategy
-        const similarity = this.calculateAdvancedSimilarity(text.toLowerCase(), expectedText.toLowerCase());
-
-        // Store strategy performance
-        const strategyKey = `strategy_${strategy.name}`;
-        const currentPerf = this.performanceMetrics.get(strategyKey) || 0;
-        const currentCount = this.performanceMetrics.get(`${strategyKey}_count`) || 0;
-
-        this.performanceMetrics.set(strategyKey, (currentPerf * currentCount + similarity) / (currentCount + 1));
-        this.performanceMetrics.set(`${strategyKey}_count`, currentCount + 1);
-
-        // Learn from this training example
-        if (similarity > 0.7) {
-          this.updateNeuralPatterns(text, expectedText, similarity);
-        }
-      }
-
-      // Add to training data
-      this.trainingData.push({
-        imageBase64: imageData,
-        expectedMedication: expectedText,
-        expectedDosage: '',
-        difficulty: 'medium',
-        conditions: []
-      });
-
-    } catch (error) {
-      console.error('Advanced OCR training failed:', error);
-    }
-  }
-
-  /**
-   * Get the best OCR strategy based on learned performance
-   */
-  getBestOCRStrategy(): { name: string; config: any } {
-    const strategies = ['high_dpi', 'text_block', 'sparse_text', 'single_char'];
-    let bestStrategy = 'high_dpi';
-    let bestPerformance = 0;
-
-    for (const strategy of strategies) {
-      const performance = this.performanceMetrics.get(`strategy_${strategy}`) || 0;
-      if (performance > bestPerformance) {
-        bestPerformance = performance;
-        bestStrategy = strategy;
-      }
-    }
-
-    const configs = {
-      high_dpi: { psm: '6', dpi: 300 },
-      text_block: { psm: '8', dpi: 150 },
-      sparse_text: { psm: '11', dpi: 200 },
-      single_char: { psm: '10', dpi: 250 }
-    };
-
-    return { name: bestStrategy, config: configs[bestStrategy as keyof typeof configs] };
-  }
-
-  /**
-   * Advanced medication database learning
-   */
-  learnMedicationPatterns(medications: any[]): void {
-    medications.forEach(med => {
-      // Learn name patterns
-      if (med.name) {
-        const namePatterns = this.extractLinguisticPatterns(med.name);
-        namePatterns.forEach(pattern => {
-          this.updateNeuralPatterns(pattern, med.name, 0.8);
-        });
-      }
-
-      // Learn brand-generic associations
-      if (med.genericName && med.name !== med.genericName) {
-        this.updateNeuralPatterns(med.genericName, med.name, 0.9);
-        this.updateNeuralPatterns(med.name, med.genericName, 0.9);
-      }
-
-      // Learn category patterns
-      if (med.category) {
-        this.updateNeuralPatterns(med.category, med.name, 0.6);
-      }
-    });
-  }
-
-  /**
-   * Extract linguistic patterns from medication names
-   */
-  private extractLinguisticPatterns(name: string): string[] {
-    const patterns = [];
-    const cleanName = name.toLowerCase();
-
-    // Add prefixes (first 3-5 characters)
-    if (cleanName.length >= 3) patterns.push(cleanName.substring(0, 3));
-    if (cleanName.length >= 4) patterns.push(cleanName.substring(0, 4));
-    if (cleanName.length >= 5) patterns.push(cleanName.substring(0, 5));
-
-    // Add suffixes (last 3-5 characters)
-    if (cleanName.length >= 3) patterns.push(cleanName.substring(cleanName.length - 3));
-    if (cleanName.length >= 4) patterns.push(cleanName.substring(cleanName.length - 4));
-    if (cleanName.length >= 5) patterns.push(cleanName.substring(cleanName.length - 5));
-
-    // Add middle patterns for longer names
-    if (cleanName.length >= 6) {
-      const middle = Math.floor(cleanName.length / 2);
-      patterns.push(cleanName.substring(middle - 2, middle + 2));
-    }
-
-    // Add phonetic patterns
-    patterns.push(this.generatePhoneticPattern(cleanName));
-
-    return patterns;
-  }
-
-  /**
-   * Generate phonetic patterns for better matching
-   */
-  private generatePhoneticPattern(word: string): string {
-    return word
-      .replace(/ph/g, 'f')
-      .replace(/[ckq]/g, 'k')
-      .replace(/[xyz]/g, 's')
-      .replace(/[aeiou]/g, 'a')
-      .replace(/[bp]/g, 'b')
-      .replace(/[dt]/g, 'd')
-      .replace(/[gj]/g, 'g')
-      .replace(/[mn]/g, 'm')
-      .replace(/[rv]/g, 'r');
-  }
-
-  /**
    * Add successful recognition for training
    */
   addSuccessfulRecognition(
@@ -789,8 +725,6 @@ export class EnhancedAITrainer {
     // Update medication frequency
     const currentFreq = this.medicationFrequency.get(medicationName.toLowerCase()) || 0;
     this.medicationFrequency.set(medicationName.toLowerCase(), currentFreq + 1);
-
-    console.log(`✅ Added successful recognition: ${medicationName} (confidence: ${confidence})`);
   }
 
   /**
@@ -815,8 +749,6 @@ export class EnhancedAITrainer {
 
     // Update patterns
     this.updateNeuralPatterns(medicationName.toLowerCase(), medicationName, confidence);
-
-    console.log(`📚 Added training data from ${source}: ${medicationName}`);
   }
 
   /**
@@ -824,69 +756,6 @@ export class EnhancedAITrainer {
    */
   getTrainingDataCount(): number {
     return this.trainingData.length;
-  }
-
-  /**
-   * Advanced self-learning from successful identifications
-   */
-  selfLearn(ocrText: string, identifiedMedication: string, userConfirmed: boolean): void {
-    if (userConfirmed && identifiedMedication) {
-      // Strengthen the pattern association
-      this.updateNeuralPatterns(ocrText.toLowerCase(), identifiedMedication.toLowerCase(), 0.9);
-
-      // Learn text preprocessing patterns
-      const cleanedText = this.preprocessText(ocrText);
-      this.updateNeuralPatterns(cleanedText.toLowerCase(), identifiedMedication.toLowerCase(), 0.8);
-
-      // Extract and learn word patterns
-      const words = ocrText.toLowerCase().split(/\s+/);
-      words.forEach(word => {
-        if (word.length > 3 && identifiedMedication.toLowerCase().includes(word)) {
-          this.updateNeuralPatterns(word, identifiedMedication.toLowerCase(), 0.7);
-        }
-      });
-
-      console.log(`🧠 Self-learning: Strengthened pattern for ${identifiedMedication}`);
-    }
-  }
-
-  /**
-   * Batch train from medication database
-   */
-  batchTrainFromDatabase(medications: any[]): void {
-    console.log(`🎯 Starting batch training with ${medications.length} medications`);
-
-    medications.forEach((med, index) => {
-      // Learn name patterns
-      if (med.name) {
-        const patterns = this.extractLinguisticPatterns(med.name);
-        patterns.forEach(pattern => {
-          this.updateNeuralPatterns(pattern, med.name.toLowerCase(), 0.6);
-        });
-      }
-
-      // Learn brand-generic associations
-      if (med.genericName && med.name !== med.genericName) {
-        this.updateNeuralPatterns(med.genericName.toLowerCase(), med.name.toLowerCase(), 0.8);
-        this.updateNeuralPatterns(med.name.toLowerCase(), med.genericName.toLowerCase(), 0.8);
-      }
-
-      // Learn Vietnamese translations
-      if (med.nameVi) {
-        this.updateNeuralPatterns(med.nameVi.toLowerCase(), med.name.toLowerCase(), 0.7);
-      }
-
-      // Learn category associations
-      if (med.category) {
-        this.updateNeuralPatterns(med.category.toLowerCase(), med.name.toLowerCase(), 0.5);
-      }
-
-      // Update frequency based on commonality
-      const frequency = Math.floor(Math.random() * 10) + 1; // Simulate usage frequency
-      this.medicationFrequency.set(med.name.toLowerCase(), frequency);
-    });
-
-    console.log(`✅ Batch training completed: ${medications.length} medications processed`);
   }
 
   /**
@@ -908,8 +777,6 @@ export class EnhancedAITrainer {
         this.updateNeuralPatterns(word, selectedMedication.toLowerCase(), 0.4);
       }
     });
-
-    console.log(`🔄 Continuous learning: ${searchQuery} → ${selectedMedication}`);
   }
 
   /**
@@ -949,446 +816,7 @@ export class EnhancedAITrainer {
     if (data.performanceMetrics) data.performanceMetrics.forEach(([k, v]) => this.performanceMetrics.set(k, v));
     if (data.errorCorrections) data.errorCorrections.forEach(([k, v]) => this.errorCorrections.set(k, v));
   }
-
-  /**
-   * Comprehensive Image Identification Training System
-   * Teaches the AI exactly how to identify medications from images
-   */
-  async trainImageIdentificationProcess(): Promise<void> {
-    console.log('🎯 Starting comprehensive image identification training...');
-
-    // Phase 1: Visual Pattern Recognition Training
-    await this.trainVisualPatternRecognition();
-
-    // Phase 2: Text Extraction Optimization
-    await this.trainTextExtractionTechniques();
-
-    // Phase 3: Medication Name Recognition
-    await this.trainMedicationNamePatterns();
-
-    // Phase 4: Context Understanding
-    await this.trainContextualUnderstanding();
-
-    // Phase 5: Error Correction Learning
-    await this.trainErrorCorrectionPatterns();
-
-    console.log('✅ Image identification training completed!');
-  }
-
-  /**
-   * Phase 1: Train AI to recognize visual patterns in medication images
-   */
-  private async trainVisualPatternRecognition(): Promise<void> {
-    console.log('📸 Training visual pattern recognition...');
-
-    // Teach the AI about different image characteristics
-    const visualPatterns = {
-      // Lighting conditions
-      lighting: {
-        bright: { contrast: 1.2, brightness: 1.1, sharpness: 1.1 },
-        dim: { contrast: 1.4, brightness: 1.3, sharpness: 1.2 },
-        shadowy: { contrast: 1.5, brightness: 1.4, sharpness: 1.3 },
-        fluorescent: { contrast: 1.1, brightness: 1.0, sharpness: 1.1 }
-      },
-
-      // Text orientations
-      orientations: {
-        horizontal: { angle: 0, confidence: 1.0 },
-        tilted_left: { angle: -15, confidence: 0.9 },
-        tilted_right: { angle: 15, confidence: 0.9 },
-        upside_down: { angle: 180, confidence: 0.7 }
-      },
-
-      // Image quality indicators
-      quality: {
-        sharp: { blur: 0, noise: 0, confidence: 1.0 },
-        slightly_blurry: { blur: 0.3, noise: 0.1, confidence: 0.8 },
-        blurry: { blur: 0.6, noise: 0.2, confidence: 0.6 },
-        very_blurry: { blur: 1.0, noise: 0.3, confidence: 0.4 }
-      },
-
-      // Medication package types
-      packageTypes: {
-        bottle: { textArea: 0.6, labelShape: 'curved', textDensity: 'high' },
-        blister: { textArea: 0.4, labelShape: 'flat', textDensity: 'medium' },
-        box: { textArea: 0.8, labelShape: 'rectangular', textDensity: 'high' },
-        tube: { textArea: 0.5, labelShape: 'cylindrical', textDensity: 'medium' }
-      }
-    };
-
-    // Train pattern recognition for each visual scenario
-    for (const [category, patterns] of Object.entries(visualPatterns)) {
-      for (const [pattern, properties] of Object.entries(patterns)) {
-        this.updateNeuralPatterns(
-          `visual_${category}_${pattern}`,
-          `optimal_${category}_processing`,
-          0.8
-        );
-      }
-    }
-
-    console.log('✅ Visual pattern recognition training completed');
-  }
-
-  /**
-   * Phase 2: Train optimal text extraction techniques
-   */
-  private async trainTextExtractionTechniques(): Promise<void> {
-    console.log('🔤 Training text extraction techniques...');
-
-    // OCR preprocessing strategies
-    const preprocessingStrategies = {
-      // Grayscale conversion techniques
-      grayscale: {
-        luminance: { weights: [0.299, 0.587, 0.114], accuracy: 0.85 },
-        average: { weights: [0.333, 0.333, 0.333], accuracy: 0.75 },
-        lightness: { weights: [0.5, 0.5, 0.0], accuracy: 0.70 }
-      },
-
-      // Noise reduction methods
-      denoising: {
-        gaussian_blur: { kernel: 3, sigma: 1.0, effectiveness: 0.8 },
-        median_filter: { kernel: 5, effectiveness: 0.85 },
-        bilateral_filter: { d: 9, sigma_color: 75, effectiveness: 0.9 }
-      },
-
-      // Contrast enhancement
-      contrast: {
-        histogram_equalization: { adaptive: true, effectiveness: 0.85 },
-        clahe: { clip_limit: 2.0, effectiveness: 0.9 },
-        gamma_correction: { gamma: 1.2, effectiveness: 0.75 }
-      },
-
-      // Binarization techniques
-      binarization: {
-        otsu: { automatic: true, effectiveness: 0.85 },
-        adaptive_gaussian: { block_size: 11, c: 2, effectiveness: 0.9 },
-        adaptive_mean: { block_size: 11, c: 2, effectiveness: 0.8 }
-      }
-    };
-
-    // Train each preprocessing strategy
-    for (const [category, methods] of Object.entries(preprocessingStrategies)) {
-      for (const [method, properties] of Object.entries(methods)) {
-        this.updateNeuralPatterns(
-          `preprocessing_${category}_${method}`,
-          `text_extraction_${category}`,
-          (properties as any).effectiveness || 0.8
-        );
-      }
-    }
-
-    // OCR engine configuration training
-    const ocrConfigurations = {
-      page_segmentation: {
-        PSM_SINGLE_TEXTLINE: { psm: 7, best_for: ['single_line_labels'], accuracy: 0.9 },
-        PSM_SINGLE_WORD: { psm: 8, best_for: ['medication_names'], accuracy: 0.85 },
-        PSM_SINGLE_CHAR: { psm: 10, best_for: ['dosage_numbers'], accuracy: 0.7 },
-        PSM_SPARSE_TEXT: { psm: 11, best_for: ['damaged_labels'], accuracy: 0.8 }
-      },
-
-      character_recognition: {
-        whitelist_alphanumeric: { chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', accuracy: 0.9 },
-        whitelist_medical: { chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./mg', accuracy: 0.95 },
-        whitelist_numbers: { chars: '0123456789.', accuracy: 0.9 }
-      }
-    };
-
-    // Train OCR configurations
-    for (const [category, configs] of Object.entries(ocrConfigurations)) {
-      for (const [config, properties] of Object.entries(configs)) {
-        this.updateNeuralPatterns(
-          `ocr_${category}_${config}`,
-          `optimal_ocr_settings`,
-          (properties as any).accuracy
-        );
-      }
-    }
-
-    console.log('✅ Text extraction training completed');
-  }
-
-  /**
-   * Phase 3: Train medication name recognition patterns
-   */
-  private async trainMedicationNamePatterns(): Promise<void> {
-    console.log('💊 Training medication name recognition...');
-
-    // Comprehensive medication naming patterns
-    const medicationPatterns = {
-      // Brand name patterns
-      brandNames: {
-        capitalization: { pattern: '^[A-Z][a-z]+$', confidence: 0.9 },
-        all_caps: { pattern: '^[A-Z]+$', confidence: 0.85 },
-        mixed_case: { pattern: '^[A-Z][a-zA-Z]+$', confidence: 0.8 }
-      },
-
-      // Generic name patterns
-      genericNames: {
-        lowercase: { pattern: '^[a-z]+$', confidence: 0.9 },
-        with_hyphens: { pattern: '^[a-z]+-[a-z]+$', confidence: 0.85 },
-        chemical_suffix: { pattern: '(ine|ate|ol|ic|an|in)$', confidence: 0.95 }
-      },
-
-      // Common pharmaceutical suffixes
-      suffixes: {
-        antibiotics: { patterns: ['cillin', 'mycin', 'cycline'], confidence: 0.95 },
-        painkillers: { patterns: ['codone', 'morphone', 'fentanil'], confidence: 0.9 },
-        statins: { patterns: ['statin', 'vastatin'], confidence: 0.95 },
-        inhibitors: { patterns: ['prazole', 'pridine', 'sartan'], confidence: 0.9 }
-      },
-
-      // Common pharmaceutical prefixes
-      prefixes: {
-        anti: { patterns: ['anti', 'contra'], confidence: 0.8 },
-        pro: { patterns: ['pro', 'pre'], confidence: 0.7 },
-        meta: { patterns: ['meta', 'meto'], confidence: 0.8 }
-      }
-    };
-
-    // Train medication name patterns
-    for (const [category, patterns] of Object.entries(medicationPatterns)) {
-      for (const [pattern, properties] of Object.entries(patterns)) {
-        if (Array.isArray((properties as any).patterns)) {
-          (properties as any).patterns.forEach((p: string) => {
-            this.updateNeuralPatterns(
-              `medication_${category}_${p}`,
-              `medication_name_recognition`,
-              (properties as any).confidence
-            );
-          });
-        } else {
-          this.updateNeuralPatterns(
-            `medication_${category}_${pattern}`,
-            `medication_name_recognition`,
-            (properties as any).confidence
-          );
-        }
-      }
-    }
-
-    // Train brand-generic associations
-    const brandGenericPairs = [
-      { brand: 'tylenol', generic: 'acetaminophen', strength: 0.95 },
-      { brand: 'advil', generic: 'ibuprofen', strength: 0.95 },
-      { brand: 'lipitor', generic: 'atorvastatin', strength: 0.95 },
-      { brand: 'zoloft', generic: 'sertraline', strength: 0.95 },
-      { brand: 'prozac', generic: 'fluoxetine', strength: 0.95 },
-      { brand: 'nexium', generic: 'esomeprazole', strength: 0.95 },
-      { brand: 'xanax', generic: 'alprazolam', strength: 0.95 },
-      { brand: 'vicodin', generic: 'hydrocodone', strength: 0.95 }
-    ];
-
-    brandGenericPairs.forEach(pair => {
-      this.updateNeuralPatterns(pair.brand, pair.generic, pair.strength);
-      this.updateNeuralPatterns(pair.generic, pair.brand, pair.strength);
-    });
-
-    console.log('✅ Medication name pattern training completed');
-  }
-
-  /**
-   * Phase 4: Train contextual understanding
-   */
-  private async trainContextualUnderstanding(): Promise<void> {
-    console.log('🧠 Training contextual understanding...');
-
-    // Context clues for medication identification
-    const contextualClues = {
-      // Dosage indicators
-      dosage: {
-        mg_units: { patterns: ['mg', 'milligrams'], context: 'dosage', weight: 0.9 },
-        ml_units: { patterns: ['ml', 'milliliters'], context: 'liquid_dosage', weight: 0.9 },
-        percent: { patterns: ['%', 'percent'], context: 'concentration', weight: 0.8 },
-        iu_units: { patterns: ['iu', 'international units'], context: 'vitamin_dosage', weight: 0.85 }
-      },
-
-      // Medical context words
-      medical: {
-        prescription: { patterns: ['rx', 'prescription'], context: 'prescribed_med', weight: 0.8 },
-        otc: { patterns: ['otc', 'over counter'], context: 'otc_med', weight: 0.7 },
-        generic: { patterns: ['generic', 'store brand'], context: 'generic_med', weight: 0.75 },
-        brand: { patterns: ['brand', 'name brand'], context: 'brand_med', weight: 0.8 }
-      },
-
-      // Package information
-      packaging: {
-        tablets: { patterns: ['tablets', 'pills', 'caps'], context: 'solid_form', weight: 0.7 },
-        liquid: { patterns: ['syrup', 'solution', 'suspension'], context: 'liquid_form', weight: 0.7 },
-        topical: { patterns: ['cream', 'ointment', 'gel'], context: 'topical_form', weight: 0.7 }
-      }
-    };
-
-    // Train contextual understanding
-    for (const [category, clues] of Object.entries(contextualClues)) {
-      for (const [clue, properties] of Object.entries(clues)) {
-        (properties as any).patterns.forEach((pattern: string) => {
-          this.updateNeuralPatterns(
-            `context_${category}_${pattern}`,
-            `contextual_understanding`,
-            (properties as any).weight
-          );
-        });
-      }
-    }
-
-    console.log('✅ Contextual understanding training completed');
-  }
-
-  /**
-   * Phase 5: Train error correction patterns
-   */
-  private async trainErrorCorrectionPatterns(): Promise<void> {
-    console.log('🔧 Training error correction patterns...');
-
-    // Common OCR errors and their corrections
-    const commonErrors = {
-      character_substitutions: {
-        '0_to_O': { error: '0', correct: 'O', context: 'letters', confidence: 0.9 },
-        '1_to_I': { error: '1', correct: 'I', context: 'letters', confidence: 0.85 },
-        'rn_to_m': { error: 'rn', correct: 'm', context: 'letters', confidence: 0.8 },
-        'cl_to_d': { error: 'cl', correct: 'd', context: 'letters', confidence: 0.7 }
-      },
-
-      word_corrections: {
-        acetaminophen: { errors: ['acetaminoph3n', 'ac3taminophen', 'acetaminoph', 'paracetamol'], confidence: 0.9 },
-        ibuprofen: { errors: ['ibuprol3n', 'ibupr0fen', 'ibuprolen', 'advil'], confidence: 0.9 },
-        metformin: { errors: ['metlorrmin', 'm3tformin', 'metforrnin', 'glucophage'], confidence: 0.9 }
-      },
-
-      dosage_corrections: {
-        mg_variations: { errors: ['rng', 'mg.', 'mgs', 'rngs'], correct: 'mg', confidence: 0.95 },
-        ml_variations: { errors: ['rnl', 'ml.', 'mls', 'rnls'], correct: 'ml', confidence: 0.95 }
-      }
-    };
-
-    // Train error correction patterns
-    for (const [category, errors] of Object.entries(commonErrors)) {
-      for (const [pattern, data] of Object.entries(errors)) {
-        if ((data as any).errors) {
-          (data as any).errors.forEach((error: string) => {
-            this.errorCorrections.set(error.toLowerCase(), pattern.toLowerCase());
-            this.updateNeuralPatterns(
-              `error_${error}`,
-              pattern.toLowerCase(),
-              (data as any).confidence
-            );
-          });
-        } else {
-          this.errorCorrections.set((data as any).error, (data as any).correct);
-          this.updateNeuralPatterns(
-            `error_${(data as any).error}`,
-            (data as any).correct,
-            (data as any).confidence
-          );
-        }
-      }
-    }
-
-    console.log('✅ Error correction training completed');
-  }
-
-  /**
-   * Advanced training with step-by-step image analysis
-   */
-  async trainStepByStepImageAnalysis(): Promise<void> {
-    console.log('🔍 Training step-by-step image analysis...');
-
-    // Step-by-step analysis process
-    const analysisSteps = [
-      {
-        step: 1,
-        name: 'image_assessment',
-        description: 'Assess image quality and lighting',
-        actions: ['check_brightness', 'check_contrast', 'check_focus', 'check_noise'],
-        weight: 0.8
-      },
-      {
-        step: 2,
-        name: 'preprocessing_selection',
-        description: 'Select optimal preprocessing methods',
-        actions: ['choose_denoise', 'choose_contrast', 'choose_binarization'],
-        weight: 0.9
-      },
-      {
-        step: 3,
-        name: 'text_region_detection',
-        description: 'Identify text regions in image',
-        actions: ['find_text_areas', 'filter_noise', 'prioritize_regions'],
-        weight: 0.85
-      },
-      {
-        step: 4,
-        name: 'ocr_strategy_selection',
-        description: 'Choose best OCR approach',
-        actions: ['select_psm', 'set_whitelist', 'configure_engine'],
-        weight: 0.9
-      },
-      {
-        step: 5,
-        name: 'text_extraction',
-        description: 'Extract text using selected strategy',
-        actions: ['run_ocr', 'get_confidence', 'extract_words'],
-        weight: 0.95
-      },
-      {
-        step: 6,
-        name: 'medication_identification',
-        description: 'Identify medication names from text',
-        actions: ['find_medication_names', 'match_patterns', 'check_database'],
-        weight: 1.0
-      },
-      {
-        step: 7,
-        name: 'result_validation',
-        description: 'Validate and correct results',
-        actions: ['check_context', 'apply_corrections', 'calculate_confidence'],
-        weight: 0.9
-      }
-    ];
-
-    // Train each analysis step
-    analysisSteps.forEach(step => {
-      step.actions.forEach(action => {
-        this.updateNeuralPatterns(
-          `step${step.step}_${action}`,
-          `analysis_${step.name}`,
-          step.weight
-        );
-      });
-    });
-
-    console.log('✅ Step-by-step analysis training completed');
-  }
-
-  /**
-   * Get comprehensive training report
-   */
-  getTrainingReport(): {
-    totalPatterns: number;
-    trainingPoints: number;
-    accuracy: number;
-    specializations: string[];
-    lastTraining: string;
-  } {
-    const specializations = [
-      'Visual Pattern Recognition',
-      'Text Extraction Optimization',
-      'Medication Name Patterns',
-      'Contextual Understanding',
-      'Error Correction',
-      'Step-by-Step Analysis'
-    ];
-
-    return {
-      totalPatterns: this.neuralPatterns.size,
-      trainingPoints: this.trainingData.length,
-      accuracy: this.performanceMetrics.get('accuracy') || 0,
-      specializations,
-      lastTraining: new Date().toISOString()
-    };
-  }
 }
 
-// Singleton instance
+// Singleton instance with automatic background training
 export const enhancedAITrainer = new EnhancedAITrainer();

@@ -1,5 +1,4 @@
-
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Search, Scan, History, User, Pill, X, WifiOff, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -91,13 +90,13 @@ export default function Home() {
   const [offlineResults, setOfflineResults] = useState<any[]>([]);
 
   // Enhanced search with offline mode support and faster performance
-  const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim()) return;
+  const handleSearch = useCallback(async (queryToSearch: string) => {
+    if (!queryToSearch.trim()) return;
 
     setIsSearching(true);
     setError("");
 
-    const trimmedQuery = searchQuery.trim();
+    const trimmedQuery = queryToSearch.trim();
 
     // Quick local search for common terms first
     const quickLocalSearch = (query: string) => {
@@ -154,7 +153,7 @@ export default function Home() {
 
     // Check for offline cached results
     const cachedResults = getOfflineData(`search_${trimmedQuery.toLowerCase()}`);
-    
+
     if (networkStatus.isOfflineMode && cachedResults) {
       setSearchResults({
         success: true,
@@ -200,7 +199,7 @@ export default function Home() {
       if (result.success && result.medications && result.medications.length > 0) {
         // Cache successful results for offline use
         saveOfflineData(`search_${trimmedQuery.toLowerCase()}`, result.medications);
-        
+
         setSearchResults({
           success: true,
           medications: result.medications,
@@ -215,7 +214,7 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Search error:', err);
-      
+
       // Fallback to offline search if online search fails
       const offlineSearchResults = await performOfflineSearch(trimmedQuery);
       if (offlineSearchResults.length > 0) {
@@ -236,7 +235,7 @@ export default function Home() {
     } finally {
       setIsSearching(false);
     }
-  }, [searchQuery, t, networkStatus.isOfflineMode, getOfflineData, saveOfflineData]);
+  }, [t, networkStatus.isOfflineMode, getOfflineData, saveOfflineData]);
 
   // Offline search function using built-in medication database with enhanced partial matching
   const performOfflineSearch = useCallback(async (query: string): Promise<any[]> => {
@@ -319,7 +318,7 @@ export default function Home() {
     ];
 
     const searchTerm = query.toLowerCase();
-    
+
     // Enhanced scoring for partial matches
     const scoredResults = commonMedications.map(med => {
       let score = 0;
@@ -371,10 +370,7 @@ export default function Home() {
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
-    if (e.target.value.trim().length === 0) {
-      setSearchResults({});
-      setError('');
-    }
+    // The debounced effect will handle the search trigger, so no immediate search here
   }, []);
 
   const handleScanClick = useCallback(() => {
@@ -399,6 +395,21 @@ export default function Home() {
   const handlePillIdClick = useCallback(() => {
     setLocation('/translator');
   }, [setLocation]);
+
+  // Debounced search for real-time results
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      if (searchQuery.trim().length >= 2) {
+        handleSearch(searchQuery);
+      } else if (searchQuery.trim().length === 0) {
+        setSearchResults({});
+        setError('');
+      }
+    }, 300); // 300ms delay for smooth typing experience
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery, handleSearch]);
+
 
   if (showCamera) {
     return (
@@ -491,7 +502,7 @@ export default function Home() {
               if (e.key === 'Enter' && searchQuery.trim().length >= 1) {
                 e.preventDefault();
                 e.currentTarget.blur(); // Hide mobile keyboard after search
-                handleSearch();
+                handleSearch(searchQuery);
               }
             }}
             onFocus={(e) => {
@@ -504,7 +515,7 @@ export default function Home() {
             }}
           />
           <Button
-            onClick={handleSearch}
+            onClick={() => handleSearch(searchQuery)}
             disabled={isSearching || isLoading || searchQuery.trim().length < 1}
             className="bg-white hover:bg-gray-100 text-blue-600"
           >

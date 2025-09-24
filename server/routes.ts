@@ -452,6 +452,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Automated AI training endpoint
+  app.post("/api/auto-train-ai", async (req, res) => {
+    try {
+      const { enhancedAITrainer } = await import('./enhanced-ai-training');
+      const { fullComprehensiveDrugsDatabase } = await import('./comprehensive-drugs-database');
+      const { globalMedicationsDatabase } = await import('./global-medications-database');
+      const { medicationsDatabase } = await import('./medications-database');
+
+      console.log('🤖 Starting automated AI training...');
+
+      // Combine all medication databases
+      const allMedications = [
+        ...fullComprehensiveDrugsDatabase,
+        ...globalMedicationsDatabase,
+        ...medicationsDatabase
+      ];
+
+      // Perform comprehensive batch training
+      enhancedAITrainer.batchTrainFromDatabase(allMedications);
+
+      // Generate synthetic training data for 1000 medication variations
+      for (let i = 0; i < 1000; i++) {
+        const randomMed = allMedications[Math.floor(Math.random() * allMedications.length)];
+        
+        // Create synthetic training scenarios
+        const scenarios = [
+          { name: randomMed.name, dosage: '100mg', confidence: 0.9 },
+          { name: randomMed.genericName || randomMed.name, dosage: '50mg', confidence: 0.85 },
+          { name: (randomMed.name || '').toUpperCase(), dosage: '25mg', confidence: 0.8 },
+          { name: (randomMed.name || '').toLowerCase(), dosage: '200mg', confidence: 0.75 }
+        ];
+
+        scenarios.forEach(scenario => {
+          if (scenario.name) {
+            enhancedAITrainer.addTrainingData(
+              `synthetic_image_${i}_${scenario.name}`,
+              scenario.name,
+              scenario.dosage,
+              scenario.confidence,
+              'automated_training'
+            );
+          }
+        });
+
+        // Train pattern recognition
+        if (randomMed.name) {
+          enhancedAITrainer.continuousLearning(
+            randomMed.name.toLowerCase(),
+            randomMed.name,
+            []
+          );
+        }
+      }
+
+      // Train common medication patterns
+      const commonPatterns = [
+        'acetaminophen', 'ibuprofen', 'aspirin', 'tylenol', 'advil', 'motrin',
+        'lipitor', 'metformin', 'lisinopril', 'amlodipine', 'atorvastatin',
+        'omeprazole', 'metoprolol', 'losartan', 'hydrochlorothiazide'
+      ];
+
+      commonPatterns.forEach(pattern => {
+        for (let i = 0; i < 10; i++) {
+          enhancedAITrainer.updateNeuralPatterns(
+            pattern,
+            pattern,
+            0.95 + (Math.random() * 0.05)
+          );
+        }
+      });
+
+      const stats = enhancedAITrainer.getPerformanceMetrics();
+      const trainingCount = enhancedAITrainer.getTrainingDataCount();
+
+      console.log(`✅ AI training completed! Processed ${trainingCount} training points`);
+
+      res.json({
+        success: true,
+        message: `AI training completed successfully`,
+        stats: {
+          medicationsProcessed: allMedications.length,
+          syntheticDataGenerated: 4000,
+          totalTrainingPoints: trainingCount,
+          accuracy: Math.round(stats.accuracy * 100),
+          patternsLearned: commonPatterns.length * 10,
+          lastUpdated: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.error("Automated AI training error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to perform automated AI training"
+      });
+    }
+  });
+
   // Stop mass training
   app.post("/api/stop-mass-training", async (req, res) => {
     try {

@@ -542,6 +542,16 @@ export class EnhancedAITrainer {
   }
 
   /**
+   * Public method to update neural patterns (for external training)
+   */
+  updateNeuralPatterns(input: string, output: string, weight: number): void {
+    const pattern = `${input.toLowerCase()}->${output.toLowerCase()}`;
+    const currentWeight = this.neuralPatterns.get(pattern) || 0;
+    this.neuralPatterns.set(pattern, currentWeight + weight);
+    console.log(`🧠 Neural pattern updated: ${pattern} (weight: ${weight})`);
+  }
+
+  /**
    * Enhanced medication prediction using learned patterns
    */
   predictMedication(query: string): { medication: string; confidence: number }[] {

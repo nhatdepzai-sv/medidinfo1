@@ -108,6 +108,28 @@ export function TrainingDashboard() {
     }
   };
 
+  const startImageRecognitionTraining = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/train-image-recognition', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        console.log('Image recognition training completed:', data.report);
+        alert(`✅ AI Image Recognition Training Completed!\n\nPhases trained:\n${data.report.trainingPhases.join('\n')}\n\nNew capabilities:\n${data.report.capabilities.join('\n')}`);
+        fetchStats();
+      }
+    } catch (error) {
+      console.error('Failed to start image recognition training:', error);
+      alert('❌ Image recognition training failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -135,6 +157,16 @@ export function TrainingDashboard() {
           >
             <Square className="w-4 h-4 mr-2" />
             Stop Training
+          </Button>
+          <Button
+            onClick={startImageRecognitionTraining}
+            disabled={isLoading}
+            variant="outline"
+            size="lg"
+            className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+          >
+            <Brain className="w-4 h-4 mr-2" />
+            Train Image Recognition
           </Button>
         </div>
       </div>

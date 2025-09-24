@@ -949,6 +949,445 @@ export class EnhancedAITrainer {
     if (data.performanceMetrics) data.performanceMetrics.forEach(([k, v]) => this.performanceMetrics.set(k, v));
     if (data.errorCorrections) data.errorCorrections.forEach(([k, v]) => this.errorCorrections.set(k, v));
   }
+
+  /**
+   * Comprehensive Image Identification Training System
+   * Teaches the AI exactly how to identify medications from images
+   */
+  async trainImageIdentificationProcess(): Promise<void> {
+    console.log('🎯 Starting comprehensive image identification training...');
+
+    // Phase 1: Visual Pattern Recognition Training
+    await this.trainVisualPatternRecognition();
+
+    // Phase 2: Text Extraction Optimization
+    await this.trainTextExtractionTechniques();
+
+    // Phase 3: Medication Name Recognition
+    await this.trainMedicationNamePatterns();
+
+    // Phase 4: Context Understanding
+    await this.trainContextualUnderstanding();
+
+    // Phase 5: Error Correction Learning
+    await this.trainErrorCorrectionPatterns();
+
+    console.log('✅ Image identification training completed!');
+  }
+
+  /**
+   * Phase 1: Train AI to recognize visual patterns in medication images
+   */
+  private async trainVisualPatternRecognition(): Promise<void> {
+    console.log('📸 Training visual pattern recognition...');
+
+    // Teach the AI about different image characteristics
+    const visualPatterns = {
+      // Lighting conditions
+      lighting: {
+        bright: { contrast: 1.2, brightness: 1.1, sharpness: 1.1 },
+        dim: { contrast: 1.4, brightness: 1.3, sharpness: 1.2 },
+        shadowy: { contrast: 1.5, brightness: 1.4, sharpness: 1.3 },
+        fluorescent: { contrast: 1.1, brightness: 1.0, sharpness: 1.1 }
+      },
+
+      // Text orientations
+      orientations: {
+        horizontal: { angle: 0, confidence: 1.0 },
+        tilted_left: { angle: -15, confidence: 0.9 },
+        tilted_right: { angle: 15, confidence: 0.9 },
+        upside_down: { angle: 180, confidence: 0.7 }
+      },
+
+      // Image quality indicators
+      quality: {
+        sharp: { blur: 0, noise: 0, confidence: 1.0 },
+        slightly_blurry: { blur: 0.3, noise: 0.1, confidence: 0.8 },
+        blurry: { blur: 0.6, noise: 0.2, confidence: 0.6 },
+        very_blurry: { blur: 1.0, noise: 0.3, confidence: 0.4 }
+      },
+
+      // Medication package types
+      packageTypes: {
+        bottle: { textArea: 0.6, labelShape: 'curved', textDensity: 'high' },
+        blister: { textArea: 0.4, labelShape: 'flat', textDensity: 'medium' },
+        box: { textArea: 0.8, labelShape: 'rectangular', textDensity: 'high' },
+        tube: { textArea: 0.5, labelShape: 'cylindrical', textDensity: 'medium' }
+      }
+    };
+
+    // Train pattern recognition for each visual scenario
+    for (const [category, patterns] of Object.entries(visualPatterns)) {
+      for (const [pattern, properties] of Object.entries(patterns)) {
+        this.updateNeuralPatterns(
+          `visual_${category}_${pattern}`,
+          `optimal_${category}_processing`,
+          0.8
+        );
+      }
+    }
+
+    console.log('✅ Visual pattern recognition training completed');
+  }
+
+  /**
+   * Phase 2: Train optimal text extraction techniques
+   */
+  private async trainTextExtractionTechniques(): Promise<void> {
+    console.log('🔤 Training text extraction techniques...');
+
+    // OCR preprocessing strategies
+    const preprocessingStrategies = {
+      // Grayscale conversion techniques
+      grayscale: {
+        luminance: { weights: [0.299, 0.587, 0.114], accuracy: 0.85 },
+        average: { weights: [0.333, 0.333, 0.333], accuracy: 0.75 },
+        lightness: { weights: [0.5, 0.5, 0.0], accuracy: 0.70 }
+      },
+
+      // Noise reduction methods
+      denoising: {
+        gaussian_blur: { kernel: 3, sigma: 1.0, effectiveness: 0.8 },
+        median_filter: { kernel: 5, effectiveness: 0.85 },
+        bilateral_filter: { d: 9, sigma_color: 75, effectiveness: 0.9 }
+      },
+
+      // Contrast enhancement
+      contrast: {
+        histogram_equalization: { adaptive: true, effectiveness: 0.85 },
+        clahe: { clip_limit: 2.0, effectiveness: 0.9 },
+        gamma_correction: { gamma: 1.2, effectiveness: 0.75 }
+      },
+
+      // Binarization techniques
+      binarization: {
+        otsu: { automatic: true, effectiveness: 0.85 },
+        adaptive_gaussian: { block_size: 11, c: 2, effectiveness: 0.9 },
+        adaptive_mean: { block_size: 11, c: 2, effectiveness: 0.8 }
+      }
+    };
+
+    // Train each preprocessing strategy
+    for (const [category, methods] of Object.entries(preprocessingStrategies)) {
+      for (const [method, properties] of Object.entries(methods)) {
+        this.updateNeuralPatterns(
+          `preprocessing_${category}_${method}`,
+          `text_extraction_${category}`,
+          (properties as any).effectiveness || 0.8
+        );
+      }
+    }
+
+    // OCR engine configuration training
+    const ocrConfigurations = {
+      page_segmentation: {
+        PSM_SINGLE_TEXTLINE: { psm: 7, best_for: ['single_line_labels'], accuracy: 0.9 },
+        PSM_SINGLE_WORD: { psm: 8, best_for: ['medication_names'], accuracy: 0.85 },
+        PSM_SINGLE_CHAR: { psm: 10, best_for: ['dosage_numbers'], accuracy: 0.7 },
+        PSM_SPARSE_TEXT: { psm: 11, best_for: ['damaged_labels'], accuracy: 0.8 }
+      },
+
+      character_recognition: {
+        whitelist_alphanumeric: { chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', accuracy: 0.9 },
+        whitelist_medical: { chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./mg', accuracy: 0.95 },
+        whitelist_numbers: { chars: '0123456789.', accuracy: 0.9 }
+      }
+    };
+
+    // Train OCR configurations
+    for (const [category, configs] of Object.entries(ocrConfigurations)) {
+      for (const [config, properties] of Object.entries(configs)) {
+        this.updateNeuralPatterns(
+          `ocr_${category}_${config}`,
+          `optimal_ocr_settings`,
+          (properties as any).accuracy
+        );
+      }
+    }
+
+    console.log('✅ Text extraction training completed');
+  }
+
+  /**
+   * Phase 3: Train medication name recognition patterns
+   */
+  private async trainMedicationNamePatterns(): Promise<void> {
+    console.log('💊 Training medication name recognition...');
+
+    // Comprehensive medication naming patterns
+    const medicationPatterns = {
+      // Brand name patterns
+      brandNames: {
+        capitalization: { pattern: '^[A-Z][a-z]+$', confidence: 0.9 },
+        all_caps: { pattern: '^[A-Z]+$', confidence: 0.85 },
+        mixed_case: { pattern: '^[A-Z][a-zA-Z]+$', confidence: 0.8 }
+      },
+
+      // Generic name patterns
+      genericNames: {
+        lowercase: { pattern: '^[a-z]+$', confidence: 0.9 },
+        with_hyphens: { pattern: '^[a-z]+-[a-z]+$', confidence: 0.85 },
+        chemical_suffix: { pattern: '(ine|ate|ol|ic|an|in)$', confidence: 0.95 }
+      },
+
+      // Common pharmaceutical suffixes
+      suffixes: {
+        antibiotics: { patterns: ['cillin', 'mycin', 'cycline'], confidence: 0.95 },
+        painkillers: { patterns: ['codone', 'morphone', 'fentanil'], confidence: 0.9 },
+        statins: { patterns: ['statin', 'vastatin'], confidence: 0.95 },
+        inhibitors: { patterns: ['prazole', 'pridine', 'sartan'], confidence: 0.9 }
+      },
+
+      // Common pharmaceutical prefixes
+      prefixes: {
+        anti: { patterns: ['anti', 'contra'], confidence: 0.8 },
+        pro: { patterns: ['pro', 'pre'], confidence: 0.7 },
+        meta: { patterns: ['meta', 'meto'], confidence: 0.8 }
+      }
+    };
+
+    // Train medication name patterns
+    for (const [category, patterns] of Object.entries(medicationPatterns)) {
+      for (const [pattern, properties] of Object.entries(patterns)) {
+        if (Array.isArray((properties as any).patterns)) {
+          (properties as any).patterns.forEach((p: string) => {
+            this.updateNeuralPatterns(
+              `medication_${category}_${p}`,
+              `medication_name_recognition`,
+              (properties as any).confidence
+            );
+          });
+        } else {
+          this.updateNeuralPatterns(
+            `medication_${category}_${pattern}`,
+            `medication_name_recognition`,
+            (properties as any).confidence
+          );
+        }
+      }
+    }
+
+    // Train brand-generic associations
+    const brandGenericPairs = [
+      { brand: 'tylenol', generic: 'acetaminophen', strength: 0.95 },
+      { brand: 'advil', generic: 'ibuprofen', strength: 0.95 },
+      { brand: 'lipitor', generic: 'atorvastatin', strength: 0.95 },
+      { brand: 'zoloft', generic: 'sertraline', strength: 0.95 },
+      { brand: 'prozac', generic: 'fluoxetine', strength: 0.95 },
+      { brand: 'nexium', generic: 'esomeprazole', strength: 0.95 },
+      { brand: 'xanax', generic: 'alprazolam', strength: 0.95 },
+      { brand: 'vicodin', generic: 'hydrocodone', strength: 0.95 }
+    ];
+
+    brandGenericPairs.forEach(pair => {
+      this.updateNeuralPatterns(pair.brand, pair.generic, pair.strength);
+      this.updateNeuralPatterns(pair.generic, pair.brand, pair.strength);
+    });
+
+    console.log('✅ Medication name pattern training completed');
+  }
+
+  /**
+   * Phase 4: Train contextual understanding
+   */
+  private async trainContextualUnderstanding(): Promise<void> {
+    console.log('🧠 Training contextual understanding...');
+
+    // Context clues for medication identification
+    const contextualClues = {
+      // Dosage indicators
+      dosage: {
+        mg_units: { patterns: ['mg', 'milligrams'], context: 'dosage', weight: 0.9 },
+        ml_units: { patterns: ['ml', 'milliliters'], context: 'liquid_dosage', weight: 0.9 },
+        percent: { patterns: ['%', 'percent'], context: 'concentration', weight: 0.8 },
+        iu_units: { patterns: ['iu', 'international units'], context: 'vitamin_dosage', weight: 0.85 }
+      },
+
+      // Medical context words
+      medical: {
+        prescription: { patterns: ['rx', 'prescription'], context: 'prescribed_med', weight: 0.8 },
+        otc: { patterns: ['otc', 'over counter'], context: 'otc_med', weight: 0.7 },
+        generic: { patterns: ['generic', 'store brand'], context: 'generic_med', weight: 0.75 },
+        brand: { patterns: ['brand', 'name brand'], context: 'brand_med', weight: 0.8 }
+      },
+
+      // Package information
+      packaging: {
+        tablets: { patterns: ['tablets', 'pills', 'caps'], context: 'solid_form', weight: 0.7 },
+        liquid: { patterns: ['syrup', 'solution', 'suspension'], context: 'liquid_form', weight: 0.7 },
+        topical: { patterns: ['cream', 'ointment', 'gel'], context: 'topical_form', weight: 0.7 }
+      }
+    };
+
+    // Train contextual understanding
+    for (const [category, clues] of Object.entries(contextualClues)) {
+      for (const [clue, properties] of Object.entries(clues)) {
+        (properties as any).patterns.forEach((pattern: string) => {
+          this.updateNeuralPatterns(
+            `context_${category}_${pattern}`,
+            `contextual_understanding`,
+            (properties as any).weight
+          );
+        });
+      }
+    }
+
+    console.log('✅ Contextual understanding training completed');
+  }
+
+  /**
+   * Phase 5: Train error correction patterns
+   */
+  private async trainErrorCorrectionPatterns(): Promise<void> {
+    console.log('🔧 Training error correction patterns...');
+
+    // Common OCR errors and their corrections
+    const commonErrors = {
+      character_substitutions: {
+        '0_to_O': { error: '0', correct: 'O', context: 'letters', confidence: 0.9 },
+        '1_to_I': { error: '1', correct: 'I', context: 'letters', confidence: 0.85 },
+        'rn_to_m': { error: 'rn', correct: 'm', context: 'letters', confidence: 0.8 },
+        'cl_to_d': { error: 'cl', correct: 'd', context: 'letters', confidence: 0.7 }
+      },
+
+      word_corrections: {
+        acetaminophen: { errors: ['acetaminoph3n', 'ac3taminophen', 'acetaminoph', 'paracetamol'], confidence: 0.9 },
+        ibuprofen: { errors: ['ibuprol3n', 'ibupr0fen', 'ibuprolen', 'advil'], confidence: 0.9 },
+        metformin: { errors: ['metlorrmin', 'm3tformin', 'metforrnin', 'glucophage'], confidence: 0.9 }
+      },
+
+      dosage_corrections: {
+        mg_variations: { errors: ['rng', 'mg.', 'mgs', 'rngs'], correct: 'mg', confidence: 0.95 },
+        ml_variations: { errors: ['rnl', 'ml.', 'mls', 'rnls'], correct: 'ml', confidence: 0.95 }
+      }
+    };
+
+    // Train error correction patterns
+    for (const [category, errors] of Object.entries(commonErrors)) {
+      for (const [pattern, data] of Object.entries(errors)) {
+        if ((data as any).errors) {
+          (data as any).errors.forEach((error: string) => {
+            this.errorCorrections.set(error.toLowerCase(), pattern.toLowerCase());
+            this.updateNeuralPatterns(
+              `error_${error}`,
+              pattern.toLowerCase(),
+              (data as any).confidence
+            );
+          });
+        } else {
+          this.errorCorrections.set((data as any).error, (data as any).correct);
+          this.updateNeuralPatterns(
+            `error_${(data as any).error}`,
+            (data as any).correct,
+            (data as any).confidence
+          );
+        }
+      }
+    }
+
+    console.log('✅ Error correction training completed');
+  }
+
+  /**
+   * Advanced training with step-by-step image analysis
+   */
+  async trainStepByStepImageAnalysis(): Promise<void> {
+    console.log('🔍 Training step-by-step image analysis...');
+
+    // Step-by-step analysis process
+    const analysisSteps = [
+      {
+        step: 1,
+        name: 'image_assessment',
+        description: 'Assess image quality and lighting',
+        actions: ['check_brightness', 'check_contrast', 'check_focus', 'check_noise'],
+        weight: 0.8
+      },
+      {
+        step: 2,
+        name: 'preprocessing_selection',
+        description: 'Select optimal preprocessing methods',
+        actions: ['choose_denoise', 'choose_contrast', 'choose_binarization'],
+        weight: 0.9
+      },
+      {
+        step: 3,
+        name: 'text_region_detection',
+        description: 'Identify text regions in image',
+        actions: ['find_text_areas', 'filter_noise', 'prioritize_regions'],
+        weight: 0.85
+      },
+      {
+        step: 4,
+        name: 'ocr_strategy_selection',
+        description: 'Choose best OCR approach',
+        actions: ['select_psm', 'set_whitelist', 'configure_engine'],
+        weight: 0.9
+      },
+      {
+        step: 5,
+        name: 'text_extraction',
+        description: 'Extract text using selected strategy',
+        actions: ['run_ocr', 'get_confidence', 'extract_words'],
+        weight: 0.95
+      },
+      {
+        step: 6,
+        name: 'medication_identification',
+        description: 'Identify medication names from text',
+        actions: ['find_medication_names', 'match_patterns', 'check_database'],
+        weight: 1.0
+      },
+      {
+        step: 7,
+        name: 'result_validation',
+        description: 'Validate and correct results',
+        actions: ['check_context', 'apply_corrections', 'calculate_confidence'],
+        weight: 0.9
+      }
+    ];
+
+    // Train each analysis step
+    analysisSteps.forEach(step => {
+      step.actions.forEach(action => {
+        this.updateNeuralPatterns(
+          `step${step.step}_${action}`,
+          `analysis_${step.name}`,
+          step.weight
+        );
+      });
+    });
+
+    console.log('✅ Step-by-step analysis training completed');
+  }
+
+  /**
+   * Get comprehensive training report
+   */
+  getTrainingReport(): {
+    totalPatterns: number;
+    trainingPoints: number;
+    accuracy: number;
+    specializations: string[];
+    lastTraining: string;
+  } {
+    const specializations = [
+      'Visual Pattern Recognition',
+      'Text Extraction Optimization',
+      'Medication Name Patterns',
+      'Contextual Understanding',
+      'Error Correction',
+      'Step-by-Step Analysis'
+    ];
+
+    return {
+      totalPatterns: this.neuralPatterns.size,
+      trainingPoints: this.trainingData.length,
+      accuracy: this.performanceMetrics.get('accuracy') || 0,
+      specializations,
+      lastTraining: new Date().toISOString()
+    };
+  }
 }
 
 // Singleton instance

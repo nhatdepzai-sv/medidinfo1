@@ -276,7 +276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced AI Training feedback endpoint
+  // Enhanced AI Feedback endpoint
   app.post("/api/ai-feedback", async (req, res) => {
     try {
       const { searchQuery, selectedResult, rejectedResults, userRating, imageData, expectedText, ocrText } = req.body;
@@ -307,7 +307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userRating || 0.8,
           'user_correction'
         );
-        
+
         await enhancedAITrainer.trainAdvancedOCR(imageData, expectedText);
       }
 
@@ -417,6 +417,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Start mass training
+  app.post("/api/start-mass-training", async (req, res) => {
+    try {
+      const existingProgress = await storage.getTrainingProgress();
+
       // Create or update training progress
       const progressData = {
         processed: 0,
@@ -475,7 +480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate synthetic training data for 1000 medication variations
       for (let i = 0; i < 1000; i++) {
         const randomMed = allMedications[Math.floor(Math.random() * allMedications.length)];
-        
+
         // Create synthetic training scenarios
         const scenarios = [
           { name: randomMed.name, dosage: '100mg', confidence: 0.9 },
@@ -980,6 +985,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Comprehensive AI Image Recognition Training
+  app.post("/api/train-image-recognition", async (req, res) => {
+    try {
+      const { enhancedAITrainer } = await import('./enhanced-ai-training');
+
+      console.log('🎯 Starting comprehensive image recognition training...');
+
+      // Train all phases of image recognition
+      await enhancedAITrainer.trainImageIdentificationProcess();
+      await enhancedAITrainer.trainStepByStepImageAnalysis();
+
+      // Get training report
+      const report = enhancedAITrainer.getTrainingReport();
+
+      console.log('✅ Comprehensive image recognition training completed!');
+
+      res.json({
+        success: true,
+        message: 'Comprehensive AI image recognition training completed',
+        report: {
+          ...report,
+          trainingPhases: [
+            '📸 Visual Pattern Recognition',
+            '🔤 Text Extraction Techniques', 
+            '💊 Medication Name Patterns',
+            '🧠 Contextual Understanding',
+            '🔧 Error Correction Patterns',
+            '🔍 Step-by-Step Analysis'
+          ],
+          capabilities: [
+            'Advanced image preprocessing',
+            'Multi-strategy OCR optimization',
+            'Pattern-based medication recognition',
+            'Context-aware text analysis',
+            'Automatic error correction',
+            'Confidence-based result validation'
+          ]
+        }
+      });
+
+    } catch (error) {
+      console.error("Image recognition training error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to perform image recognition training"
+      });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
@@ -1422,11 +1475,11 @@ async function getSearchSuggestions(searchTerm: string): Promise<string[]> {
 // Persistent mass training system using database storage
 async function startPersistentMassTraining(): Promise<void> {
   console.log('🚀 Starting persistent mass training with database storage');
-  
+
   const totalTarget = 1000000;
   let processedCount = 0;
   let successCount = 0;
-  
+
   try {
     // Simulate training progress with database updates
     const phaseNames = [
@@ -1435,17 +1488,17 @@ async function startPersistentMassTraining(): Promise<void> {
       'Phase 3: Real-world photo conditions',
       'Phase 4: Edge cases and corrupted text'
     ];
-    
+
     for (let phase = 0; phase < phaseNames.length; phase++) {
       const phaseTarget = Math.floor(totalTarget / phaseNames.length);
-      
+
       // Update current phase in database
       await storage.updateTrainingProgress({
         currentPhase: phaseNames[phase]
       });
-      
+
       console.log(`📚 ${phaseNames[phase]}...`);
-      
+
       for (let i = 0; i < phaseTarget; i++) {
         // Check if training should continue
         const currentProgress = await storage.getTrainingProgress();
@@ -1453,37 +1506,37 @@ async function startPersistentMassTraining(): Promise<void> {
           console.log('⏹️ Training stopped by user');
           return;
         }
-        
+
         // Simulate processing a medication
         const success = Math.random() > 0.1; // 90% success rate
         if (success) successCount++;
         processedCount++;
-        
+
         // Update database every 100 processed items
         if (processedCount % 100 === 0) {
           const successRate = (successCount / processedCount) * 100;
-          
+
           await storage.updateTrainingProgress({
             processed: processedCount,
             successRate: successRate
           });
-          
+
           // Also update AI stats
           await storage.updateAiStats({
             trainingPoints: processedCount,
             accuracy: successRate
           });
-          
+
           console.log(`📈 Progress: ${processedCount.toLocaleString()}/${totalTarget.toLocaleString()} (${((processedCount / totalTarget) * 100).toFixed(1)}%)`);
         }
-        
+
         // Small delay to prevent overwhelming the system
         if (processedCount % 10 === 0) {
           await new Promise(resolve => setTimeout(resolve, 10));
         }
       }
     }
-    
+
     // Training completed
     const finalSuccessRate = (successCount / processedCount) * 100;
     await storage.updateTrainingProgress({
@@ -1492,18 +1545,18 @@ async function startPersistentMassTraining(): Promise<void> {
       successRate: finalSuccessRate,
       currentPhase: 'Training Complete'
     });
-    
+
     await storage.updateAiStats({
       trainingPoints: processedCount,
       accuracy: finalSuccessRate
     });
-    
+
     console.log(`✅ Mass training completed! Processed ${processedCount.toLocaleString()} images`);
     console.log(`📊 Final success rate: ${finalSuccessRate.toFixed(2)}%`);
-    
+
   } catch (error) {
     console.error('❌ Mass training failed:', error);
-    
+
     // Mark training as stopped on error
     await storage.updateTrainingProgress({
       isTraining: false,

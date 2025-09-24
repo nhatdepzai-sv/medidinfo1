@@ -90,15 +90,70 @@ export default function Home() {
   const [error, setError] = useState('');
   const [offlineResults, setOfflineResults] = useState<any[]>([]);
 
-  // Enhanced search with offline mode support
+  // Enhanced search with offline mode support and faster performance
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
     setError("");
 
-    // Check for offline cached results first
-    const cachedResults = getOfflineData(`search_${searchQuery.trim().toLowerCase()}`);
+    const trimmedQuery = searchQuery.trim();
+
+    // Quick local search for common terms first
+    const quickLocalSearch = (query: string) => {
+      const commonMeds = [
+        {
+          id: 'quick-1',
+          name: 'Paracetamol',
+          nameVi: 'Paracetamol',
+          category: 'Pain Reliever',
+          categoryVi: 'Thuốc giảm đau',
+          primaryUse: 'Pain relief and fever reduction',
+          primaryUseVi: 'Giảm đau và hạ sốt',
+          adultDosage: '500-1000mg every 4-6 hours',
+          adultDosageVi: '500-1000mg mỗi 4-6 giờ',
+          warnings: ['Do not exceed 4000mg daily'],
+          warningsVi: ['Không vượt quá 4000mg mỗi ngày'],
+          aliases: ['para', 'paracet', 'acetaminophen', 'tylenol']
+        },
+        {
+          id: 'quick-2',
+          name: 'Ibuprofen',
+          nameVi: 'Ibuprofen',
+          category: 'NSAID',
+          categoryVi: 'Thuốc chống viêm',
+          primaryUse: 'Pain and inflammation relief',
+          primaryUseVi: 'Giảm đau và chống viêm',
+          adultDosage: '200-400mg every 4-6 hours',
+          adultDosageVi: '200-400mg mỗi 4-6 giờ',
+          warnings: ['Take with food'],
+          warningsVi: ['Dùng cùng thức ăn'],
+          aliases: ['ibu', 'advil', 'motrin']
+        }
+      ];
+
+      const queryLower = query.toLowerCase();
+      return commonMeds.filter(med => 
+        med.aliases.some(alias => alias.includes(queryLower)) ||
+        med.name.toLowerCase().includes(queryLower) ||
+        med.nameVi.toLowerCase().includes(queryLower)
+      );
+    };
+
+    // Try quick local search first for instant results
+    const quickResults = quickLocalSearch(trimmedQuery);
+    if (quickResults.length > 0) {
+      setSearchResults({
+        success: true,
+        medications: quickResults,
+        message: `Found ${quickResults.length} medication(s) (Instant Search)`
+      });
+      setIsSearching(false);
+      return;
+    }
+
+    // Check for offline cached results
+    const cachedResults = getOfflineData(`search_${trimmedQuery.toLowerCase()}`);
     
     if (networkStatus.isOfflineMode && cachedResults) {
       setSearchResults({
@@ -112,7 +167,7 @@ export default function Home() {
 
     // If offline and no cache, use built-in offline database
     if (networkStatus.isOfflineMode) {
-      const offlineSearchResults = await performOfflineSearch(searchQuery.trim());
+      const offlineSearchResults = await performOfflineSearch(trimmedQuery);
       setSearchResults({
         success: offlineSearchResults.length > 0,
         medications: offlineSearchResults,
@@ -124,9 +179,16 @@ export default function Home() {
       return;
     }
 
-    // Online search
+    // Online search with timeout for faster response
     try {
-      const response = await fetch(`/api/search-medications?query=${encodeURIComponent(searchQuery.trim())}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
+      const response = await fetch(`/api/search-medications?query=${encodeURIComponent(trimmedQuery)}`, {
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred.' }));
@@ -137,7 +199,7 @@ export default function Home() {
 
       if (result.success && result.medications && result.medications.length > 0) {
         // Cache successful results for offline use
-        saveOfflineData(`search_${searchQuery.trim().toLowerCase()}`, result.medications);
+        saveOfflineData(`search_${trimmedQuery.toLowerCase()}`, result.medications);
         
         setSearchResults({
           success: true,
@@ -155,7 +217,7 @@ export default function Home() {
       console.error('Search error:', err);
       
       // Fallback to offline search if online search fails
-      const offlineSearchResults = await performOfflineSearch(searchQuery.trim());
+      const offlineSearchResults = await performOfflineSearch(trimmedQuery);
       if (offlineSearchResults.length > 0) {
         setSearchResults({
           success: true,
@@ -176,13 +238,14 @@ export default function Home() {
     }
   }, [searchQuery, t, networkStatus.isOfflineMode, getOfflineData, saveOfflineData]);
 
-  // Offline search function using built-in medication database
+  // Offline search function using built-in medication database with enhanced partial matching
   const performOfflineSearch = useCallback(async (query: string): Promise<any[]> => {
     const commonMedications = [
       {
         id: 'offline-1',
-        name: 'Acetaminophen',
+        name: 'Paracetamol',
         nameVi: 'Paracetamol',
+        genericName: 'Acetaminophen',
         category: 'Pain Reliever',
         categoryVi: 'Thuốc giảm đau',
         primaryUse: 'Pain relief and fever reduction',
@@ -190,12 +253,14 @@ export default function Home() {
         adultDosage: '500-1000mg every 4-6 hours',
         adultDosageVi: '500-1000mg mỗi 4-6 giờ',
         warnings: ['Do not exceed 4000mg daily', 'Avoid alcohol'],
-        warningsVi: ['Không vượt quá 4000mg mỗi ngày', 'Tránh rượu bia']
+        warningsVi: ['Không vượt quá 4000mg mỗi ngày', 'Tránh rượu bia'],
+        aliases: ['para', 'paracet', 'acetaminophen', 'tylenol', 'panadol']
       },
       {
         id: 'offline-2',
         name: 'Ibuprofen',
         nameVi: 'Ibuprofen',
+        genericName: 'Ibuprofen',
         category: 'NSAID',
         categoryVi: 'Thuốc chống viêm',
         primaryUse: 'Pain, inflammation, and fever reduction',
@@ -203,12 +268,14 @@ export default function Home() {
         adultDosage: '200-400mg every 4-6 hours',
         adultDosageVi: '200-400mg mỗi 4-6 giờ',
         warnings: ['Take with food', 'Not for children under 6 months'],
-        warningsVi: ['Dùng cùng thức ăn', 'Không dành cho trẻ dưới 6 tháng']
+        warningsVi: ['Dùng cùng thức ăn', 'Không dành cho trẻ dưới 6 tháng'],
+        aliases: ['ibu', 'advil', 'motrin', 'brufen']
       },
       {
         id: 'offline-3',
         name: 'Aspirin',
         nameVi: 'Aspirin',
+        genericName: 'Acetylsalicylic Acid',
         category: 'NSAID',
         categoryVi: 'Thuốc chống viêm',
         primaryUse: 'Pain relief, anti-inflammatory, blood thinner',
@@ -216,12 +283,14 @@ export default function Home() {
         adultDosage: '325-650mg every 4 hours',
         adultDosageVi: '325-650mg mỗi 4 giờ',
         warnings: ['Risk of bleeding', 'Not for children under 16'],
-        warningsVi: ['Nguy cơ chảy máu', 'Không dành cho trẻ dưới 16 tuổi']
+        warningsVi: ['Nguy cơ chảy máu', 'Không dành cho trẻ dưới 16 tuổi'],
+        aliases: ['asp', 'asa', 'bayer']
       },
       {
         id: 'offline-4',
         name: 'Amoxicillin',
         nameVi: 'Amoxicillin',
+        genericName: 'Amoxicillin',
         category: 'Antibiotic',
         categoryVi: 'Kháng sinh',
         primaryUse: 'Bacterial infections',
@@ -229,12 +298,14 @@ export default function Home() {
         adultDosage: '250-500mg every 8 hours',
         adultDosageVi: '250-500mg mỗi 8 giờ',
         warnings: ['Complete full course', 'May cause allergic reactions'],
-        warningsVi: ['Dùng hết liệu trình', 'Có thể gây dị ứng']
+        warningsVi: ['Dùng hết liệu trình', 'Có thể gây dị ứng'],
+        aliases: ['amox', 'amoxil']
       },
       {
         id: 'offline-5',
         name: 'Omeprazole',
         nameVi: 'Omeprazole',
+        genericName: 'Omeprazole',
         category: 'PPI',
         categoryVi: 'Thuốc ức chế bơm proton',
         primaryUse: 'Acid reflux and stomach ulcers',
@@ -242,19 +313,51 @@ export default function Home() {
         adultDosage: '20-40mg once daily',
         adultDosageVi: '20-40mg một lần mỗi ngày',
         warnings: ['Take before meals', 'Long-term use may affect absorption'],
-        warningsVi: ['Dùng trước bữa ăn', 'Dùng lâu dài có thể ảnh hưởng hấp thu']
+        warningsVi: ['Dùng trước bữa ăn', 'Dùng lâu dài có thể ảnh hưởng hấp thu'],
+        aliases: ['omep', 'prilosec']
       }
     ];
 
     const searchTerm = query.toLowerCase();
-    const results = commonMedications.filter(med => 
-      med.name.toLowerCase().includes(searchTerm) ||
-      med.nameVi.toLowerCase().includes(searchTerm) ||
-      med.category.toLowerCase().includes(searchTerm) ||
-      med.categoryVi.toLowerCase().includes(searchTerm)
-    );
+    
+    // Enhanced scoring for partial matches
+    const scoredResults = commonMedications.map(med => {
+      let score = 0;
 
-    return results;
+      // Check aliases first (highest priority for partial matches)
+      if (med.aliases && med.aliases.some(alias => alias.includes(searchTerm))) {
+        score = 100;
+      }
+      // Exact matches
+      else if (med.name.toLowerCase() === searchTerm || 
+               med.nameVi.toLowerCase() === searchTerm ||
+               med.genericName?.toLowerCase() === searchTerm) {
+        score = 95;
+      }
+      // Starts with search term
+      else if (med.name.toLowerCase().startsWith(searchTerm) ||
+               med.nameVi.toLowerCase().startsWith(searchTerm) ||
+               med.genericName?.toLowerCase().startsWith(searchTerm)) {
+        score = 90;
+      }
+      // Contains search term
+      else if (med.name.toLowerCase().includes(searchTerm) ||
+               med.nameVi.toLowerCase().includes(searchTerm) ||
+               med.genericName?.toLowerCase().includes(searchTerm)) {
+        score = 80;
+      }
+      // Category match
+      else if (med.category.toLowerCase().includes(searchTerm) ||
+               med.categoryVi.toLowerCase().includes(searchTerm)) {
+        score = 70;
+      }
+
+      return { med, score };
+    }).filter(result => result.score > 0);
+
+    return scoredResults
+      .sort((a, b) => b.score - a.score)
+      .map(result => result.med);
   }, []);
 
   const handleCameraToggle = useCallback(() => {
@@ -385,7 +488,7 @@ export default function Home() {
             onChange={handleSearchChange}
             className="flex-1 bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/40 touch-manipulation"
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && searchQuery.trim()) {
+              if (e.key === 'Enter' && searchQuery.trim().length >= 1) {
                 e.preventDefault();
                 e.currentTarget.blur(); // Hide mobile keyboard after search
                 handleSearch();
@@ -402,7 +505,7 @@ export default function Home() {
           />
           <Button
             onClick={handleSearch}
-            disabled={isSearching || isLoading || !searchQuery.trim()}
+            disabled={isSearching || isLoading || searchQuery.trim().length < 1}
             className="bg-white hover:bg-gray-100 text-blue-600"
           >
             {isSearching ? (

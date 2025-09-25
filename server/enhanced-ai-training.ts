@@ -63,8 +63,8 @@ export class EnhancedAITrainer {
       multiLanguageSupport: ['eng', 'vie'] // English and Vietnamese
     };
 
-    // Disabled: Start automatic 48-hour background training
-    // this.startBackgroundTraining();
+    // Start optimized background AI training
+    this.startBackgroundTraining();
   }
 
   /**
@@ -81,47 +81,129 @@ export class EnhancedAITrainer {
     // Train immediately
     this.performBackgroundTrainingCycle();
 
-    // Set up interval training every 5 minutes
-    this.backgroundTrainingInterval = setInterval(() => {
-      const now = new Date();
-      const hoursElapsed = (now.getTime() - (this.trainingStartTime?.getTime() || 0)) / (1000 * 60 * 60);
+    // Set up INTENSIVE training every 2 minutes for maximum learning
+    this.backgroundTrainingInterval = setInterval(async () => {
+      try {
+        const now = new Date();
+        const hoursElapsed = (now.getTime() - (this.trainingStartTime?.getTime() || 0)) / (1000 * 60 * 60);
 
-      if (hoursElapsed >= 48) {
-        console.log('✅ 48-hour background training completed!');
-        this.stopBackgroundTraining();
-        return;
+        if (hoursElapsed >= 240) { // 10 days = 240 hours
+          console.log('🎯 10-day intensive training completed!');
+          this.stopBackgroundTraining();
+          return;
+        }
+
+        // Run multiple training cycles for intensive learning
+        for (let i = 0; i < 3; i++) {
+          setTimeout(() => {
+            this.performBackgroundTrainingCycle().catch(error => {
+              console.error('🚨 Training cycle error (continuing):', error instanceof Error ? error.message : String(error));
+            });
+          }, i * 100); // Stagger cycles by 100ms
+        }
+        
+        // Advanced pattern recognition training
+        this.performAdvancedTrainingCycle().catch((error: any) => {
+          console.error('🚨 Advanced training error (continuing):', error instanceof Error ? error.message : String(error));
+        });
+        
+      } catch (error) {
+        console.error('🚨 Training interval error (continuing):', error instanceof Error ? error.message : String(error));
       }
+    }, 2 * 60 * 1000); // Every 2 minutes for intensive training
 
-      this.performBackgroundTrainingCycle();
-    }, 5 * 60 * 1000); // Every 5 minutes
-
-    console.log('🧠 Background AI training will run for 48 hours');
+    console.log('🔥 INTENSIVE 10-DAY AI TRAINING ACTIVATED!');
+    console.log('⚡ Training frequency: every 2 minutes with 3x cycles');
+    console.log('🧠 Advanced pattern recognition: enabled');
+    console.log('💪 Performance mode: MAXIMUM LEARNING');
+    console.log('⏰ Duration: 10 days of non-stop training');
   }
 
   /**
    * Perform a training cycle in the background
    */
   private async performBackgroundTrainingCycle(): Promise<void> {
+    // Prevent multiple cycles from running simultaneously
+    if (this.neuralPatterns.has('_training_in_progress')) {
+      return;
+    }
+    
+    this.neuralPatterns.set('_training_in_progress', Date.now());
+    
     try {
-      // Comprehensive medication training data
+      // MASSIVE comprehensive medication training data for intensive learning
       const medicationPatterns = [
-        { name: 'acetaminophen', aliases: ['tylenol', 'paracetamol'], category: 'pain_reliever' },
-        { name: 'ibuprofen', aliases: ['advil', 'motrin'], category: 'nsaid' },
-        { name: 'aspirin', aliases: ['bayer', 'asa'], category: 'nsaid' },
-        { name: 'amoxicillin', aliases: ['amoxil'], category: 'antibiotic' },
-        { name: 'lisinopril', aliases: ['prinivil', 'zestril'], category: 'ace_inhibitor' },
-        { name: 'metformin', aliases: ['glucophage'], category: 'diabetes' },
-        { name: 'atorvastatin', aliases: ['lipitor'], category: 'statin' },
-        { name: 'omeprazole', aliases: ['prilosec'], category: 'ppi' },
-        { name: 'losartan', aliases: ['cozaar'], category: 'arb' },
-        { name: 'amlodipine', aliases: ['norvasc'], category: 'calcium_channel_blocker' }
+        // Pain relievers & NSAIDs (expanded)
+        { name: 'acetaminophen', aliases: ['tylenol', 'paracetamol', 'panadol', 'tylenol extra strength'], category: 'pain_reliever' },
+        { name: 'ibuprofen', aliases: ['advil', 'motrin', 'nurofen', 'brufen'], category: 'nsaid' },
+        { name: 'aspirin', aliases: ['bayer', 'asa', 'bufferin', 'ecotrin'], category: 'nsaid' },
+        { name: 'naproxen', aliases: ['aleve', 'naprosyn', 'anaprox'], category: 'nsaid' },
+        { name: 'diclofenac', aliases: ['voltaren', 'cataflam', 'zorvolex'], category: 'nsaid' },
+        { name: 'meloxicam', aliases: ['mobic', 'meloxicam'], category: 'nsaid' },
+        { name: 'tramadol', aliases: ['ultram', 'tramal', 'conzip'], category: 'pain_reliever' },
+        { name: 'codeine', aliases: ['tylenol 3', 'codral', 'robitussin ac'], category: 'opioid' },
+        { name: 'morphine', aliases: ['ms contin', 'roxanol', 'avinza'], category: 'opioid' },
+        { name: 'oxycodone', aliases: ['oxycontin', 'roxicodone', 'percocet'], category: 'opioid' },
+        { name: 'hydrocodone', aliases: ['vicodin', 'norco', 'lortab'], category: 'opioid' },
+        
+        // Antibiotics (massively expanded)
+        { name: 'amoxicillin', aliases: ['amoxil', 'trimox', 'amoxicillin trihydrate'], category: 'antibiotic' },
+        { name: 'azithromycin', aliases: ['zithromax', 'z-pack', 'azithromycin dihydrate'], category: 'antibiotic' },
+        { name: 'ciprofloxacin', aliases: ['cipro', 'cipro xr', 'ciprofloxacin hcl'], category: 'antibiotic' },
+        { name: 'doxycycline', aliases: ['vibramycin', 'doryx', 'monodox'], category: 'antibiotic' },
+        { name: 'cephalexin', aliases: ['keflex', 'keftabs', 'cephalexin monohydrate'], category: 'antibiotic' },
+        { name: 'clindamycin', aliases: ['cleocin', 'clindamycin hcl', 'dalacin'], category: 'antibiotic' },
+        { name: 'metronidazole', aliases: ['flagyl', 'metrogel', 'metronidazole er'], category: 'antibiotic' },
+        { name: 'erythromycin', aliases: ['e-mycin', 'eryc', 'ery-tab'], category: 'antibiotic' },
+        { name: 'penicillin', aliases: ['pen vk', 'penicillin v', 'bicillin'], category: 'antibiotic' },
+        { name: 'ampicillin', aliases: ['principen', 'ampicillin trihydrate'], category: 'antibiotic' },
+        
+        // Cardiovascular (massively expanded)
+        { name: 'lisinopril', aliases: ['prinivil', 'zestril', 'lisinopril hctz'], category: 'ace_inhibitor' },
+        { name: 'atorvastatin', aliases: ['lipitor', 'atorvastatin calcium'], category: 'statin' },
+        { name: 'amlodipine', aliases: ['norvasc', 'amlodipine besylate'], category: 'calcium_channel_blocker' },
+        { name: 'metoprolol', aliases: ['lopressor', 'toprol xl', 'metoprolol tartrate'], category: 'beta_blocker' },
+        { name: 'losartan', aliases: ['cozaar', 'losartan potassium'], category: 'arb' },
+        { name: 'simvastatin', aliases: ['zocor', 'simvastatin'], category: 'statin' },
+        { name: 'enalapril', aliases: ['vasotec', 'enalapril maleate'], category: 'ace_inhibitor' },
+        { name: 'warfarin', aliases: ['coumadin', 'jantoven', 'warfarin sodium'], category: 'anticoagulant' },
+        { name: 'carvedilol', aliases: ['coreg', 'carvedilol phosphate'], category: 'beta_blocker' },
+        { name: 'valsartan', aliases: ['diovan', 'valsartan hctz'], category: 'arb' },
+        { name: 'hydrochlorothiazide', aliases: ['hctz', 'microzide', 'hydrodiuril'], category: 'diuretic' },
+        { name: 'furosemide', aliases: ['lasix', 'furosemide'], category: 'diuretic' },
+        
+        // Diabetes (expanded)
+        { name: 'metformin', aliases: ['glucophage', 'fortamet', 'metformin hcl'], category: 'diabetes' },
+        { name: 'insulin', aliases: ['lantus', 'humalog', 'novolog', 'insulin glargine'], category: 'diabetes' },
+        { name: 'glipizide', aliases: ['glucotrol', 'glucotrol xl'], category: 'diabetes' },
+        { name: 'sitagliptin', aliases: ['januvia', 'sitagliptin phosphate'], category: 'diabetes' },
+        { name: 'glyburide', aliases: ['diabeta', 'micronase', 'glynase'], category: 'diabetes' },
+        
+        // Mental Health (expanded) 
+        { name: 'sertraline', aliases: ['zoloft', 'sertraline hcl'], category: 'antidepressant' },
+        { name: 'fluoxetine', aliases: ['prozac', 'sarafem', 'fluoxetine hcl'], category: 'antidepressant' },
+        { name: 'escitalopram', aliases: ['lexapro', 'escitalopram oxalate'], category: 'antidepressant' },
+        { name: 'alprazolam', aliases: ['xanax', 'xanax xr', 'alprazolam'], category: 'benzodiazepine' },
+        { name: 'lorazepam', aliases: ['ativan', 'lorazepam'], category: 'benzodiazepine' },
+        { name: 'clonazepam', aliases: ['klonopin', 'clonazepam'], category: 'benzodiazepine' },
+        { name: 'trazodone', aliases: ['desyrel', 'trazodone hcl'], category: 'antidepressant' },
+        { name: 'buspirone', aliases: ['buspar', 'buspirone hcl'], category: 'anxiolytic' },
+        
+        // Gastrointestinal (expanded)
+        { name: 'omeprazole', aliases: ['prilosec', 'prilosec otc'], category: 'ppi' },
+        { name: 'lansoprazole', aliases: ['prevacid', 'prevacid solutab'], category: 'ppi' },
+        { name: 'ranitidine', aliases: ['zantac', 'ranitidine hcl'], category: 'h2_blocker' },
+        { name: 'famotidine', aliases: ['pepcid', 'pepcid ac'], category: 'h2_blocker' },
+        { name: 'pantoprazole', aliases: ['protonix', 'pantoprazole sodium'], category: 'ppi' },
+        { name: 'esomeprazole', aliases: ['nexium', 'esomeprazole magnesium'], category: 'ppi' }
       ];
 
-      // Train with random medication patterns
-      const randomMed = medicationPatterns[Math.floor(Math.random() * medicationPatterns.length)];
+      // Train with MULTIPLE random medication patterns per cycle for intensive learning
+      for (let cycle = 0; cycle < 10; cycle++) { // 10x more training per cycle
+        const randomMed = medicationPatterns[Math.floor(Math.random() * medicationPatterns.length)];
 
-      // Generate synthetic training scenarios
-      const scenarios = [
+        // Generate synthetic training scenarios
+        const scenarios = [
         `${randomMed.name} 500mg`,
         `${randomMed.aliases[0]} tablet`,
         `${randomMed.name.toUpperCase()}`,
@@ -129,42 +211,131 @@ export class EnhancedAITrainer {
         `${randomMed.aliases[0] || randomMed.name} extended release`
       ];
 
-      scenarios.forEach(scenario => {
-        this.updateNeuralPatterns(scenario.toLowerCase(), randomMed.name, 0.8);
-        randomMed.aliases.forEach(alias => {
-          this.updateNeuralPatterns(alias.toLowerCase(), randomMed.name, 0.9);
+        scenarios.forEach(scenario => {
+          this.updateNeuralPatterns(scenario.toLowerCase(), randomMed.name, 0.8);
+          randomMed.aliases.forEach(alias => {
+            this.updateNeuralPatterns(alias.toLowerCase(), randomMed.name, 0.9);
+          });
         });
-      });
+        // Train OCR patterns with common variations for this medication
+        const ocrVariations = [
+          { original: randomMed.name, corrupted: randomMed.name.replace(/o/g, '0') },
+          { original: randomMed.name, corrupted: randomMed.name.replace(/i/g, '1') },
+          { original: randomMed.name, corrupted: randomMed.name.replace(/l/g, '1') }
+        ];
 
-      // Train OCR patterns with common variations
-      const ocrVariations = [
-        { original: randomMed.name, corrupted: randomMed.name.replace(/o/g, '0') },
-        { original: randomMed.name, corrupted: randomMed.name.replace(/i/g, '1') },
-        { original: randomMed.name, corrupted: randomMed.name.replace(/l/g, '1') }
-      ];
+        ocrVariations.forEach(variation => {
+          this.errorCorrections.set(variation.corrupted, variation.original);
+          this.updateNeuralPatterns(variation.corrupted, variation.original, 0.7);
+        });
+      } // End of 10x training cycle loop
 
-      ocrVariations.forEach(variation => {
-        this.errorCorrections.set(variation.corrupted, variation.original);
-        this.updateNeuralPatterns(variation.corrupted, variation.original, 0.7);
-      });
-
-      // Update training count
+      // Update training count and performance metrics
       const currentCount = this.performanceMetrics.get('background_training_cycles') || 0;
       this.performanceMetrics.set('background_training_cycles', currentCount + 1);
+      this.performanceMetrics.set('last_training_time', Date.now());
+      
+      // REMOVE memory cleanup for intensive training - let it learn everything!
+      // NO LIMITS for maximum learning during 10-day period
 
     } catch (error) {
-      console.error('Background training cycle error:', error);
+      console.error('🚨 Background training cycle error (recovered):', error instanceof Error ? error.message : String(error));
+      // Don't crash the app, just log and continue
+    } finally {
+      // Always cleanup the progress flag
+      this.neuralPatterns.delete('_training_in_progress');
     }
   }
 
   /**
-   * Stop background training
+   * Stop background training with cleanup
    */
   private stopBackgroundTraining(): void {
+    console.log('🛑 Stopping background AI training...');
     this.isBackgroundTraining = false;
     if (this.backgroundTrainingInterval) {
       clearInterval(this.backgroundTrainingInterval);
       this.backgroundTrainingInterval = null;
+    }
+    // Cleanup progress flag
+    this.neuralPatterns.delete('_training_in_progress');
+    console.log('✅ Background training stopped safely');
+  }
+
+  /**
+   * Advanced intensive training cycle with complex patterns and algorithms
+   */
+  private async performAdvancedTrainingCycle(): Promise<void> {
+    try {
+      // Advanced OCR pattern training with real-world medical variations
+      const ocrVariations = [
+        // Common OCR mistakes in medical text
+        { correct: 'acetaminophen', variants: ['aceiaminophen', 'acetarninophen', 'acetam1nophen', 'aceiaminophen'] },
+        { correct: 'ibuprofen', variants: ['1buprofen', 'ibupr0fen', 'ibuproten', 'ibuprcfen'] },
+        { correct: 'lisinopril', variants: ['l1s1nopr1l', 'lis1nopril', 'lisinopri1', 'lisinopn1'] },
+        { correct: 'metformin', variants: ['metf0rmin', 'rnetformin', 'metform1n', 'meiformin'] },
+        { correct: 'atorvastatin', variants: ['at0rvastatin', 'atorvastat1n', 'aiorvastatin', 'atorvasiatin'] },
+        { correct: 'omeprazole', variants: ['0meprazole', 'ornepraz0le', 'orneprazole', 'omepraz01e'] },
+        { correct: 'amlodipine', variants: ['arnl0dipine', 'amlodip1ne', 'amI0dipine', 'amlodipine'] },
+        { correct: 'losartan', variants: ['l0sartan', 'losarían', 'losarlan', '10sartan'] },
+        { correct: 'warfarin', variants: ['wartarin', 'wartarm', 'warfann', 'warlarin'] },
+        { correct: 'metoprolol', variants: ['metcprolol', 'metoprol0l', 'metoprolo1', 'meioprolol'] }
+      ];
+
+      // Train on OCR correction patterns
+      ocrVariations.forEach(({ correct, variants }) => {
+        variants.forEach(variant => {
+          this.errorCorrections.set(variant.toLowerCase(), correct.toLowerCase());
+          this.updateNeuralPatterns(variant.toLowerCase(), correct.toLowerCase(), 0.95);
+        });
+      });
+
+      // Advanced dosage pattern training
+      const dosagePatterns = [
+        '500mg twice daily', '250mg every 6 hours', '10mg once daily', '20mg bid',
+        '1 tablet po qd', '2 caps po bid', '5ml po tid', '100mcg sublingual',
+        '25mg extended release', '50mg immediate release', '1-2 tablets prn',
+        '0.5mg sublingual', '1000mg po q8h', '75mg po daily', '40mg po bid'
+      ];
+
+      // Complex medication name variations
+      const nameVariations = [
+        { base: 'acetaminophen', variations: ['ACETAMINOPHEN', 'Acetaminophen', 'acetaminophen', 'acet.'] },
+        { base: 'hydrochlorothiazide', variations: ['HCTZ', 'hctz', 'Hydrochlorothiazide'] },
+        { base: 'trimethoprim-sulfamethoxazole', variations: ['bactrim', 'septra', 'tmp-smx'] }
+      ];
+
+      // Train intensive pattern recognition
+      for (let i = 0; i < 50; i++) { // 50 intensive patterns per cycle
+        const randomDosage = dosagePatterns[Math.floor(Math.random() * dosagePatterns.length)];
+        const randomVariation = nameVariations[Math.floor(Math.random() * nameVariations.length)];
+        const variant = randomVariation.variations[Math.floor(Math.random() * randomVariation.variations.length)];
+        
+        this.updateNeuralPatterns(`${variant} ${randomDosage}`, randomVariation.base, 0.9);
+        this.medicationFrequency.set(randomVariation.base, (this.medicationFrequency.get(randomVariation.base) || 0) + 1);
+      }
+
+      // Advanced contextual pattern training
+      const medicalContexts = [
+        'take with food', 'on empty stomach', 'bedtime', 'morning', 'evening',
+        'as needed', 'for pain', 'for infection', 'for blood pressure', 'for diabetes',
+        'do not crush', 'may cause drowsiness', 'avoid alcohol', 'with plenty of water'
+      ];
+
+      medicalContexts.forEach(context => {
+        ocrVariations.forEach(({ correct }) => {
+          this.contextualPatterns.set(correct, [...(this.contextualPatterns.get(correct) || []), context]);
+        });
+      });
+
+      // Log intensive training progress
+      const cycleCount = this.performanceMetrics.get('advanced_training_cycles') || 0;
+      this.performanceMetrics.set('advanced_training_cycles', cycleCount + 1);
+      this.performanceMetrics.set('total_patterns_learned', this.neuralPatterns.size);
+      this.performanceMetrics.set('medications_frequency_tracked', this.medicationFrequency.size);
+
+    } catch (error) {
+      console.error('🔥 Advanced training error (non-fatal):', error instanceof Error ? error.message : String(error));
     }
   }
 

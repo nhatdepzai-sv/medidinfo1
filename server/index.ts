@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { setupRoutes } from "./routes";
 import { addExtractMedicationRoute } from "./routes-minimal";
 import { setupVite, serveStatic, log } from "./vite";
+import { automatedTrainingSystem } from "./mass-training-system";
 
 const app = express();
 app.use(express.json({ limit: '50mb' })); // Increase limit for large images
@@ -79,6 +80,12 @@ app.use((req, res, next) => {
 
   const server = app.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
+    
+    // Start automated AI training system for continuous learning
+    setTimeout(() => {
+      console.log('🚀 Starting 10-day automated AI training...');
+      automatedTrainingSystem.startTraining();
+    }, 5000); // Start after 5 seconds to let server fully initialize
   });
 
   server.on('error', (err: any) => {

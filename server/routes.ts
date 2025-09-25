@@ -125,12 +125,6 @@ export function setupRoutes(app: express.Application) {
           return true;
         }
 
-        // Alias matching using drug alias service
-        const aliases = drugAliasService.getAliases(name || genericName);
-        if (aliases.some(alias => alias.toLowerCase().includes(searchTerm))) {
-          return true;
-        }
-
         // Partial word matching for better search results
         const searchWords = searchTerm.split(/\s+/);
         const medWords = [name, genericName, nameVi].join(' ').toLowerCase().split(/\s+/);

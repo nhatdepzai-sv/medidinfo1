@@ -125,7 +125,7 @@ export class DatabaseStorage implements IStorage {
       const users = await db.select().from(schema.users).where(eq(schema.users.username, username));
       return users[0];
     }
-    for (const user of this.memoryUsers.values()) {
+    for (const user of Array.from(this.memoryUsers.values())) {
       if (user.username === username) return user;
     }
     return undefined;
@@ -166,7 +166,7 @@ export class DatabaseStorage implements IStorage {
       return medications[0];
     }
 
-    for (const med of this.memoryMedications.values()) {
+    for (const med of Array.from(this.memoryMedications.values())) {
       if (med.name === name || med.nameVi === name ||
           med.genericName === name || med.genericNameVi === name) {
         return med;
@@ -189,7 +189,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     const lowerPartial = partialName.toLowerCase();
-    for (const med of this.memoryMedications.values()) {
+    for (const med of Array.from(this.memoryMedications.values())) {
       if (med.name?.toLowerCase().includes(lowerPartial) ||
           med.nameVi?.toLowerCase().includes(lowerPartial) ||
           med.genericName?.toLowerCase().includes(lowerPartial) ||
@@ -304,7 +304,7 @@ export class DatabaseStorage implements IStorage {
       const searchLower = searchTerm.toLowerCase().trim();
       const results: { medication: Medication; score: number }[] = [];
 
-      for (const med of this.memoryMedications.values()) {
+      for (const med of Array.from(this.memoryMedications.values())) {
         let maxScore = 0;
 
         // Check all searchable fields
@@ -473,7 +473,7 @@ export class DatabaseStorage implements IStorage {
     if (userId) {
       history = history.filter(h => h.userId === userId);
     }
-    return history.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return history.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   }
 
   async createSearchHistory(searchHistory: InsertSearchHistory): Promise<SearchHistory> {

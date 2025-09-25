@@ -63,8 +63,8 @@ export class EnhancedAITrainer {
       multiLanguageSupport: ['eng', 'vie'] // English and Vietnamese
     };
 
-    // Start automatic 48-hour background training
-    this.startBackgroundTraining();
+    // Disabled: Start automatic 48-hour background training
+    // this.startBackgroundTraining();
   }
 
   /**
@@ -571,8 +571,8 @@ export class EnhancedAITrainer {
     return {
       name: bestMatch,
       dosage: dosage,
-      brandName: isBrand ? this.capitalizeMedication(bestMatch) : null,
-      genericName: (isGeneric || isAntibiotic) ? bestMatch.toLowerCase() : null
+      brandName: isBrand && bestMatch ? this.capitalizeMedication(bestMatch) : null,
+      genericName: (isGeneric || isAntibiotic) && bestMatch ? bestMatch.toLowerCase() : null
     };
   }
 

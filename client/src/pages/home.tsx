@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Search, Scan, History, User, Pill, X, WifiOff, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';

@@ -1,5 +1,4 @@
-
-import express from "express";
+import express, { Request, Response } from "express";
 import { z } from "zod";
 import { enhancedAITrainer } from "./enhanced-ai-training";
 import { fullComprehensiveDrugsDatabase } from "./comprehensive-drugs-database";
@@ -26,7 +25,7 @@ export function setupRoutes(app: express.Application) {
     try {
       const userData = registerSchema.parse(req.body);
       const result = await AuthService.register(userData);
-      
+
       res.json({
         success: true,
         user: result.user,
@@ -45,7 +44,7 @@ export function setupRoutes(app: express.Application) {
     try {
       const loginData = loginSchema.parse(req.body);
       const result = await AuthService.login(loginData);
-      
+
       res.json({
         success: true,
         user: result.user,
@@ -75,110 +74,89 @@ export function setupRoutes(app: express.Application) {
     });
   });
 
-  // Enhanced medication search with fuzzy matching and alias support
-  app.get("/api/search-medications", async (req, res) => {
+  // Enhanced medication search with comprehensive database
+  app.get("/api/search-medications", async (req: Request, res: Response) => {
     try {
-      const { query } = req.query;
+      const query = req.query.query as string;
 
-      if (!query || typeof query !== "string" || query.trim().length === 0) {
-        return res.status(400).json({
+      if (!query || typeof query !== "string" || query.trim().length < 2) {
+        return res.json({
           success: false,
-          message: "Search query is required"
+          message: "Search query must be at least 2 characters",
+          medications: []
         });
       }
 
-      const searchTerm = query.trim().toLowerCase();
-      console.log(`🔍 Searching medications for: "${searchTerm}"`);
+      const searchTerm = query.toLowerCase().trim();
+      console.log("🔍 Processing enhanced search term:", searchTerm);
 
-      // Combine all medication databases
-      const allMedications = [
+      // Combine all databases for comprehensive search
+      const allDatabases = [
         ...fullComprehensiveDrugsDatabase,
         ...globalMedicationsDatabase,
         ...medicationsDatabase
       ];
 
-      // Remove duplicates based on name
-      const uniqueMedications = new Map();
-      allMedications.forEach(med => {
-        const key = (med.name || med.genericName || '').toLowerCase();
-        if (key && !uniqueMedications.has(key)) {
-          uniqueMedications.set(key, med);
-        }
+      // Advanced scoring algorithm for medication search
+      const scoredResults = allDatabases.map((drug) => {
+        let score = 0;
+        const maxScore = 100;
+
+        // Exact matches (highest priority)
+        if (drug.name.toLowerCase() === searchTerm) score += 100;
+        else if (drug.nameVi?.toLowerCase() === searchTerm) score += 95;
+        else if (drug.genericName?.toLowerCase() === searchTerm) score += 90;
+        else if (drug.genericNameVi?.toLowerCase() === searchTerm) score += 85;
+
+        // Starts with matches (high priority)
+        if (drug.name.toLowerCase().startsWith(searchTerm)) score += 80;
+        else if (drug.nameVi?.toLowerCase().startsWith(searchTerm)) score += 75;
+        else if (drug.genericName?.toLowerCase().startsWith(searchTerm)) score += 70;
+        else if (drug.genericNameVi?.toLowerCase().startsWith(searchTerm)) score += 65;
+
+        // Contains matches (medium priority)
+        if (drug.name.toLowerCase().includes(searchTerm)) score += 50;
+        else if (drug.nameVi?.toLowerCase().includes(searchTerm)) score += 45;
+        else if (drug.genericName?.toLowerCase().includes(searchTerm)) score += 40;
+        else if (drug.genericNameVi?.toLowerCase().includes(searchTerm)) score += 35;
+
+        // Category matches (lower priority)
+        if (drug.category?.toLowerCase().includes(searchTerm)) score += 20;
+        if (drug.categoryVi?.toLowerCase().includes(searchTerm)) score += 15;
+
+        // Alias matches (lower priority)
+        const aliases = drugAliasService.getAliases(drug.name || drug.genericName || '');
+        if (aliases.some(alias => alias.toLowerCase().includes(searchTerm))) score += 30;
+
+        // Ensure score does not exceed maxScore and is non-negative
+        return {
+          ...drug,
+          score: Math.max(0, Math.min(score, maxScore))
+        };
       });
 
-      const medications = Array.from(uniqueMedications.values());
+      // Filter results by score and limit the number of results
+      const filteredResults = scoredResults
+        .filter(drug => drug.score > 30) // Minimum score threshold
+        .sort((a, b) => b.score - a.score) // Sort by score descending
+        .slice(0, 50); // Limit to top 50 results
 
-      // Enhanced search with multiple matching strategies
-      const searchResults = medications.filter(med => {
-        const name = (med.name || '').toLowerCase();
-        const genericName = (med.genericName || '').toLowerCase();
-        const nameVi = (med.nameVi || '').toLowerCase();
-        const category = (med.category || '').toLowerCase();
-        const categoryVi = (med.categoryVi || '').toLowerCase();
-
-        // Direct matches
-        if (name.includes(searchTerm) || 
-            genericName.includes(searchTerm) || 
-            nameVi.includes(searchTerm) ||
-            category.includes(searchTerm) ||
-            categoryVi.includes(searchTerm)) {
-          return true;
-        }
-
-        // Partial word matching for better search results
-        const searchWords = searchTerm.split(/\s+/);
-        const medWords = [name, genericName, nameVi].join(' ').toLowerCase().split(/\s+/);
-        
-        return searchWords.some(searchWord => 
-          searchWord.length > 2 && medWords.some(medWord => 
-            medWord.includes(searchWord) || searchWord.includes(medWord)
-          )
-        );
-      });
-
-      // Sort results by relevance
-      const sortedResults = searchResults.sort((a, b) => {
-        const aName = (a.name || '').toLowerCase();
-        const bName = (b.name || '').toLowerCase();
-        
-        // Exact matches first
-        if (aName === searchTerm && bName !== searchTerm) return -1;
-        if (bName === searchTerm && aName !== searchTerm) return 1;
-        
-        // Starts with search term
-        if (aName.startsWith(searchTerm) && !bName.startsWith(searchTerm)) return -1;
-        if (bName.startsWith(searchTerm) && !aName.startsWith(searchTerm)) return 1;
-        
-        // Alphabetical order
-        return aName.localeCompare(bName);
-      });
-
-      // Limit results for better performance
-      const limitedResults = sortedResults.slice(0, 50);
-
-      // Learn from search query for AI improvement
-      if (limitedResults.length > 0) {
-        enhancedAITrainer.continuousLearning(
-          searchTerm,
-          limitedResults[0].name || limitedResults[0].genericName || '',
-          []
-        );
-      }
+      console.log(`✅ Found ${filteredResults.length} medications for: "${searchTerm}"`);
 
       res.json({
         success: true,
-        medications: limitedResults,
-        total: limitedResults.length,
-        message: limitedResults.length > 0 
-          ? `Found ${limitedResults.length} medication(s)`
-          : "No medications found for your search"
+        message: `Found ${filteredResults.length} medications`,
+        medications: filteredResults,
+        searchTerm: searchTerm,
+        totalResults: filteredResults.length
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Search medications failed:", error);
       res.status(500).json({
         success: false,
-        message: "Search failed. Please try again."
+        message: error?.message || "Search failed. Please try again.",
+        medications: []
       });
     }
   });
@@ -271,8 +249,8 @@ export function setupRoutes(app: express.Application) {
         ...medicationsDatabase
       ];
 
-      const medication = allMedications.find(med => 
-        med.id === id || 
+      const medication = allMedications.find(med =>
+        med.id === id ||
         med.name?.toLowerCase() === id.toLowerCase() ||
         med.genericName?.toLowerCase() === id.toLowerCase()
       );

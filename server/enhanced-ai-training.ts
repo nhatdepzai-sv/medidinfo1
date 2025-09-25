@@ -101,12 +101,12 @@ export class EnhancedAITrainer {
             });
           }, i * 100); // Stagger cycles by 100ms
         }
-        
+
         // Advanced pattern recognition training
         this.performAdvancedTrainingCycle().catch((error: any) => {
           console.error('🚨 Advanced training error (continuing):', error instanceof Error ? error.message : String(error));
         });
-        
+
       } catch (error) {
         console.error('🚨 Training interval error (continuing):', error instanceof Error ? error.message : String(error));
       }
@@ -127,16 +127,16 @@ export class EnhancedAITrainer {
     if (this.neuralPatterns.has('_training_in_progress')) {
       return;
     }
-    
+
     this.neuralPatterns.set('_training_in_progress', Date.now());
-    
+
     try {
       // Generate synthetic training images
       this.generateSyntheticTrainingImages();
-      
+
       // Train with real-world scenarios
       this.trainWithRealWorldScenarios();
-      
+
       // Train with medication label variations
       this.trainWithMedicationLabelVariations();
       // MASSIVE comprehensive medication training data for intensive learning
@@ -153,7 +153,7 @@ export class EnhancedAITrainer {
         { name: 'morphine', aliases: ['ms contin', 'roxanol', 'avinza'], category: 'opioid' },
         { name: 'oxycodone', aliases: ['oxycontin', 'roxicodone', 'percocet'], category: 'opioid' },
         { name: 'hydrocodone', aliases: ['vicodin', 'norco', 'lortab'], category: 'opioid' },
-        
+
         // Antibiotics (massively expanded)
         { name: 'amoxicillin', aliases: ['amoxil', 'trimox', 'amoxicillin trihydrate'], category: 'antibiotic' },
         { name: 'azithromycin', aliases: ['zithromax', 'z-pack', 'azithromycin dihydrate'], category: 'antibiotic' },
@@ -165,7 +165,7 @@ export class EnhancedAITrainer {
         { name: 'erythromycin', aliases: ['e-mycin', 'eryc', 'ery-tab'], category: 'antibiotic' },
         { name: 'penicillin', aliases: ['pen vk', 'penicillin v', 'bicillin'], category: 'antibiotic' },
         { name: 'ampicillin', aliases: ['principen', 'ampicillin trihydrate'], category: 'antibiotic' },
-        
+
         // Cardiovascular (massively expanded)
         { name: 'lisinopril', aliases: ['prinivil', 'zestril', 'lisinopril hctz'], category: 'ace_inhibitor' },
         { name: 'atorvastatin', aliases: ['lipitor', 'atorvastatin calcium'], category: 'statin' },
@@ -179,14 +179,14 @@ export class EnhancedAITrainer {
         { name: 'valsartan', aliases: ['diovan', 'valsartan hctz'], category: 'arb' },
         { name: 'hydrochlorothiazide', aliases: ['hctz', 'microzide', 'hydrodiuril'], category: 'diuretic' },
         { name: 'furosemide', aliases: ['lasix', 'furosemide'], category: 'diuretic' },
-        
+
         // Diabetes (expanded)
         { name: 'metformin', aliases: ['glucophage', 'fortamet', 'metformin hcl'], category: 'diabetes' },
         { name: 'insulin', aliases: ['lantus', 'humalog', 'novolog', 'insulin glargine'], category: 'diabetes' },
         { name: 'glipizide', aliases: ['glucotrol', 'glucotrol xl'], category: 'diabetes' },
         { name: 'sitagliptin', aliases: ['januvia', 'sitagliptin phosphate'], category: 'diabetes' },
         { name: 'glyburide', aliases: ['diabeta', 'micronase', 'glynase'], category: 'diabetes' },
-        
+
         // Mental Health (expanded) 
         { name: 'sertraline', aliases: ['zoloft', 'sertraline hcl'], category: 'antidepressant' },
         { name: 'fluoxetine', aliases: ['prozac', 'sarafem', 'fluoxetine hcl'], category: 'antidepressant' },
@@ -196,7 +196,7 @@ export class EnhancedAITrainer {
         { name: 'clonazepam', aliases: ['klonopin', 'clonazepam'], category: 'benzodiazepine' },
         { name: 'trazodone', aliases: ['desyrel', 'trazodone hcl'], category: 'antidepressant' },
         { name: 'buspirone', aliases: ['buspar', 'buspirone hcl'], category: 'anxiolytic' },
-        
+
         // Gastrointestinal (expanded)
         { name: 'omeprazole', aliases: ['prilosec', 'prilosec otc'], category: 'ppi' },
         { name: 'lansoprazole', aliases: ['prevacid', 'prevacid solutab'], category: 'ppi' },
@@ -242,7 +242,7 @@ export class EnhancedAITrainer {
       const currentCount = this.performanceMetrics.get('background_training_cycles') || 0;
       this.performanceMetrics.set('background_training_cycles', currentCount + 1);
       this.performanceMetrics.set('last_training_time', Date.now());
-      
+
       // REMOVE memory cleanup for intensive training - let it learn everything!
       // NO LIMITS for maximum learning during 10-day period
 
@@ -318,7 +318,7 @@ export class EnhancedAITrainer {
         const randomDosage = dosagePatterns[Math.floor(Math.random() * dosagePatterns.length)];
         const randomVariation = nameVariations[Math.floor(Math.random() * nameVariations.length)];
         const variant = randomVariation.variations[Math.floor(Math.random() * randomVariation.variations.length)];
-        
+
         this.updateNeuralPatterns(`${variant} ${randomDosage}`, randomVariation.base, 0.9);
         this.medicationFrequency.set(randomVariation.base, (this.medicationFrequency.get(randomVariation.base) || 0) + 1);
       }
@@ -375,11 +375,11 @@ export class EnhancedAITrainer {
       { type: 'bottle', lighting: 'bright', angle: 'straight', clarity: 'high' },
       { type: 'bottle', lighting: 'dim', angle: 'tilted', clarity: 'medium' },
       { type: 'bottle', lighting: 'fluorescent', angle: 'side', clarity: 'high' },
-      
+
       // Blister pack scenarios
       { type: 'blister', lighting: 'natural', angle: 'straight', clarity: 'high' },
       { type: 'blister', lighting: 'low', angle: 'angled', clarity: 'low' },
-      
+
       // Box packaging scenarios
       { type: 'box', lighting: 'bright', angle: 'straight', clarity: 'high' },
       { type: 'box', lighting: 'shadow', angle: 'perspective', clarity: 'medium' }
@@ -417,7 +417,7 @@ export class EnhancedAITrainer {
     ocrChallenges.forEach(challenge => {
       this.errorCorrections.set(challenge.corrupted.toLowerCase(), challenge.original.toLowerCase());
       this.updateNeuralPatterns(challenge.corrupted.toLowerCase(), challenge.original.toLowerCase(), 0.9);
-      
+
       // Add contextual information based on scenario
       const contextKey = `${challenge.original.toLowerCase()}_${scenario.type}_${scenario.lighting}`;
       this.contextualPatterns.set(contextKey, [
@@ -564,11 +564,11 @@ export class EnhancedAITrainer {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = (y * width + x) * 4;
-        
+
         // Calculate local mean
         let sum = 0;
         let count = 0;
-        
+
         for (let wy = Math.max(0, y - windowSize/2); wy <= Math.min(height - 1, y + windowSize/2); wy++) {
           for (let wx = Math.max(0, x - windowSize/2); wx <= Math.min(width - 1, x + windowSize/2); wx++) {
             const widx = (wy * width + wx) * 4;
@@ -576,10 +576,10 @@ export class EnhancedAITrainer {
             count++;
           }
         }
-        
+
         const localMean = sum / count;
         const threshold = localMean - c;
-        
+
         const binaryValue = data[idx] > threshold ? 255 : 0;
         data[idx] = data[idx + 1] = data[idx + 2] = binaryValue;
       }
@@ -604,7 +604,7 @@ export class EnhancedAITrainer {
   }> {
     try {
       const imageBuffer = Buffer.from(base64Image, 'base64');
-      
+
       // Enhanced image analysis with comprehensive feature detection
       const features = {
         hasText: false,
@@ -619,7 +619,7 @@ export class EnhancedAITrainer {
 
       // Analyze image dimensions and aspect ratio
       const imageInfo = this.analyzeImageDimensions(imageBuffer);
-      
+
       // Detect pharmaceutical packaging indicators
       const packagingIndicators = this.detectPharmaceuticalIndicators(imageBuffer);
       features.medicationIndicators = packagingIndicators;
@@ -635,12 +635,12 @@ export class EnhancedAITrainer {
 
       // Check for text-like patterns
       features.hasText = this.detectTextPatterns(imageBuffer);
-      
+
       // Detect packaging patterns
       if (colors.includes('orange') || colors.includes('amber')) {
         features.hasBottle = true;
       }
-      
+
       if (colors.includes('silver') || colors.includes('foil')) {
         features.hasBlister = true;
       }
@@ -680,10 +680,10 @@ export class EnhancedAITrainer {
    */
   private analyzeColorDistribution(imageBuffer: Buffer): string[] {
     const colors: string[] = [];
-    
+
     // Simple color analysis - in a real implementation, you'd use image processing libraries
     const bufferStr = imageBuffer.toString('hex');
-    
+
     // Check for common medication packaging colors
     if (bufferStr.includes('ff')) colors.push('white');
     if (bufferStr.includes('00')) colors.push('black');
@@ -692,7 +692,7 @@ export class EnhancedAITrainer {
     if (bufferStr.includes('0000ff')) colors.push('blue');
     if (bufferStr.includes('ff0000')) colors.push('red');
     if (bufferStr.includes('008000')) colors.push('green');
-    
+
     return colors.length > 0 ? colors : ['unknown'];
   }
 
@@ -703,14 +703,14 @@ export class EnhancedAITrainer {
     // Simple pattern detection - look for rectangular regions and contrast patterns
     // In a real implementation, you'd use computer vision algorithms
     const bufferStr = imageBuffer.toString('hex');
-    
+
     // Look for high contrast patterns that might indicate text
     const hasHighContrast = bufferStr.includes('ffffff000000') || 
                            bufferStr.includes('000000ffffff');
-    
+
     // Look for repeated patterns that might indicate text
     const hasRepeatedPatterns = /(.{8})\1{2,}/.test(bufferStr);
-    
+
     return hasHighContrast || hasRepeatedPatterns;
   }
 
@@ -734,7 +734,7 @@ export class EnhancedAITrainer {
 
     // First, perform visual analysis
     const visualAnalysis = await this.analyzeImageVisually(base64Image);
-    
+
     const results = [];
     let bestResult = null;
     let maxConfidence = 0;
@@ -746,7 +746,7 @@ export class EnhancedAITrainer {
         config: { ...this.ocrConfig, pageSegMode: '7' } // Single text line
       });
     }
-    
+
     if (visualAnalysis.visualFeatures.hasBlister) {
       strategies.push({ 
         name: 'blister_optimized', 
@@ -1012,7 +1012,7 @@ export class EnhancedAITrainer {
   private analyzeImageDimensions(imageBuffer: Buffer): any {
     // Basic image analysis - in production would use image processing library
     const bufferStr = imageBuffer.toString('hex');
-    
+
     return {
       estimatedWidth: Math.min(bufferStr.length / 100, 2048),
       estimatedHeight: Math.min(bufferStr.length / 100, 1536),
@@ -1027,20 +1027,20 @@ export class EnhancedAITrainer {
   private detectPharmaceuticalIndicators(imageBuffer: Buffer): string[] {
     const indicators: string[] = [];
     const bufferStr = imageBuffer.toString('hex');
-    
+
     // Look for common pharmaceutical packaging patterns
     const pharmaceuticalPatterns = [
       'NDC', 'LOT', 'EXP', 'MFG', 'mg', 'ml', 'tablets', 'capsules',
       'prescription', 'rx', 'dosage', 'strength', 'generic', 'brand'
     ];
-    
+
     // Simulate pattern detection
     pharmaceuticalPatterns.forEach(pattern => {
       if (Math.random() > 0.7) { // Simulate detection probability
         indicators.push(pattern);
       }
     });
-    
+
     // Detect common medication bottle/package colors
     if (bufferStr.includes('ff8c00') || bufferStr.includes('ffa500')) {
       indicators.push('amber_bottle');
@@ -1051,7 +1051,7 @@ export class EnhancedAITrainer {
     if (bufferStr.includes('c0c0c0')) {
       indicators.push('foil_blister');
     }
-    
+
     return indicators;
   }
 
@@ -1066,7 +1066,7 @@ export class EnhancedAITrainer {
       { medication: 'Prescription_bottle', scenario: 'angled_shadow', difficulty: 'hard' },
       { medication: 'Blister_pack', scenario: 'reflective_surface', difficulty: 'hard' },
       { medication: 'Generic_bottle', scenario: 'worn_label', difficulty: 'very_hard' },
-      
+
       // Challenging scenarios
       { medication: 'Meloxicam', scenario: 'partial_occlusion', difficulty: 'very_hard' },
       { medication: 'Lisinopril', scenario: 'curved_bottle_label', difficulty: 'hard' },
@@ -1161,7 +1161,7 @@ export class EnhancedAITrainer {
 
       labelFormats.forEach(format => {
         this.updateNeuralPatterns(format.toLowerCase(), medication.toLowerCase(), 0.95);
-        
+
         // Add contextual information
         this.contextualPatterns.set(medication.toLowerCase(), [
           ...this.contextualPatterns.get(medication.toLowerCase()) || [],

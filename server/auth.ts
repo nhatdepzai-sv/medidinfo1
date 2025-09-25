@@ -58,6 +58,41 @@ export class AuthService {
     };
   }
 
+  static async registerAdmin(userData: z.infer<typeof registerSchema>): Promise<{ user: AuthUser; token: string }> {
+    // Check if user already exists
+    const existingUser = await storage.getUserByUsername(userData.username);
+    if (existingUser) {
+      throw new Error("Username already exists");
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(userData.password, 12);
+
+    // Create admin user
+    const user = await storage.createUser({
+      username: userData.username,
+      password: hashedPassword,
+      email: userData.email,
+      role: 'admin'
+    });
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id, username: user.username, role: 'admin' },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    return {
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      },
+      token
+    };
+  }
+
   static async login(loginData: z.infer<typeof loginSchema>): Promise<{ user: AuthUser; token: string }> {
     // Find user
     const user = await storage.getUserByUsername(loginData.username);

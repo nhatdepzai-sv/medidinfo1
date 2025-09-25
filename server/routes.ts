@@ -106,8 +106,8 @@ export function setupRoutes(app: express.Application) {
         });
       }
 
-      // Create admin user
-      const result = await AuthService.register({ username, email, password });
+      // Create admin user with role
+      const result = await AuthService.registerAdmin({ username, email, password });
       
       res.json({
         success: true,
@@ -137,7 +137,15 @@ export function setupRoutes(app: express.Application) {
   // Admin routes
   app.get("/api/admin/users", authenticateToken, async (req: any, res: Response) => {
     try {
-      // In a real app, check if user has admin role
+      // Check if user has admin role
+      const user = await storage.getUser(req.user.id);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+
       const users = await storage.getAllUsers?.() || [];
       res.json({
         success: true,
@@ -145,6 +153,7 @@ export function setupRoutes(app: express.Application) {
           id: user.id,
           username: user.username,
           email: user.email,
+          role: user.role || 'user',
           createdAt: user.createdAt
         }))
       });

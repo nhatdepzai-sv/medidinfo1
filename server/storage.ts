@@ -25,10 +25,15 @@ if (process.env.DATABASE_URL) {
   useDatabase = false;
 }
 
+// Helper function to generate a UUID (can be replaced with a more robust solution if needed)
+function generateId(): string {
+  return randomUUID();
+}
+
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getUser(id: string): Promise<(User & { role?: string }) | undefined>;
+  getUserByUsername(username: string): Promise<(User & { role?: string }) | undefined>;
+  createUser(user: InsertUser & { role?: string }): Promise<User & { role?: string }>;
 
   getMedication(id: string): Promise<Medication | undefined>;
   getMedicationByName(name: string): Promise<Medication | undefined>;
@@ -49,13 +54,13 @@ export interface IStorage {
   createAiStats(stats: InsertAiStats): Promise<AiStats>;
 
   // Admin methods
-  getAllUsers(): Promise<User[]>;
+  getAllUsers(): Promise<(User & { role?: string })[]>;
   deleteUser(userId: string): Promise<void>;
   getAllSearchHistory(): Promise<SearchHistory[]>;
 }
 
 export class DatabaseStorage implements IStorage {
-  private memoryUsers: Map<string, User> = new Map();
+  private memoryUsers: Map<string, User & { role?: string }> = new Map();
   private memoryMedications: Map<string, Medication> = new Map();
   private memorySearchHistory: SearchHistory[] = [];
   private medicationsInitialized = false;
@@ -117,30 +122,37 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getUser(id: string): Promise<User | undefined> {
+  async getUser(id: string): Promise<(User & { role?: string }) | undefined> {
     if (useDatabase && db) {
       const users = await db.select().from(schema.users).where(eq(schema.users.id, id));
-      return users[0];
+      return users[0] as (User & { role?: string });
     }
-    return this.memoryUsers.get(id);
+    return this.memoryUsers.get(id) as (User & { role?: string });
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
+  async getUserByUsername(username: string): Promise<(User & { role?: string }) | undefined> {
     if (useDatabase && db) {
       const users = await db.select().from(schema.users).where(eq(schema.users.username, username));
-      return users[0];
+      return users[0] as (User & { role?: string });
     }
+
     for (const user of Array.from(this.memoryUsers.values())) {
-      if (user.username === username) return user;
+      if (user.username === username) {
+        return user as (User & { role?: string });
+      }
     }
     return undefined;
   }
 
-  async createUser(user: InsertUser): Promise<User> {
-    const newUser = {
-      ...user,
-      id: randomUUID()
-    } as User;
+  async createUser(userData: InsertUser & { role?: string }): Promise<User & { role?: string }> {
+    const newUser: User & { role?: string } = {
+      id: generateId(),
+      username: userData.username,
+      password: userData.password,
+      email: userData.email,
+      role: userData.role || 'user', // Default to 'user' role
+      createdAt: new Date(),
+    };
 
     if (useDatabase && db) {
       await db.insert(schema.users).values(newUser);
@@ -589,10 +601,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Admin methods
-  async getAllUsers(): Promise<User[]> {
+  async getAllUsers(): Promise<(User & { role?: string })[]> {
     if (useDatabase && db) {
       const result = await db.select().from(schema.users);
-      return result;
+      return result as (User & { role?: string })[];
     }
     return Array.from(this.memoryUsers.values());
   }

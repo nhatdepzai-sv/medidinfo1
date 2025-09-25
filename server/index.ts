@@ -1,5 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
+import { setupRoutes } from "./routes";
 import { addExtractMedicationRoute } from "./routes-minimal";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -49,7 +49,7 @@ app.use((req, res, next) => {
     });
   });
 
-  registerRoutes(app);
+  setupRoutes(app);
   addExtractMedicationRoute(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -83,13 +83,11 @@ app.use((req, res, next) => {
 
   server.on('error', (err: any) => {
     if (err.code === 'EADDRINUSE') {
-      console.log(`Port ${port} is busy, trying port ${port + 1}...`);
-      const newPort = port + 1;
-      server.listen(newPort, '0.0.0.0', () => {
-        log(`serving on port ${newPort}`);
-      });
+      console.error(`Port ${port} is busy. Application must run on port 5000 for Replit environment.`);
+      process.exit(1);
     } else {
       console.error('Server error:', err);
+      process.exit(1);
     }
   });
 

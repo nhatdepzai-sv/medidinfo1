@@ -1,0 +1,108 @@
+[vite] connecting...
+[vite] connected.
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+at t.value (https://cb03d0b1-9164-4e04-a63e-580e722326b6-00-cin0qrb982ui.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://cb03d0b1-9164-4e04-a63e-580e722326b6-00-cin0qrb982ui.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://cb03d0b1-9164-4e04-a63e-580e722326b6-00-cin0qrb982ui.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://cb03d0b1-9164-4e04-a63e-580e722326b6-00-cin0qrb982ui.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+at t.value (https://cb03d0b1-9164-4e04-a63e-580e722326b6-00-cin0qrb982ui.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://cb03d0b1-9164-4e04-a63e-580e722326b6-00-cin0qrb982ui.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://cb03d0b1-9164-4e04-a63e-580e722326b6-00-cin0qrb982ui.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://cb03d0b1-9164-4e04-a63e-580e722326b6-00-cin0qrb982ui.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}
+
+Search error: 
+Error {}

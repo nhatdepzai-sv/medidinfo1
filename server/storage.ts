@@ -47,6 +47,11 @@ export interface IStorage {
   getAiStats(): Promise<AiStats | undefined>;
   updateAiStats(stats: Partial<InsertAiStats>): Promise<AiStats>;
   createAiStats(stats: InsertAiStats): Promise<AiStats>;
+
+  // Admin methods
+  getAllUsers(): Promise<User[]>;
+  deleteUser(userId: string): Promise<void>;
+  getAllSearchHistory(): Promise<SearchHistory[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -216,7 +221,7 @@ export class DatabaseStorage implements IStorage {
 
   async searchMedications(query: string): Promise<Medication[]> {
     const searchTerm = `%${query.toLowerCase()}%`;
-    
+
     // First, try direct database search
     const directResults = useDatabase && db ? 
       await db.select().from(schema.medications).where(
@@ -233,17 +238,17 @@ export class DatabaseStorage implements IStorage {
         med.genericName?.toLowerCase().includes(query.toLowerCase()) ||
         med.genericNameVi?.toLowerCase().includes(query.toLowerCase())
       ).slice(0, 20);
-    
+
     // If we found results, return them
     if (directResults.length > 0) {
       return directResults;
     }
-    
+
     // If no direct results, try alias-based search
     try {
       const { drugAliasService } = await import('./drug-alias-service');
       const aliases = await drugAliasService.getAllAliases(query);
-      
+
       // Search using all aliases
       const aliasResults = await Promise.all(
         aliases.map(async (alias) => {
@@ -265,15 +270,15 @@ export class DatabaseStorage implements IStorage {
             ).slice(0, 5);
         })
       );
-      
+
       // Flatten and deduplicate results
       const allAliasResults = aliasResults.flat();
       const uniqueResults = allAliasResults.filter((med, index, arr) => 
         arr.findIndex(m => m.id === med.id) === index
       );
-      
+
       return uniqueResults.slice(0, 20);
-      
+
     } catch (error) {
       console.error('Alias search failed:', error);
       return directResults; // Fall back to direct results (empty array)
@@ -581,6 +586,31 @@ export class DatabaseStorage implements IStorage {
       return updated;
     }
     throw new Error("Database not available");
+  }
+
+  // Admin methods
+  async getAllUsers(): Promise<User[]> {
+    if (useDatabase && db) {
+      const result = await db.select().from(schema.users);
+      return result;
+    }
+    return Array.from(this.memoryUsers.values());
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    if (useDatabase && db) {
+      await db.delete(schema.users).where(eq(schema.users.id, userId));
+    } else {
+      this.memoryUsers.delete(userId);
+    }
+  }
+
+  async getAllSearchHistory(): Promise<SearchHistory[]> {
+    if (useDatabase && db) {
+      const result = await db.select().from(schema.searchHistory);
+      return result;
+    }
+    return this.memorySearchHistory;
   }
 }
 

@@ -15,6 +15,7 @@ const History = lazy(() => import("./pages/history"));
 const Profile = lazy(() => import("./pages/profile"));
 const Translator = lazy(() => import("./pages/translator"));
 const Training = lazy(() => import("./pages/training"));
+const Admin = lazy(() => import("./pages/admin"));
 const Auth = lazy(() => import("./pages/auth"));
 const NotFound = lazy(() => import("./pages/not-found"));
 
@@ -54,6 +55,7 @@ function AppContent() {
             <Route path="/history" component={History} />
             <Route path="/translator" component={Translator} />
             <Route path="/training" component={Training} />
+            <Route path="/admin" component={Admin} />
             <Route component={NotFound} />
           </Switch>
         </Suspense>

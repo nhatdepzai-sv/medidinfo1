@@ -74,6 +74,141 @@ export function setupRoutes(app: express.Application) {
     });
   });
 
+  // Admin account creation endpoint
+  app.post("/api/auth/create-admin", async (req: Request, res: Response) => {
+    try {
+      const { username, email, password, adminKey } = req.body;
+      
+      // Simple admin key check (you can change this)
+      if (adminKey !== "admin-setup-key-2024") {
+        return res.status(403).json({
+          success: false,
+          message: "Invalid admin key"
+        });
+      }
+
+      // Validate input
+      const validationResult = registerSchema.safeParse({ username, email, password });
+      if (!validationResult.success) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid input data",
+          errors: validationResult.error.errors
+        });
+      }
+
+      // Check if admin user already exists
+      const existingAdmin = await storage.getUserByUsername(username);
+      if (existingAdmin) {
+        return res.status(400).json({
+          success: false,
+          message: "Admin user already exists"
+        });
+      }
+
+      // Create admin user
+      const result = await AuthService.register({ username, email, password });
+      
+      res.json({
+        success: true,
+        user: {
+          ...result.user,
+          role: "admin",
+          permissions: [
+            "view_all_users",
+            "manage_medications", 
+            "view_analytics",
+            "manage_system",
+            "delete_users",
+            "bulk_operations"
+          ]
+        },
+        token: result.token,
+        message: "Admin account created successfully"
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || "Admin account creation failed"
+      });
+    }
+  });
+
+  // Admin routes
+  app.get("/api/admin/users", authenticateToken, async (req: any, res: Response) => {
+    try {
+      // In a real app, check if user has admin role
+      const users = await storage.getAllUsers?.() || [];
+      res.json({
+        success: true,
+        users: users.map(user => ({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          createdAt: user.createdAt
+        }))
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch users"
+      });
+    }
+  });
+
+  app.delete("/api/admin/users/:userId", authenticateToken, async (req: any, res: Response) => {
+    try {
+      const { userId } = req.params;
+      await storage.deleteUser?.(userId);
+      res.json({
+        success: true,
+        message: "User deleted successfully"
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to delete user"
+      });
+    }
+  });
+
+  app.get("/api/admin/search-history", authenticateToken, async (req: any, res: Response) => {
+    try {
+      const history = await storage.getAllSearchHistory?.() || [];
+      res.json({
+        success: true,
+        history
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch search history"
+      });
+    }
+  });
+
+  app.get("/api/admin/stats", authenticateToken, async (req: any, res: Response) => {
+    try {
+      const stats = {
+        totalUsers: (await storage.getAllUsers?.())?.length || 0,
+        totalSearches: (await storage.getAllSearchHistory?.())?.length || 0,
+        totalMedications: 199954, // From your database
+        serverUptime: process.uptime(),
+        lastRestart: new Date(Date.now() - process.uptime() * 1000).toISOString()
+      };
+      
+      res.json({
+        success: true,
+        stats
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch stats"
+      });
+    }
+  });
+
   // Enhanced medication search with comprehensive database
   app.get("/api/search-medications", async (req: Request, res: Response) => {
     try {

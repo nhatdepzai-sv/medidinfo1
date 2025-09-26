@@ -143,13 +143,26 @@ export default function Auth() {
           )}
 
           <div className="mt-4 text-center">
+            <p className="text-center text-sm text-gray-600 mt-4">
+            Don't have an account?{' '}
             <button
               type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-blue-600 hover:underline"
+              onClick={() => setIsLogin(false)}
+              className="text-blue-600 hover:text-blue-800 font-medium"
             >
-              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Login"}
+              Sign up
             </button>
+            {' '} | {' '}
+            <button
+              type="button"
+              onClick={() => {
+                setFormData({ username: 'admin', password: 'ILA1234567' });
+              }}
+              className="text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Admin
+            </button>
+          </p>
           </div>
         </CardContent>
       </Card>

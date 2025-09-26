@@ -2,31 +2,31 @@
 const { storage } = require('./server/storage');
 const { AuthService } = require('./server/auth');
 
-async function deleteAndRecreateAdmin() {
+async function createDioBrandoAdmin() {
   try {
-    console.log('🔍 Looking for existing admin account...');
+    console.log('🔍 Looking for existing diobrando account...');
     
-    // Try to find the existing admin user
-    const existingUser = await storage.getUserByUsername('minhnhatconan');
+    // Try to find the existing user
+    const existingUser = await storage.getUserByUsername('diobrando');
     
     if (existingUser) {
-      console.log('🗑️ Deleting existing admin account...');
+      console.log('🗑️ Deleting existing diobrando account...');
       await storage.deleteUser(existingUser.id);
-      console.log('✅ Existing admin account deleted');
+      console.log('✅ Existing diobrando account deleted');
     } else {
-      console.log('ℹ️ No existing admin account found');
+      console.log('ℹ️ No existing diobrando account found');
     }
     
-    // Recreate the admin account
-    console.log('🔨 Creating new admin account...');
+    // Create the new admin account
+    console.log('🔨 Creating new diobrando admin account...');
     const adminData = {
-      username: 'minhnhatconan',
-      email: 'admin@drugscan.com',
+      username: 'diobrando',
+      email: 'diobrando@drugscan.com',
       password: 'ILA1234567'
     };
     
     const result = await AuthService.registerAdmin(adminData);
-    console.log('✅ Admin account created successfully!');
+    console.log('✅ DIO BRANDO Admin account created successfully!');
     console.log('Username:', result.user.username);
     console.log('Email:', result.user.email);
     console.log('Token generated:', result.token.substring(0, 20) + '...');
@@ -38,4 +38,4 @@ async function deleteAndRecreateAdmin() {
   }
 }
 
-deleteAndRecreateAdmin();
+createDioBrandoAdmin();

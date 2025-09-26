@@ -1,6 +1,6 @@
 
-const { storage } = require('./server/storage');
-const { AuthService } = require('./server/auth');
+import { storage } from './server/storage.js';
+import { AuthService } from './server/auth.js';
 
 async function createDioBrandoAdmin() {
   try {

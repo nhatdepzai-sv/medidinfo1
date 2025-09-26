@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,12 +16,14 @@ export default function Auth() {
     password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [error, setError] = useState<string | null>(null); // Added state for error message
+
   const { login, register } = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null); // Clear previous errors
     setIsLoading(true);
 
     try {
@@ -39,16 +40,23 @@ export default function Auth() {
           description: `${isLogin ? 'Login' : 'Registration'} successful!`
         });
       } else {
+        // For registration errors, it might be helpful to show a more specific message if available
+        // For now, using a generic error as per the original logic
+        const errorMessage = isLogin ? "Login failed. Please check your username and password." : "Registration failed. Please try again.";
+        setError(errorMessage); // Set the error message state
         toast({
           title: "Error",
-          description: `${isLogin ? 'Login' : 'Registration'} failed. Please try again.`,
+          description: errorMessage,
           variant: "destructive"
         });
       }
     } catch (error) {
+      console.error("Authentication error:", error); // Log the actual error for debugging
+      const errorMessage = "An unexpected error occurred. Please try again later.";
+      setError(errorMessage); // Set the error message state
       toast({
         title: "Error",
-        description: "An unexpected error occurred.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -127,6 +135,12 @@ export default function Auth() {
               {isLoading ? 'Processing...' : (isLogin ? 'Login' : 'Create Account')}
             </Button>
           </form>
+
+          {error && (
+            <div className="mt-4 p-3 bg-white border border-red-200 rounded-md shadow-sm">
+              <p className="text-red-800 text-sm font-medium">{error}</p>
+            </div>
+          )}
 
           <div className="mt-4 text-center">
             <button

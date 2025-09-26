@@ -162,6 +162,9 @@ export class AutomatedAITrainingSystem {
 
     // Train with the batch
     await this.trainAIWithBatch(batch);
+    
+    // Update progress counter after processing the batch
+    this.progress.processed += batchSize;
   }
 
   /**

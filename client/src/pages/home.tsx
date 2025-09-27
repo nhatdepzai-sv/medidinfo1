@@ -86,6 +86,7 @@ export default function Home() {
     success: boolean;
     medications?: any[];
     message?: string;
+    searchTerm?: string;
   }>({});
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -147,24 +148,20 @@ export default function Home() {
   const handleSearch = useCallback(async (queryToSearch: string) => {
     if (!queryToSearch.trim()) return;
 
-    setIsLoading(true); // Use setIsLoading for general loading, setIsSearching for search-specific
-    setError("");
-
     const trimmedQuery = queryToSearch.trim();
-
-    // Cancel previous search more safely
+    
+    // Cancel previous search and assign new search ID
     searchCancelledRef.current = true;
     const searchId = ++currentSearchIdRef.current;
     searchCancelledRef.current = false;
 
-    // Small delay to prevent rapid re-triggering
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    // Check if search was cancelled during the delay
-    if (searchCancelledRef.current || searchId !== currentSearchIdRef.current) {
-      setIsLoading(false);
+    // Check if this search is still valid before starting
+    if (searchId !== currentSearchIdRef.current) {
       return;
     }
+
+    setIsLoading(true);
+    setError("");
 
     // Try quick local search for common terms first
     const quickLocalSearch = (query: string) => {
@@ -207,13 +204,21 @@ export default function Home() {
       );
     };
 
+    // Check if we already have results for this exact query to prevent duplicate searches
+    if (searchResults.medications && searchResults.medications.length > 0 && 
+        searchResults.searchTerm === trimmedQuery) {
+      setIsLoading(false);
+      return;
+    }
+
     // Try quick local search first for instant results
     const quickResults = quickLocalSearch(trimmedQuery);
     if (quickResults.length > 0) {
       setSearchResults({
         success: true,
         medications: quickResults,
-        message: `Found ${quickResults.length} medication(s) (Instant Search)`
+        message: `Found ${quickResults.length} medication(s) (Instant Search)`,
+        searchTerm: trimmedQuery
       });
       setIsLoading(false);
       return;
@@ -498,8 +503,15 @@ export default function Home() {
   }, [showCamera]);
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-    // The debounced effect will handle the search trigger, so no immediate search here
+    const newValue = e.target.value;
+    setSearchQuery(newValue);
+    
+    // Clear results immediately if query is cleared
+    if (newValue.trim().length === 0) {
+      setSearchResults({});
+      setError('');
+      setIsLoading(false);
+    }
   }, []);
 
   const handleScanClick = useCallback(() => {
@@ -532,20 +544,24 @@ export default function Home() {
     };
   }, []);
 
-  // Debounced search for real-time results with less aggressive triggering
+  // Debounced search for real-time results with improved cancellation
   useEffect(() => {
+    // Cancel any ongoing search when query changes
+    searchCancelledRef.current = true;
+    
     const debounceTimer = setTimeout(() => {
       if (searchQuery.trim().length >= 3) { // Require at least 3 characters
         handleSearch(searchQuery);
       } else if (searchQuery.trim().length === 0) {
         setSearchResults({});
         setError('');
-        // Cancel any ongoing search when query is cleared
-        searchCancelledRef.current = true;
+        setIsLoading(false);
       }
-    }, 1200); // Increased to 1200ms delay to prevent rapid firing
+    }, 800); // Reduced to 800ms for better responsiveness
 
-    return () => clearTimeout(debounceTimer);
+    return () => {
+      clearTimeout(debounceTimer);
+    };
   }, [searchQuery, handleSearch]);
 
   // Dummy function for search history, replace with actual implementation

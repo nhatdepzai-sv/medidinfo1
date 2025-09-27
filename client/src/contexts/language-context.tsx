@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 
 type Language = "en" | "vi";
 
@@ -513,10 +513,10 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
     localStorage.setItem("drugscan-language", lang);
   };
 
-  const t = (key: string): string => {
+  const t = useCallback((key: string): string => {
     const translation = translations[language]?.[key as keyof typeof translations[typeof language]];
     return translation || key;
-  };
+  }, [language]);
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage: handleSetLanguage, t }}>

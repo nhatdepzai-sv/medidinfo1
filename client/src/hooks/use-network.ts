@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export interface NetworkStatus {
   isOnline: boolean;
@@ -119,14 +119,14 @@ export function useNetwork(): NetworkStatus {
 
       clearInterval(interval);
     };
-  }, [networkStatus.isOnline]);
+  }, []); // No dependencies needed - effect sets up listeners and intervals
 
   return networkStatus;
 }
 
 // Hook for offline storage
 export function useOfflineStorage() {
-  const saveOfflineData = (key: string, data: any) => {
+  const saveOfflineData = useCallback((key: string, data: any) => {
     try {
       localStorage.setItem(`offline_${key}`, JSON.stringify({
         data,
@@ -135,9 +135,9 @@ export function useOfflineStorage() {
     } catch (error) {
       console.error('Failed to save offline data:', error);
     }
-  };
+  }, []);
 
-  const getOfflineData = (key: string) => {
+  const getOfflineData = useCallback((key: string) => {
     try {
       const stored = localStorage.getItem(`offline_${key}`);
       if (stored) {
@@ -151,9 +151,9 @@ export function useOfflineStorage() {
       console.error('Failed to get offline data:', error);
     }
     return null;
-  };
+  }, []);
 
-  const clearOfflineData = (key?: string) => {
+  const clearOfflineData = useCallback((key?: string) => {
     try {
       if (key) {
         localStorage.removeItem(`offline_${key}`);
@@ -166,7 +166,7 @@ export function useOfflineStorage() {
     } catch (error) {
       console.error('Failed to clear offline data:', error);
     }
-  };
+  }, []);
 
   return { saveOfflineData, getOfflineData, clearOfflineData };
 }

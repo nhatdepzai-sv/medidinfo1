@@ -549,9 +549,58 @@ export default function Home() {
     // Cancel any ongoing search when query changes
     searchCancelledRef.current = true;
     
-    const debounceTimer = setTimeout(() => {
+    const debounceTimer = setTimeout(async () => {
       if (searchQuery.trim().length >= 3) { // Require at least 3 characters
-        handleSearch(searchQuery);
+        const trimmedQuery = searchQuery.trim();
+        
+        // Check if we already have results for this exact query to prevent duplicate searches
+        if (searchResults.medications && searchResults.medications.length > 0 && 
+            searchResults.searchTerm === trimmedQuery) {
+          setIsLoading(false);
+          return;
+        }
+        
+        setIsLoading(true);
+        setError('');
+        searchCancelledRef.current = false;
+
+        try {
+          const response = await fetch(`/api/search-medications?q=${encodeURIComponent(trimmedQuery)}`);
+          
+          if (searchCancelledRef.current) {
+            return; // Search was cancelled, ignore results
+          }
+
+          const data = await response.json();
+          
+          if (data.success) {
+            setSearchResults({
+              success: true,
+              medications: data.medications || [],
+              message: data.message || `Found ${data.medications?.length || 0} medication(s)`,
+              searchTerm: trimmedQuery
+            });
+          } else {
+            setSearchResults({
+              success: false,
+              medications: [],
+              message: data.message || 'No medications found'
+            });
+          }
+        } catch (err) {
+          if (!searchCancelledRef.current) {
+            setError('Search failed. Please try again.');
+            setSearchResults({
+              success: false,
+              medications: [],
+              message: 'Search failed'
+            });
+          }
+        } finally {
+          if (!searchCancelledRef.current) {
+            setIsLoading(false);
+          }
+        }
       } else if (searchQuery.trim().length === 0) {
         setSearchResults({});
         setError('');
@@ -562,7 +611,7 @@ export default function Home() {
     return () => {
       clearTimeout(debounceTimer);
     };
-  }, [searchQuery, handleSearch]);
+  }, [searchQuery]);
 
   // Dummy function for search history, replace with actual implementation
   const addToSearchHistory = (query: string) => {

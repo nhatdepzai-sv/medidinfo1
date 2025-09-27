@@ -8,6 +8,9 @@ import { fullComprehensiveDrugsDatabase } from "./comprehensive-drugs-database";
 import { globalMedicationsDatabase } from "./global-medications-database";
 import { medicationsDatabase } from "./medications-database";
 
+// TEMPORARILY DISABLE auto-training to fix infinite loop bug
+enhancedAITrainer.setLearningEnabled(false);
+
 const app = express();
 app.use(express.json({ limit: '50mb' })); // Increase limit for large images
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));

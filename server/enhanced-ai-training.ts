@@ -172,6 +172,7 @@ export class EnhancedAITrainer {
     dosage: string, 
     confidence: number
   ): void {
+    if (!this.isLearningEnabled) return; // CRITICAL: Stop all learning when disabled
     this.successfulRecognitions++;
     this.trainingDataCount++;
 
@@ -203,6 +204,7 @@ export class EnhancedAITrainer {
     confidence: number,
     source: string
   ): void {
+    if (!this.isLearningEnabled) return; // CRITICAL: Stop all learning when disabled
     this.trainingDataCount++;
 
     const trainingData: TrainingData = {
@@ -452,6 +454,7 @@ export class EnhancedAITrainer {
    * Update neural patterns for medication recognition
    */
   updateNeuralPatterns(medicationName?: string, confidence?: number): void {
+    if (!this.isLearningEnabled) return; // CRITICAL: Stop all pattern updates when disabled
     if (!medicationName) return;
 
     const normalizedName = medicationName.toLowerCase();

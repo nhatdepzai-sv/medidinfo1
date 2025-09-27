@@ -8,6 +8,120 @@ import { drugAliasService } from "./drug-alias-service";
 import { storage } from "./storage";
 import { AuthService, registerSchema, loginSchema, authenticateToken } from "./auth";
 
+// Shared search function to avoid recursive API calls
+async function searchMedicationsInternal(query: string) {
+  if (!query || query.trim().length < 2) {
+    return {
+      success: false,
+      message: "Search query must be at least 2 characters",
+      medications: []
+    };
+  }
+
+  const searchTerm = query.toLowerCase().trim();
+  console.log("🔍 Processing enhanced search term:", searchTerm);
+
+  // Combine all databases for comprehensive search
+  const allDatabases = [
+    ...fullComprehensiveDrugsDatabase,
+    ...globalMedicationsDatabase,
+    ...medicationsDatabase
+  ];
+
+  // Advanced scoring algorithm for medication search with error handling
+  const scoredResults = await Promise.all(allDatabases.slice(0, 1000).map(async (drug) => {
+    try {
+      let score = 0;
+      const maxScore = 100;
+
+      const drugName = drug.name?.toLowerCase() || '';
+      const drugNameVi = drug.nameVi?.toLowerCase() || '';
+      const drugGenericName = drug.genericName?.toLowerCase() || '';
+      const drugGenericNameVi = drug.genericNameVi?.toLowerCase() || '';
+      const drugCategory = drug.category?.toLowerCase() || '';
+      const drugCategoryVi = drug.categoryVi?.toLowerCase() || '';
+
+      // Exact matches (highest priority)
+      if (drugName === searchTerm) score += 100;
+      else if (drugNameVi === searchTerm) score += 95;
+      else if (drugGenericName === searchTerm) score += 90;
+      else if (drugGenericNameVi === searchTerm) score += 85;
+
+      // Word-based exact matches (very high priority)
+      const drugNameWords = drugName.split(' ');
+      const drugNameViWords = drugNameVi.split(' ');
+      const drugGenericWords = drugGenericName.split(' ');
+      const drugGenericViWords = drugGenericNameVi.split(' ');
+
+      if (drugNameWords.some(word => word === searchTerm)) score += 85;
+      if (drugNameViWords.some(word => word === searchTerm)) score += 80;
+      if (drugGenericWords.some(word => word === searchTerm)) score += 75;
+      if (drugGenericViWords.some(word => word === searchTerm)) score += 70;
+
+      // Starts with matches (high priority)
+      if (drugName.startsWith(searchTerm)) score += 80;
+      else if (drugNameVi.startsWith(searchTerm)) score += 75;
+      else if (drugGenericName.startsWith(searchTerm)) score += 70;
+      else if (drugGenericNameVi.startsWith(searchTerm)) score += 65;
+
+      // Word starts with matches
+      if (drugNameWords.some(word => word.startsWith(searchTerm))) score += 60;
+      if (drugNameViWords.some(word => word.startsWith(searchTerm))) score += 55;
+      if (drugGenericWords.some(word => word.startsWith(searchTerm))) score += 50;
+      if (drugGenericViWords.some(word => word.startsWith(searchTerm))) score += 45;
+
+      // Contains matches (medium priority)
+      if (drugName.includes(searchTerm)) score += 50;
+      else if (drugNameVi.includes(searchTerm)) score += 45;
+      else if (drugGenericName.includes(searchTerm)) score += 40;
+      else if (drugGenericNameVi.includes(searchTerm)) score += 35;
+
+      // Category matches (lower priority)
+      if (drugCategory.includes(searchTerm)) score += 20;
+      if (drugCategoryVi.includes(searchTerm)) score += 15;
+
+      // Alias matches (lower priority) with error handling
+      try {
+        const aliases = await drugAliasService.getAllAliases(drug.name || drug.genericName || '');
+        if (aliases && aliases.some(alias => alias.toLowerCase().includes(searchTerm))) {
+          score += 30;
+        }
+      } catch (aliasError) {
+        console.warn('Alias lookup failed:', aliasError);
+        // Continue without alias scoring
+      }
+
+      // Ensure score does not exceed maxScore and is non-negative
+      return {
+        ...drug,
+        score: Math.max(0, Math.min(score, maxScore))
+      };
+    } catch (drugError) {
+      console.warn('Error processing drug:', drug.name, drugError);
+      return {
+        ...drug,
+        score: 0
+      };
+    }
+  }));
+
+  // Filter results by score and limit the number of results
+  const filteredResults = scoredResults
+    .filter(drug => drug.score > 30) // Minimum score threshold
+    .sort((a, b) => b.score - a.score) // Sort by score descending
+    .slice(0, 50); // Limit to top 50 results
+
+  console.log(`✅ Found ${filteredResults.length} medications for: "${searchTerm}"`);
+
+  return {
+    success: true,
+    message: `Found ${filteredResults.length} medications`,
+    medications: filteredResults,
+    searchTerm: searchTerm,
+    totalResults: filteredResults.length
+  };
+}
+
 export function setupRoutes(app: express.Application) {
   console.log("🔧 Setting up API routes...");
 
@@ -249,120 +363,22 @@ export function setupRoutes(app: express.Application) {
         });
       }
 
-      const searchTerm = query.toLowerCase().trim();
-      console.log("🔍 Processing enhanced search term:", searchTerm);
+      // Use shared search function
+      const searchResult = await searchMedicationsInternal(query);
 
-      // Combine all databases for comprehensive search
-      const allDatabases = [
-        ...fullComprehensiveDrugsDatabase,
-        ...globalMedicationsDatabase,
-        ...medicationsDatabase
-      ];
+      // TEMPORARILY DISABLED: Auto-training to stop infinite loop
+      // if (searchResult.success && searchResult.medications.length > 0) {
+      //   try {
+      //     enhancedAITrainer.trainOnSearchPattern(searchResult.searchTerm, searchResult.medications);
+      //     searchResult.medications.forEach(med => {
+      //       enhancedAITrainer.autoTrainOnNewDrug(med);
+      //     });
+      //   } catch (trainingError) {
+      //     console.warn('Training on search pattern failed:', trainingError);
+      //   }
+      // }
 
-      // Advanced scoring algorithm for medication search with error handling
-      const scoredResults = await Promise.all(allDatabases.slice(0, 1000).map(async (drug) => {
-        try {
-          let score = 0;
-          const maxScore = 100;
-
-          const drugName = drug.name?.toLowerCase() || '';
-          const drugNameVi = drug.nameVi?.toLowerCase() || '';
-          const drugGenericName = drug.genericName?.toLowerCase() || '';
-          const drugGenericNameVi = drug.genericNameVi?.toLowerCase() || '';
-          const drugCategory = drug.category?.toLowerCase() || '';
-          const drugCategoryVi = drug.categoryVi?.toLowerCase() || '';
-
-          // Exact matches (highest priority)
-          if (drugName === searchTerm) score += 100;
-          else if (drugNameVi === searchTerm) score += 95;
-          else if (drugGenericName === searchTerm) score += 90;
-          else if (drugGenericNameVi === searchTerm) score += 85;
-
-          // Word-based exact matches (very high priority)
-          const drugNameWords = drugName.split(' ');
-          const drugNameViWords = drugNameVi.split(' ');
-          const drugGenericWords = drugGenericName.split(' ');
-          const drugGenericViWords = drugGenericNameVi.split(' ');
-
-          if (drugNameWords.some(word => word === searchTerm)) score += 85;
-          if (drugNameViWords.some(word => word === searchTerm)) score += 80;
-          if (drugGenericWords.some(word => word === searchTerm)) score += 75;
-          if (drugGenericViWords.some(word => word === searchTerm)) score += 70;
-
-          // Starts with matches (high priority)
-          if (drugName.startsWith(searchTerm)) score += 80;
-          else if (drugNameVi.startsWith(searchTerm)) score += 75;
-          else if (drugGenericName.startsWith(searchTerm)) score += 70;
-          else if (drugGenericNameVi.startsWith(searchTerm)) score += 65;
-
-          // Word starts with matches
-          if (drugNameWords.some(word => word.startsWith(searchTerm))) score += 60;
-          if (drugNameViWords.some(word => word.startsWith(searchTerm))) score += 55;
-          if (drugGenericWords.some(word => word.startsWith(searchTerm))) score += 50;
-          if (drugGenericViWords.some(word => word.startsWith(searchTerm))) score += 45;
-
-          // Contains matches (medium priority)
-          if (drugName.includes(searchTerm)) score += 50;
-          else if (drugNameVi.includes(searchTerm)) score += 45;
-          else if (drugGenericName.includes(searchTerm)) score += 40;
-          else if (drugGenericNameVi.includes(searchTerm)) score += 35;
-
-          // Category matches (lower priority)
-          if (drugCategory.includes(searchTerm)) score += 20;
-          if (drugCategoryVi.includes(searchTerm)) score += 15;
-
-          // Alias matches (lower priority) with error handling
-          try {
-            const aliases = await drugAliasService.getAllAliases(drug.name || drug.genericName || '');
-            if (aliases && aliases.some(alias => alias.toLowerCase().includes(searchTerm))) {
-              score += 30;
-            }
-          } catch (aliasError) {
-            console.warn('Alias lookup failed:', aliasError);
-            // Continue without alias scoring
-          }
-
-          // Ensure score does not exceed maxScore and is non-negative
-          return {
-            ...drug,
-            score: Math.max(0, Math.min(score, maxScore))
-          };
-        } catch (drugError) {
-          console.warn('Error processing drug:', drug.name, drugError);
-          return {
-            ...drug,
-            score: 0
-          };
-        }
-      }));
-
-      // Filter results by score and limit the number of results
-      const filteredResults = scoredResults
-        .filter(drug => drug.score > 30) // Minimum score threshold
-        .sort((a, b) => b.score - a.score) // Sort by score descending
-        .slice(0, 50); // Limit to top 50 results
-
-      console.log(`✅ Found ${filteredResults.length} medications for: "${searchTerm}"`);
-
-      // Auto-train on search patterns for future improvement
-      try {
-        enhancedAITrainer.trainOnSearchPattern(searchTerm, filteredResults);
-
-        // Auto-train on new drugs found in the search
-        filteredResults.forEach(med => {
-          enhancedAITrainer.autoTrainOnNewDrug(med);
-        });
-      } catch (trainingError) {
-        console.warn('Training on search pattern failed:', trainingError);
-      }
-
-      res.json({
-        success: true,
-        message: `Found ${filteredResults.length} medications`,
-        medications: filteredResults,
-        searchTerm: searchTerm,
-        totalResults: filteredResults.length
-      });
+      res.json(searchResult);
 
     } catch (error: any) {
       console.error("❌ Search medications failed:", error);
@@ -392,17 +408,9 @@ export function setupRoutes(app: express.Application) {
       const ocrResult = await enhancedAITrainer.performEnhancedOCR(imageData);
 
       if (ocrResult.medicationName) {
-        // Search for the detected medication in database
-        const searchResults = await fetch(
-          `/api/search-medications?query=${encodeURIComponent(ocrResult.medicationName)}`,
-          { method: 'GET' }
-        );
-
-        let medications = [];
-        if (searchResults.ok) {
-          const searchData = await searchResults.json();
-          medications = searchData.medications || [];
-        }
+        // Search for the detected medication using internal function (no HTTP call)
+        const searchResult = await searchMedicationsInternal(ocrResult.medicationName);
+        const medications = searchResult.medications || [];
 
         // Add successful recognition for AI learning
         enhancedAITrainer.addSuccessfulRecognition(
@@ -419,10 +427,10 @@ export function setupRoutes(app: express.Application) {
           false // Auto-detected, not user-confirmed
         );
 
-        // Auto-train on the found medications
-        medications.forEach(med => {
-          enhancedAITrainer.autoTrainOnNewDrug(med);
-        });
+        // TEMPORARILY DISABLED: Auto-training to stop infinite loop
+        // medications.forEach(med => {
+        //   enhancedAITrainer.autoTrainOnNewDrug(med);
+        // });
 
         res.json({
           success: true,
@@ -519,18 +527,9 @@ export function setupRoutes(app: express.Application) {
         });
       }
 
-      // Redirect to the new search endpoint
-      const searchResults = await fetch(
-        `/api/search-medications?query=${encodeURIComponent(query)}`,
-        { method: 'GET' }
-      );
-
-      if (searchResults.ok) {
-        const data = await searchResults.json();
-        res.json(data);
-      } else {
-        throw new Error('Search request failed');
-      }
+      // Use internal search function instead of HTTP call
+      const searchResult = await searchMedicationsInternal(query);
+      res.json(searchResult);
 
     } catch (error) {
       console.error("❌ Legacy search failed:", error);

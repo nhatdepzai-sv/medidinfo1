@@ -18,7 +18,7 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null); // Added state for error message
 
-  const { login, register } = useAuth();
+  const { login, register, loginAsGuest } = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,6 +54,41 @@ export default function Auth() {
       console.error("Authentication error:", error); // Log the actual error for debugging
       const errorMessage = "An unexpected error occurred. Please try again later.";
       setError(errorMessage); // Set the error message state
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGuestLogin = async () => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const success = await loginAsGuest();
+      
+      if (success) {
+        toast({
+          title: "Success",
+          description: "Logged in as guest!"
+        });
+      } else {
+        const errorMessage = "Guest login failed. Please try again.";
+        setError(errorMessage);
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Guest login error:", error);
+      const errorMessage = "An unexpected error occurred. Please try again later.";
+      setError(errorMessage);
       toast({
         title: "Error",
         description: errorMessage,
@@ -142,27 +177,39 @@ export default function Auth() {
             </div>
           )}
 
-          <div className="mt-4 text-center">
-            <p className="text-center text-sm text-gray-600 mt-4">
-            Don't have an account?{' '}
-            <button
-              type="button"
-              onClick={() => setIsLogin(false)}
-              className="text-blue-600 hover:text-blue-800 font-medium"
+          <div className="mt-4 space-y-3">
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full" 
+              onClick={handleGuestLogin}
+              disabled={isLoading}
             >
-              Sign up
-            </button>
-            {' '} | {' '}
-            <button
-              type="button"
-              onClick={() => {
-                setFormData({ username: 'admin', password: 'ILA1234567' });
-              }}
-              className="text-blue-600 hover:text-blue-800 font-medium"
-            >
-              Admin
-            </button>
-          </p>
+              Continue as Guest
+            </Button>
+            
+            <div className="text-center">
+              <p className="text-center text-sm text-gray-600">
+              Don't have an account?{' '}
+              <button
+                type="button"
+                onClick={() => setIsLogin(false)}
+                className="text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Sign up
+              </button>
+              {' '} | {' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData({ username: 'admin', password: 'ILA1234567' });
+                }}
+                className="text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Admin
+              </button>
+            </p>
+            </div>
           </div>
         </CardContent>
       </Card>

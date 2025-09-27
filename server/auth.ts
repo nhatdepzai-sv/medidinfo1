@@ -123,9 +123,43 @@ export class AuthService {
     };
   }
 
+  static async loginAsGuest(): Promise<{ user: AuthUser; token: string }> {
+    // Generate a unique guest ID
+    const guestId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create a guest user object (not stored in database)
+    const guestUser: AuthUser = {
+      id: guestId,
+      username: 'Guest User',
+      email: 'guest@drugscanner.app'
+    };
+
+    // Generate JWT token for guest
+    const token = jwt.sign(
+      { userId: guestId, username: 'Guest User', isGuest: true },
+      JWT_SECRET,
+      { expiresIn: "24h" } // Shorter expiry for guest sessions
+    );
+
+    return {
+      user: guestUser,
+      token
+    };
+  }
+
   static async verifyToken(token: string): Promise<AuthUser | null> {
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as any;
+      
+      // Handle guest users
+      if (decoded.isGuest) {
+        return {
+          id: decoded.userId,
+          username: decoded.username,
+          email: 'guest@drugscanner.app'
+        };
+      }
+      
       const user = await storage.getUser(decoded.userId);
       
       if (!user) {

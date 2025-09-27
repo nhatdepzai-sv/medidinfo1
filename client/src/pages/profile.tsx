@@ -77,8 +77,10 @@ export default function Profile() {
             <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
               <User className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-xl font-semibold mb-1">Anonymous User</h2>
-            <p className="text-gray-500 text-sm">DrugScan User</p>
+            <h2 className="text-xl font-semibold mb-1">{user?.username || 'Anonymous User'}</h2>
+            <p className="text-gray-500 text-sm">
+              {user?.username === 'Guest User' ? 'Guest User' : 'DrugScan User'}
+            </p>
           </CardContent>
         </Card>
 

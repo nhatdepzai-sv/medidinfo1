@@ -20,7 +20,7 @@ export function setupRoutes(app: express.Application) {
     });
   });
 
-  // Authentication endpoints
+  // Authentication routes
   app.post("/api/auth/register", async (req, res) => {
     try {
       const userData = registerSchema.parse(req.body);
@@ -59,6 +59,24 @@ export function setupRoutes(app: express.Application) {
     }
   });
 
+  app.post("/api/auth/guest", async (req, res) => {
+    try {
+      const result = await AuthService.loginAsGuest();
+
+      res.json({
+        success: true,
+        user: result.user,
+        token: result.token
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || "Guest login failed"
+      });
+    }
+  });
+
+
   app.get("/api/auth/verify", authenticateToken, (req: any, res) => {
     res.json({
       success: true,
@@ -78,7 +96,7 @@ export function setupRoutes(app: express.Application) {
   app.post("/api/auth/create-admin", async (req: Request, res: Response) => {
     try {
       const { username, email, password, adminKey } = req.body;
-      
+
       // Simple admin key check (you can change this)
       if (adminKey !== "admin-setup-key-2024") {
         return res.status(403).json({
@@ -108,7 +126,7 @@ export function setupRoutes(app: express.Application) {
 
       // Create admin user with role
       const result = await AuthService.registerAdmin({ username, email, password });
-      
+
       res.json({
         success: true,
         user: {
@@ -205,7 +223,7 @@ export function setupRoutes(app: express.Application) {
         serverUptime: process.uptime(),
         lastRestart: new Date(Date.now() - process.uptime() * 1000).toISOString()
       };
-      
+
       res.json({
         success: true,
         stats

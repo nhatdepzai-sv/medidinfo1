@@ -232,12 +232,12 @@ export default function Home() {
         });
       }
     } catch (err) {
-      console.error('Search error:', err);
-
+      // Silently handle abort errors - they're expected when cancelling searches
       if (err instanceof Error && err.name === 'AbortError') {
-        // Ignore abort errors - they're expected when cancelling searches
         return;
       }
+
+      console.error('Search error:', err);
 
       // Fallback to offline search if online search fails
       const offlineSearchResults = await performOfflineSearch(trimmedQuery);

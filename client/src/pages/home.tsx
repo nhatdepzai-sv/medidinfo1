@@ -60,10 +60,10 @@ const RecentSearches = React.memo(() => {
         <h3 className="font-semibold mb-4 text-blue-600 text-base">{t('recentSearches') || 'Recent Searches'}</h3>
         <div className="flex flex-wrap gap-2">
           {recentItems.map((item, index) => (
-            <Button 
-              key={index} 
-              variant="outline" 
-              size="sm" 
+            <Button
+              key={index}
+              variant="outline"
+              size="sm"
               className="text-xs border-blue-500 text-blue-600 hover:bg-blue-50 tap-highlight-transparent min-h-8 px-3"
             >
               {item}
@@ -153,7 +153,7 @@ export default function Home() {
       ];
 
       const queryLower = query.toLowerCase();
-      return commonMeds.filter(med => 
+      return commonMeds.filter(med =>
         med.aliases.some(alias => alias.includes(queryLower)) ||
         med.name.toLowerCase().includes(queryLower) ||
         med.nameVi.toLowerCase().includes(queryLower)
@@ -193,7 +193,7 @@ export default function Home() {
       setSearchResults({
         success: offlineSearchResults.length > 0,
         medications: offlineSearchResults,
-        message: offlineSearchResults.length > 0 
+        message: offlineSearchResults.length > 0
           ? `Found ${offlineSearchResults.length} medication(s) (Offline Mode)`
           : 'No medications found in offline database'
       });
@@ -205,6 +205,8 @@ export default function Home() {
     // Online search with timeout for faster response
     let timeoutId: NodeJS.Timeout | null = null;
     try {
+      console.log(`Searching for: "${trimmedQuery}"`);
+
       // Set up timeout that safely aborts the controller
       timeoutId = setTimeout(() => {
         if (!controller.signal.aborted) {
@@ -214,7 +216,7 @@ export default function Home() {
             // Ignore abort errors
           }
         }
-      }, 5000); // 5 second timeout for better UX
+      }, 10000); // 10 second timeout for better reliability
 
       const response = await fetch(`/api/search-medications?query=${encodeURIComponent(trimmedQuery)}`, {
         signal: controller.signal
@@ -227,11 +229,14 @@ export default function Home() {
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred.' }));
-        throw new Error(`Search failed with status ${response.status}: ${errorData.message}`);
+        console.error(`Search failed with status ${response.status}`);
+        const errorData = await response.json().catch(() => ({ message: 'Network error occurred.' }));
+        throw new Error(`Search failed: ${errorData.message || 'Server error'}`);
       }
 
       const result = await response.json();
+      console.log(`Search result for "${trimmedQuery}":`, result);
+
 
       if (result.success && result.medications && result.medications.length > 0) {
         // Cache successful results for offline use
@@ -259,6 +264,7 @@ export default function Home() {
       // Silently handle abort errors - they're expected when cancelling searches
       if (err instanceof Error && err.name === 'AbortError') {
         // Just return without setting error state for aborted requests
+        console.log(`Search aborted for: "${trimmedQuery}"`);
         setIsSearching(false);
         setSearchController(null);
         return;
@@ -366,6 +372,21 @@ export default function Home() {
         warnings: ['Take before meals', 'Long-term use may affect absorption'],
         warningsVi: ['Dùng trước bữa ăn', 'Dùng lâu dài có thể ảnh hưởng hấp thu'],
         aliases: ['omep', 'prilosec']
+      },
+      {
+        id: 'offline-6',
+        name: 'Ginkgo Biloba',
+        nameVi: 'Bạch Quả',
+        genericName: 'Ginkgo Biloba Extract',
+        category: 'Herbal Supplement',
+        categoryVi: 'Thực phẩm chức năng thảo dược',
+        primaryUse: 'Memory enhancement, circulation improvement',
+        primaryUseVi: 'Cải thiện trí nhớ, tuần hoàn máu',
+        adultDosage: '40-80mg two to three times daily',
+        adultDosageVi: '40-80mg hai đến ba lần mỗi ngày',
+        warnings: ['May interact with blood thinners', 'Consult doctor if pregnant'],
+        warningsVi: ['Có thể tương tác với thuốc chống đông máu', 'Tham khảo ý kiến bác sĩ nếu mang thai'],
+        aliases: ['ginkgo', 'biloba', 'memory herb']
       }
     ];
 
@@ -380,7 +401,7 @@ export default function Home() {
         score = 100;
       }
       // Exact matches
-      else if (med.name.toLowerCase() === searchTerm || 
+      else if (med.name.toLowerCase() === searchTerm ||
                med.nameVi.toLowerCase() === searchTerm ||
                med.genericName?.toLowerCase() === searchTerm) {
         score = 95;
@@ -543,8 +564,8 @@ export default function Home() {
               autoCorrect="off"
               spellCheck="false"
               inputMode="search"
-              placeholder={networkStatus.isOfflineMode 
-                ? (t('searchMedicationsOffline') || 'Search medications (Offline)...') 
+              placeholder={networkStatus.isOfflineMode
+                ? (t('searchMedicationsOffline') || 'Search medications (Offline)...')
                 : (t('searchMedications') || 'Search medications...')
               }
               value={searchQuery}

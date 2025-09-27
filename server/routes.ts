@@ -134,7 +134,7 @@ export function setupRoutes(app: express.Application) {
           role: "admin",
           permissions: [
             "view_all_users",
-            "manage_medications", 
+            "manage_medications",
             "view_analytics",
             "manage_system",
             "delete_users",
@@ -265,7 +265,6 @@ export function setupRoutes(app: express.Application) {
           let score = 0;
           const maxScore = 100;
 
-          // Safe string operations with null checks
           const drugName = drug.name?.toLowerCase() || '';
           const drugNameVi = drug.nameVi?.toLowerCase() || '';
           const drugGenericName = drug.genericName?.toLowerCase() || '';
@@ -279,11 +278,28 @@ export function setupRoutes(app: express.Application) {
           else if (drugGenericName === searchTerm) score += 90;
           else if (drugGenericNameVi === searchTerm) score += 85;
 
+          // Word-based exact matches (very high priority)
+          const drugNameWords = drugName.split(' ');
+          const drugNameViWords = drugNameVi.split(' ');
+          const drugGenericWords = drugGenericName.split(' ');
+          const drugGenericViWords = drugGenericNameVi.split(' ');
+
+          if (drugNameWords.some(word => word === searchTerm)) score += 85;
+          if (drugNameViWords.some(word => word === searchTerm)) score += 80;
+          if (drugGenericWords.some(word => word === searchTerm)) score += 75;
+          if (drugGenericViWords.some(word => word === searchTerm)) score += 70;
+
           // Starts with matches (high priority)
           if (drugName.startsWith(searchTerm)) score += 80;
           else if (drugNameVi.startsWith(searchTerm)) score += 75;
           else if (drugGenericName.startsWith(searchTerm)) score += 70;
           else if (drugGenericNameVi.startsWith(searchTerm)) score += 65;
+
+          // Word starts with matches
+          if (drugNameWords.some(word => word.startsWith(searchTerm))) score += 60;
+          if (drugNameViWords.some(word => word.startsWith(searchTerm))) score += 55;
+          if (drugGenericWords.some(word => word.startsWith(searchTerm))) score += 50;
+          if (drugGenericViWords.some(word => word.startsWith(searchTerm))) score += 45;
 
           // Contains matches (medium priority)
           if (drugName.includes(searchTerm)) score += 50;
@@ -331,7 +347,7 @@ export function setupRoutes(app: express.Application) {
       // Auto-train on search patterns for future improvement
       try {
         enhancedAITrainer.trainOnSearchPattern(searchTerm, filteredResults);
-        
+
         // Auto-train on new drugs found in the search
         filteredResults.forEach(med => {
           enhancedAITrainer.autoTrainOnNewDrug(med);

@@ -109,16 +109,17 @@ export default function Home() {
 
     const trimmedQuery = queryToSearch.trim();
 
-    // Cancel previous search if still running
+    // Cancel previous search if still running (less aggressive)
     if (currentControllerRef.current) {
       try {
         if (!currentControllerRef.current.signal.aborted) {
           currentControllerRef.current.abort();
         }
       } catch (err) {
-        // Silently ignore abort errors - they're expected when cancelling
-        console.log(`Previous search cancelled:`, err);
+        // Silently ignore abort errors
       }
+      // Add small delay before starting new search
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
 
     const controller = new AbortController();
@@ -500,16 +501,16 @@ export default function Home() {
     };
   }, []);
 
-  // Debounced search for real-time results
+  // Debounced search for real-time results with less aggressive triggering
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
-      if (searchQuery.trim().length >= 2) {
+      if (searchQuery.trim().length >= 3) { // Require at least 3 characters
         handleSearch(searchQuery);
       } else if (searchQuery.trim().length === 0) {
         setSearchResults({});
         setError('');
       }
-    }, 300); // 300ms delay for smooth typing experience
+    }, 800); // Increased to 800ms delay for less aggressive searching
 
     return () => clearTimeout(debounceTimer);
   }, [searchQuery, handleSearch]);
@@ -603,7 +604,7 @@ export default function Home() {
               onChange={handleSearchChange}
               className="form-input-mobile bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/40 h-12"
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && searchQuery.trim().length >= 1) {
+                if (e.key === 'Enter' && searchQuery.trim().length >= 3) {
                   e.preventDefault();
                   e.currentTarget.blur(); // Hide mobile keyboard after search
                   handleSearch(searchQuery);
@@ -621,7 +622,7 @@ export default function Home() {
           </div>
           <Button
             onClick={() => handleSearch(searchQuery)}
-            disabled={isSearching || isLoading || searchQuery.trim().length < 1}
+            disabled={isSearching || isLoading || searchQuery.trim().length < 3}
             className="btn-mobile bg-white hover:bg-gray-100 text-blue-600 w-12 h-12 p-0"
           >
             {isSearching ? (

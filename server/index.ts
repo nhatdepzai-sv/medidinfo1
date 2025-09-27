@@ -3,6 +3,10 @@ import { setupRoutes } from "./routes";
 import { addExtractMedicationRoute } from "./routes-minimal";
 import { setupVite, serveStatic, log } from "./vite";
 import { automatedTrainingSystem } from "./mass-training-system";
+import { enhancedAITrainer } from "./enhanced-ai-training";
+import { fullComprehensiveDrugsDatabase } from "./comprehensive-drugs-database";
+import { globalMedicationsDatabase } from "./global-medications-database";
+import { medicationsDatabase } from "./medications-database";
 
 const app = express();
 app.use(express.json({ limit: '50mb' })); // Increase limit for large images
@@ -79,13 +83,30 @@ app.use((req, res, next) => {
   });
 
   const server = app.listen(port, "0.0.0.0", () => {
-    log(`serving on port ${port}`);
-    
-    // Start automated AI training system for continuous learning
-    setTimeout(() => {
-      console.log('🚀 Starting 10-day automated AI training...');
-      automatedTrainingSystem.startTraining();
-    }, 5000); // Start after 5 seconds to let server fully initialize
+    log(`✅ Server running at http://0.0.0.0:${port}`);
+    log(`📊 Database contains ${fullComprehensiveDrugsDatabase.length + globalMedicationsDatabase.length + medicationsDatabase.length} medications`);
+    log(`🔍 Search and OCR ready`);
+    log(`🧠 Enhanced AI trainer active`);
+
+    // Start background training on the medication database
+    console.log(`🚀 Starting background AI training on medication database...`);
+
+    // Combine all medication databases for training
+    const allMedications = [
+      ...fullComprehensiveDrugsDatabase,
+      ...globalMedicationsDatabase,
+      ...medicationsDatabase
+    ];
+
+    // Start background training (non-blocking)
+    enhancedAITrainer.trainOnMedicationDatabase(allMedications, 100)
+      .then(() => {
+        console.log(`🎉 Background AI training completed!`);
+        console.log(`📈 Training stats:`, enhancedAITrainer.getTrainingStats());
+      })
+      .catch(error => {
+        console.error(`❌ Background training failed:`, error);
+      });
   });
 
   server.on('error', (err: any) => {

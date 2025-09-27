@@ -328,6 +328,18 @@ export function setupRoutes(app: express.Application) {
 
       console.log(`✅ Found ${filteredResults.length} medications for: "${searchTerm}"`);
 
+      // Auto-train on search patterns for future improvement
+      try {
+        enhancedAITrainer.trainOnSearchPattern(searchTerm, filteredResults);
+        
+        // Auto-train on new drugs found in the search
+        filteredResults.forEach(med => {
+          enhancedAITrainer.autoTrainOnNewDrug(med);
+        });
+      } catch (trainingError) {
+        console.warn('Training on search pattern failed:', trainingError);
+      }
+
       res.json({
         success: true,
         message: `Found ${filteredResults.length} medications`,
@@ -383,6 +395,18 @@ export function setupRoutes(app: express.Application) {
           ocrResult.dosage || '',
           ocrResult.confidence / 100
         );
+
+        // Train on OCR-to-medication mapping
+        enhancedAITrainer.trainOnOCRCorrection(
+          ocrResult.detectedText || '',
+          ocrResult.medicationName,
+          false // Auto-detected, not user-confirmed
+        );
+
+        // Auto-train on the found medications
+        medications.forEach(med => {
+          enhancedAITrainer.autoTrainOnNewDrug(med);
+        });
 
         res.json({
           success: true,
@@ -497,6 +521,63 @@ export function setupRoutes(app: express.Application) {
       res.status(500).json({
         success: false,
         message: "Search failed"
+      });
+    }
+  });
+
+  // User feedback endpoint for AI training improvement
+  app.post("/api/training/feedback", authenticateToken, async (req: any, res: Response) => {
+    try {
+      const { ocrText, correctMedication, wasCorrect, confidence } = req.body;
+
+      if (!ocrText || !correctMedication) {
+        return res.status(400).json({
+          success: false,
+          message: "OCR text and correct medication name are required"
+        });
+      }
+
+      // Train based on user feedback
+      enhancedAITrainer.trainOnOCRCorrection(ocrText, correctMedication, true);
+
+      // If user provided the correct medication, add it to successful recognitions
+      if (wasCorrect) {
+        enhancedAITrainer.addSuccessfulRecognition(
+          ocrText,
+          correctMedication,
+          '',
+          confidence || 100
+        );
+      }
+
+      res.json({
+        success: true,
+        message: "Training feedback received and processed",
+        trainingStats: enhancedAITrainer.getTrainingStats()
+      });
+
+    } catch (error) {
+      console.error("❌ Training feedback failed:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to process training feedback"
+      });
+    }
+  });
+
+  // Background training status endpoint
+  app.get("/api/training/status", (req, res) => {
+    try {
+      const stats = enhancedAITrainer.getTrainingStats();
+      res.json({
+        success: true,
+        stats
+      });
+    } catch (error) {
+      console.error("❌ Get training status failed:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get training status"
       });
     }
   });

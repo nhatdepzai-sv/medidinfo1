@@ -160,18 +160,32 @@ export class AuthService {
         };
       }
       
-      const user = await storage.getUser(decoded.userId);
-      
-      if (!user) {
+      try {
+        const user = await storage.getUser(decoded.userId);
+        
+        if (!user) {
+          return null;
+        }
+
+        return {
+          id: user.id,
+          username: user.username,
+          email: user.email
+        };
+      } catch (dbError) {
+        console.warn('Database error during token verification:', dbError);
+        // For guest users or when database is down, allow continued access
+        if (decoded.userId && decoded.username) {
+          return {
+            id: decoded.userId,
+            username: decoded.username,
+            email: 'fallback@drugscanner.app'
+          };
+        }
         return null;
       }
-
-      return {
-        id: user.id,
-        username: user.username,
-        email: user.email
-      };
     } catch (error) {
+      console.warn('Token verification failed:', error);
       return null;
     }
   }
@@ -190,16 +204,40 @@ export function authenticateToken(req: any, res: any, next: any) {
       return res.status(403).json({ success: false, message: 'Invalid token' });
     }
 
-    const user = await storage.getUser(decoded.userId);
-    if (!user) {
-      return res.status(403).json({ success: false, message: 'User not found' });
-    }
+    try {
+      // Handle guest users
+      if (decoded.isGuest) {
+        req.user = {
+          id: decoded.userId,
+          username: decoded.username,
+          email: 'guest@drugscanner.app'
+        };
+        return next();
+      }
 
-    req.user = {
-      id: user.id,
-      username: user.username,
-      email: user.email
-    };
-    next();
+      const user = await storage.getUser(decoded.userId);
+      if (!user) {
+        return res.status(403).json({ success: false, message: 'User not found' });
+      }
+
+      req.user = {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      };
+      next();
+    } catch (dbError) {
+      console.warn('Database error during authentication:', dbError);
+      // Fallback for when database is unavailable
+      if (decoded.userId && decoded.username) {
+        req.user = {
+          id: decoded.userId,
+          username: decoded.username,
+          email: 'fallback@drugscanner.app'
+        };
+        return next();
+      }
+      return res.status(500).json({ success: false, message: 'Authentication service temporarily unavailable' });
+    }
   });
 }

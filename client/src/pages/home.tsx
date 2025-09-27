@@ -94,6 +94,10 @@ export default function Home() {
   const [error, setError] = useState('');
   const [offlineResults, setOfflineResults] = useState<any[]>([]);
 
+  // State for managing search AbortController
+  const [searchController, setSearchController] = useState<AbortController | null>(null);
+
+
   // Enhanced search with offline mode support and faster performance
   const handleSearch = useCallback(async (queryToSearch: string) => {
     if (!queryToSearch.trim()) return;
@@ -103,7 +107,15 @@ export default function Home() {
 
     const trimmedQuery = queryToSearch.trim();
 
-    // Quick local search for common terms first
+    // Cancel previous search if still running
+    if (searchController) {
+      searchController.abort();
+    }
+
+    const controller = new AbortController();
+    setSearchController(controller);
+
+    // Try quick local search for common terms first
     const quickLocalSearch = (query: string) => {
       const commonMeds = [
         {
@@ -153,6 +165,7 @@ export default function Home() {
         message: `Found ${quickResults.length} medication(s) (Instant Search)`
       });
       setIsSearching(false);
+      setSearchController(null);
       return;
     }
 
@@ -166,6 +179,7 @@ export default function Home() {
         message: `Found ${cachedResults.length} cached medication(s) (Offline Mode)`
       });
       setIsSearching(false);
+      setSearchController(null);
       return;
     }
 
@@ -180,12 +194,12 @@ export default function Home() {
           : 'No medications found in offline database'
       });
       setIsSearching(false);
+      setSearchController(null);
       return;
     }
 
     // Online search with timeout for faster response
     try {
-      const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
 
       const response = await fetch(`/api/search-medications?query=${encodeURIComponent(trimmedQuery)}`, {
@@ -220,6 +234,11 @@ export default function Home() {
     } catch (err) {
       console.error('Search error:', err);
 
+      if (err instanceof Error && err.name === 'AbortError') {
+        // Ignore abort errors - they're expected when cancelling searches
+        return;
+      }
+
       // Fallback to offline search if online search fails
       const offlineSearchResults = await performOfflineSearch(trimmedQuery);
       if (offlineSearchResults.length > 0) {
@@ -239,8 +258,9 @@ export default function Home() {
       }
     } finally {
       setIsSearching(false);
+      setSearchController(null);
     }
-  }, [t, networkStatus.isOfflineMode, getOfflineData, saveOfflineData]);
+  }, [t, networkStatus.isOfflineMode, getOfflineData, saveOfflineData, searchController]);
 
   // Offline search function using built-in medication database with enhanced partial matching
   const performOfflineSearch = useCallback(async (query: string): Promise<any[]> => {

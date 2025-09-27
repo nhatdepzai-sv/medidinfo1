@@ -259,42 +259,65 @@ export function setupRoutes(app: express.Application) {
         ...medicationsDatabase
       ];
 
-      // Advanced scoring algorithm for medication search
-      const scoredResults = await Promise.all(allDatabases.map(async (drug) => {
-        let score = 0;
-        const maxScore = 100;
+      // Advanced scoring algorithm for medication search with error handling
+      const scoredResults = await Promise.all(allDatabases.slice(0, 1000).map(async (drug) => {
+        try {
+          let score = 0;
+          const maxScore = 100;
 
-        // Exact matches (highest priority)
-        if (drug.name.toLowerCase() === searchTerm) score += 100;
-        else if (drug.nameVi?.toLowerCase() === searchTerm) score += 95;
-        else if (drug.genericName?.toLowerCase() === searchTerm) score += 90;
-        else if (drug.genericNameVi?.toLowerCase() === searchTerm) score += 85;
+          // Safe string operations with null checks
+          const drugName = drug.name?.toLowerCase() || '';
+          const drugNameVi = drug.nameVi?.toLowerCase() || '';
+          const drugGenericName = drug.genericName?.toLowerCase() || '';
+          const drugGenericNameVi = drug.genericNameVi?.toLowerCase() || '';
+          const drugCategory = drug.category?.toLowerCase() || '';
+          const drugCategoryVi = drug.categoryVi?.toLowerCase() || '';
 
-        // Starts with matches (high priority)
-        if (drug.name.toLowerCase().startsWith(searchTerm)) score += 80;
-        else if (drug.nameVi?.toLowerCase().startsWith(searchTerm)) score += 75;
-        else if (drug.genericName?.toLowerCase().startsWith(searchTerm)) score += 70;
-        else if (drug.genericNameVi?.toLowerCase().startsWith(searchTerm)) score += 65;
+          // Exact matches (highest priority)
+          if (drugName === searchTerm) score += 100;
+          else if (drugNameVi === searchTerm) score += 95;
+          else if (drugGenericName === searchTerm) score += 90;
+          else if (drugGenericNameVi === searchTerm) score += 85;
 
-        // Contains matches (medium priority)
-        if (drug.name.toLowerCase().includes(searchTerm)) score += 50;
-        else if (drug.nameVi?.toLowerCase().includes(searchTerm)) score += 45;
-        else if (drug.genericName?.toLowerCase().includes(searchTerm)) score += 40;
-        else if (drug.genericNameVi?.toLowerCase().includes(searchTerm)) score += 35;
+          // Starts with matches (high priority)
+          if (drugName.startsWith(searchTerm)) score += 80;
+          else if (drugNameVi.startsWith(searchTerm)) score += 75;
+          else if (drugGenericName.startsWith(searchTerm)) score += 70;
+          else if (drugGenericNameVi.startsWith(searchTerm)) score += 65;
 
-        // Category matches (lower priority)
-        if (drug.category?.toLowerCase().includes(searchTerm)) score += 20;
-        if (drug.categoryVi?.toLowerCase().includes(searchTerm)) score += 15;
+          // Contains matches (medium priority)
+          if (drugName.includes(searchTerm)) score += 50;
+          else if (drugNameVi.includes(searchTerm)) score += 45;
+          else if (drugGenericName.includes(searchTerm)) score += 40;
+          else if (drugGenericNameVi.includes(searchTerm)) score += 35;
 
-        // Alias matches (lower priority)
-        const aliases = await drugAliasService.getAllAliases(drug.name || drug.genericName || '');
-        if (aliases.some(alias => alias.toLowerCase().includes(searchTerm))) score += 30;
+          // Category matches (lower priority)
+          if (drugCategory.includes(searchTerm)) score += 20;
+          if (drugCategoryVi.includes(searchTerm)) score += 15;
 
-        // Ensure score does not exceed maxScore and is non-negative
-        return {
-          ...drug,
-          score: Math.max(0, Math.min(score, maxScore))
-        };
+          // Alias matches (lower priority) with error handling
+          try {
+            const aliases = await drugAliasService.getAllAliases(drug.name || drug.genericName || '');
+            if (aliases && aliases.some(alias => alias.toLowerCase().includes(searchTerm))) {
+              score += 30;
+            }
+          } catch (aliasError) {
+            console.warn('Alias lookup failed:', aliasError);
+            // Continue without alias scoring
+          }
+
+          // Ensure score does not exceed maxScore and is non-negative
+          return {
+            ...drug,
+            score: Math.max(0, Math.min(score, maxScore))
+          };
+        } catch (drugError) {
+          console.warn('Error processing drug:', drug.name, drugError);
+          return {
+            ...drug,
+            score: 0
+          };
+        }
       }));
 
       // Filter results by score and limit the number of results
@@ -317,7 +340,7 @@ export function setupRoutes(app: express.Application) {
       console.error("❌ Search medications failed:", error);
       res.status(500).json({
         success: false,
-        message: error?.message || "Search failed. Please try again.",
+        message: "Search temporarily unavailable. Please try again.",
         medications: []
       });
     }

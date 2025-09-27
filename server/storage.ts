@@ -25,6 +25,21 @@ if (process.env.DATABASE_URL) {
   useDatabase = false;
 }
 
+// Helper function to safely execute database operations
+async function safeDbOperation<T>(operation: () => Promise<T>, fallback: () => T): Promise<T> {
+  if (!useDatabase || !db) {
+    return fallback();
+  }
+  
+  try {
+    return await operation();
+  } catch (error) {
+    console.error("Database operation failed, falling back to memory:", error);
+    useDatabase = false; // Temporarily disable database
+    return fallback();
+  }
+}
+
 // Helper function to generate a UUID (can be replaced with a more robust solution if needed)
 function generateId(): string {
   return randomUUID();
@@ -123,25 +138,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUser(id: string): Promise<(User & { role?: string }) | undefined> {
-    if (useDatabase && db) {
-      const users = await db.select().from(schema.users).where(eq(schema.users.id, id));
-      return users[0] as (User & { role?: string });
-    }
-    return this.memoryUsers.get(id) as (User & { role?: string });
+    return await safeDbOperation(
+      async () => {
+        const users = await db.select().from(schema.users).where(eq(schema.users.id, id));
+        return users[0] as (User & { role?: string });
+      },
+      () => this.memoryUsers.get(id) as (User & { role?: string })
+    );
   }
 
   async getUserByUsername(username: string): Promise<(User & { role?: string }) | undefined> {
-    if (useDatabase && db) {
-      const users = await db.select().from(schema.users).where(eq(schema.users.username, username));
-      return users[0] as (User & { role?: string });
-    }
-
-    for (const user of Array.from(this.memoryUsers.values())) {
-      if (user.username === username) {
-        return user as (User & { role?: string });
+    return await safeDbOperation(
+      async () => {
+        const users = await db.select().from(schema.users).where(eq(schema.users.username, username));
+        return users[0] as (User & { role?: string });
+      },
+      () => {
+        for (const user of Array.from(this.memoryUsers.values())) {
+          if (user.username === username) {
+            return user as (User & { role?: string });
+          }
+        }
+        return undefined;
       }
-    }
-    return undefined;
+    );
   }
 
   async createUser(userData: InsertUser & { role?: string }): Promise<User & { role?: string }> {
@@ -154,11 +174,17 @@ export class DatabaseStorage implements IStorage {
       createdAt: new Date(),
     };
 
-    if (useDatabase && db) {
-      await db.insert(schema.users).values(newUser);
-    } else {
-      this.memoryUsers.set(newUser.id, newUser);
-    }
+    await safeDbOperation(
+      async () => {
+        await db.insert(schema.users).values(newUser);
+        return newUser;
+      },
+      () => {
+        this.memoryUsers.set(newUser.id, newUser);
+        return newUser;
+      }
+    );
+    
     return newUser;
   }
 

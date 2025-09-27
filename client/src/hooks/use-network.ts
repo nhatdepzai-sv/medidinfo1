@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 
 export interface NetworkStatus {
@@ -19,18 +18,18 @@ export function useNetwork(): NetworkStatus {
   useEffect(() => {
     const updateNetworkStatus = () => {
       const isOnline = navigator.onLine;
-      
+
       // Get connection info if available
-      const connection = (navigator as any).connection || 
-                        (navigator as any).mozConnection || 
+      const connection = (navigator as any).connection ||
+                        (navigator as any).mozConnection ||
                         (navigator as any).webkitConnection;
-      
+
       let isSlowConnection = false;
       let connectionType = 'unknown';
-      
+
       if (connection) {
         connectionType = connection.effectiveType || connection.type || 'unknown';
-        isSlowConnection = connection.effectiveType === 'slow-2g' || 
+        isSlowConnection = connection.effectiveType === 'slow-2g' ||
                           connection.effectiveType === '2g' ||
                           connection.downlink < 1;
       }
@@ -53,10 +52,10 @@ export function useNetwork(): NetworkStatus {
     window.addEventListener('offline', updateNetworkStatus);
 
     // Listen for connection changes if available
-    const connection = (navigator as any).connection || 
-                      (navigator as any).mozConnection || 
+    const connection = (navigator as any).connection ||
+                      (navigator as any).mozConnection ||
                       (navigator as any).webkitConnection;
-    
+
     if (connection) {
       connection.addEventListener('change', updateNetworkStatus);
     }
@@ -67,14 +66,14 @@ export function useNetwork(): NetworkStatus {
         // Test actual connectivity with a lightweight request
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000);
-        
-        await fetch('/api/health', { 
+
+        await fetch('/api/health', {
           method: 'GET',
-          signal: controller.signal 
+          signal: controller.signal
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!networkStatus.isOnline) {
           updateNetworkStatus();
         }
@@ -92,11 +91,11 @@ export function useNetwork(): NetworkStatus {
     return () => {
       window.removeEventListener('online', updateNetworkStatus);
       window.removeEventListener('offline', updateNetworkStatus);
-      
+
       if (connection) {
         connection.removeEventListener('change', updateNetworkStatus);
       }
-      
+
       clearInterval(interval);
     };
   }, [networkStatus.isOnline]);

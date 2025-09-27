@@ -60,7 +60,7 @@ export function useNetwork(): NetworkStatus {
       connection.addEventListener('change', updateNetworkStatus);
     }
 
-    // Check connection periodically
+    // Check connection periodically with improved offline app support
     const interval = setInterval(async () => {
       try {
         // Test actual connectivity with a lightweight request
@@ -70,9 +70,10 @@ export function useNetwork(): NetworkStatus {
           controller.abort();
         }, 3000);
 
-        await fetch('/api/health', {
+        const response = await fetch('/api/health', {
           method: 'GET',
-          signal: controller.signal
+          signal: controller.signal,
+          cache: 'no-cache'
         });
 
         // Clear timeout only if it hasn't fired yet
@@ -81,15 +82,23 @@ export function useNetwork(): NetworkStatus {
           timeoutId = null;
         }
 
-        if (!networkStatus.isOnline) {
-          updateNetworkStatus();
+        // Check if response indicates offline mode (from service worker)
+        const data = await response.json();
+        const isActuallyOnline = !data.offline;
+
+        if (isActuallyOnline !== networkStatus.isOnline) {
+          setNetworkStatus(prev => ({
+            ...prev,
+            isOnline: isActuallyOnline,
+            isOfflineMode: !isActuallyOnline || prev.isSlowConnection
+          }));
         }
       } catch (error) {
         // Silently handle abort errors for network checks
         if (error instanceof Error && error.name === 'AbortError') {
           return;
         }
-        
+
         if (networkStatus.isOnline) {
           setNetworkStatus(prev => ({
             ...prev,

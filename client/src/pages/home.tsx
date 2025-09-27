@@ -93,12 +93,57 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [offlineResults, setOfflineResults] = useState<any[]>([]);
+  
+  // PWA Install Prompt
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   // State for managing search AbortController
   const [searchController, setSearchController] = useState<AbortController | null>(null);
 
   // Ref to track the current controller for cleanup
   const currentControllerRef = useRef<AbortController | null>(null);
+
+  // PWA Install Handler
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Save the event so it can be triggered later
+      setDeferredPrompt(e);
+      // Show the install prompt
+      setShowInstallPrompt(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Check if app is already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setShowInstallPrompt(false);
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) return;
+
+    // Show the install prompt
+    deferredPrompt.prompt();
+    
+    // Wait for the user to respond to the prompt
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt');
+    }
+    
+    // Clear the deferredPrompt
+    setDeferredPrompt(null);
+    setShowInstallPrompt(false);
+  };
 
   // Enhanced search with offline mode support and faster performance
   const handleSearch = useCallback(async (queryToSearch: string) => {
@@ -594,7 +639,7 @@ export default function Home() {
                 {networkStatus.isOfflineMode ? (
                   <Badge variant="secondary" className="bg-orange-500/20 text-orange-200 text-xs h-5">
                     <WifiOff className="w-3 h-3 mr-1" />
-                    Offline
+                    Offline Mode
                   </Badge>
                 ) : (
                   <Badge variant="secondary" className="bg-green-500/20 text-green-200 text-xs h-5">
@@ -605,7 +650,19 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <LanguageSwitcher />
+          <div className="flex items-center space-x-2">
+            {showInstallPrompt && (
+              <Button
+                onClick={handleInstallApp}
+                size="sm"
+                variant="secondary"
+                className="bg-white/20 text-white border-white/30 hover:bg-white/30 text-xs px-2 py-1 h-7"
+              >
+                Install App
+              </Button>
+            )}
+            <LanguageSwitcher />
+          </div>
         </div>
 
         {/* Search Bar */}

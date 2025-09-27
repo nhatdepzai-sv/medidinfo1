@@ -108,12 +108,16 @@ export default function Home() {
     const trimmedQuery = queryToSearch.trim();
 
     // Cancel previous search if still running
-    if (searchController && !searchController.signal.aborted) {
+    if (searchController) {
       try {
-        searchController.abort();
+        if (!searchController.signal.aborted) {
+          searchController.abort();
+        }
       } catch (err) {
-        // Ignore abort errors
+        // Silently ignore abort errors - they're expected when cancelling
+        console.log(`Previous search cancelled: ${err.message}`);
       }
+      setSearchController(null);
     }
 
     const controller = new AbortController();
@@ -262,7 +266,7 @@ export default function Home() {
       }
 
       // Silently handle abort errors - they're expected when cancelling searches
-      if (err instanceof Error && err.name === 'AbortError') {
+      if (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted'))) {
         // Just return without setting error state for aborted requests
         console.log(`Search aborted for: "${trimmedQuery}"`);
         setIsSearching(false);
@@ -291,7 +295,10 @@ export default function Home() {
       }
     } finally {
       setIsSearching(false);
-      setSearchController(null);
+      // Only clear controller if it's the current one
+      if (controller === searchController) {
+        setSearchController(null);
+      }
     }
   }, [t, networkStatus.isOfflineMode, getOfflineData, saveOfflineData, searchController]);
 

@@ -109,21 +109,26 @@ export default function Home() {
 
     const trimmedQuery = queryToSearch.trim();
 
-    // Cancel previous search if still running (less aggressive)
-    if (currentControllerRef.current && !currentControllerRef.current.signal.aborted) {
+    // Cancel previous search more safely
+    if (currentControllerRef.current) {
       try {
-        currentControllerRef.current.abort();
+        const oldController = currentControllerRef.current;
+        currentControllerRef.current = null;
+        if (!oldController.signal.aborted) {
+          oldController.abort();
+        }
       } catch (err) {
         // Silently ignore abort errors
       }
     }
     
-    // Clear the ref before creating new controller
-    currentControllerRef.current = null;
+    // Clear search controller state
+    setSearchController(null);
     
-    // Small delay before starting new search to prevent cascade
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Small delay to prevent rapid re-triggering
+    await new Promise(resolve => setTimeout(resolve, 200));
 
+    // Create new controller
     const controller = new AbortController();
     currentControllerRef.current = controller;
     setSearchController(controller);
@@ -271,9 +276,13 @@ export default function Home() {
         timeoutId = null;
       }
 
+      // Check if this is still the current controller
+      if (controller !== currentControllerRef.current) {
+        return; // Another search has started, exit silently
+      }
+
       // Silently handle abort errors - they're expected when cancelling searches
       if (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted') || err instanceof DOMException)) {
-        // Just return without setting error state for aborted requests
         console.log(`Search aborted for: "${trimmedQuery}"`);
         return; // Don't set any state for aborted requests
       }
@@ -281,26 +290,30 @@ export default function Home() {
       console.error('Search error:', err);
 
       // Fallback to offline search if online search fails
-      const offlineSearchResults = await performOfflineSearch(trimmedQuery);
-      if (offlineSearchResults.length > 0) {
-        setSearchResults({
-          success: true,
-          medications: offlineSearchResults,
-          message: `Found ${offlineSearchResults.length} medication(s) (Offline Fallback)`
-        });
-      } else {
-        const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
-        setError(t.searchFailed || `Search failed: ${errorMessage}`);
-        setSearchResults({
-          success: false,
-          medications: [],
-          message: t.searchFailed || 'Search failed. Please try again.'
-        });
+      try {
+        const offlineSearchResults = await performOfflineSearch(trimmedQuery);
+        if (offlineSearchResults.length > 0) {
+          setSearchResults({
+            success: true,
+            medications: offlineSearchResults,
+            message: `Found ${offlineSearchResults.length} medication(s) (Offline Fallback)`
+          });
+        } else {
+          const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
+          setError(t.searchFailed || `Search failed: ${errorMessage}`);
+          setSearchResults({
+            success: false,
+            medications: [],
+            message: t.searchFailed || 'Search failed. Please try again.'
+          });
+        }
+      } catch (offlineErr) {
+        console.error('Offline search also failed:', offlineErr);
       }
     } finally {
       setIsSearching(false);
-      // Only clear controller if it's the current one and not aborted
-      if (controller === currentControllerRef.current && !controller.signal.aborted) {
+      // Only clear if this is still the current controller
+      if (controller === currentControllerRef.current) {
         setSearchController(null);
         currentControllerRef.current = null;
       }
@@ -484,14 +497,17 @@ export default function Home() {
   // Cleanup effect for controller
   useEffect(() => {
     return () => {
-      if (currentControllerRef.current && !currentControllerRef.current.signal.aborted) {
+      if (currentControllerRef.current) {
         try {
-          currentControllerRef.current.abort();
+          const controller = currentControllerRef.current;
+          currentControllerRef.current = null;
+          if (!controller.signal.aborted) {
+            controller.abort();
+          }
         } catch (err) {
           // Ignore cleanup errors
         }
       }
-      currentControllerRef.current = null;
     };
   }, []);
 
@@ -503,8 +519,20 @@ export default function Home() {
       } else if (searchQuery.trim().length === 0) {
         setSearchResults({});
         setError('');
+        // Cancel any ongoing search when query is cleared
+        if (currentControllerRef.current) {
+          try {
+            const controller = currentControllerRef.current;
+            currentControllerRef.current = null;
+            if (!controller.signal.aborted) {
+              controller.abort();
+            }
+          } catch (err) {
+            // Ignore errors
+          }
+        }
       }
-    }, 800); // Increased to 800ms delay for less aggressive searching
+    }, 1200); // Increased to 1200ms delay to prevent rapid firing
 
     return () => clearTimeout(debounceTimer);
   }, [searchQuery, handleSearch]);

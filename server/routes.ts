@@ -260,7 +260,7 @@ export function setupRoutes(app: express.Application) {
       ];
 
       // Advanced scoring algorithm for medication search
-      const scoredResults = allDatabases.map((drug) => {
+      const scoredResults = await Promise.all(allDatabases.map(async (drug) => {
         let score = 0;
         const maxScore = 100;
 
@@ -287,7 +287,7 @@ export function setupRoutes(app: express.Application) {
         if (drug.categoryVi?.toLowerCase().includes(searchTerm)) score += 15;
 
         // Alias matches (lower priority)
-        const aliases = drugAliasService.getAliases(drug.name || drug.genericName || '');
+        const aliases = await drugAliasService.getAllAliases(drug.name || drug.genericName || '');
         if (aliases.some(alias => alias.toLowerCase().includes(searchTerm))) score += 30;
 
         // Ensure score does not exceed maxScore and is non-negative
@@ -295,7 +295,7 @@ export function setupRoutes(app: express.Application) {
           ...drug,
           score: Math.max(0, Math.min(score, maxScore))
         };
-      });
+      }));
 
       // Filter results by score and limit the number of results
       const filteredResults = scoredResults

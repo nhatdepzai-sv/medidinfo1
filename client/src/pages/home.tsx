@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Search, Scan, History, User, Pill, X, WifiOff, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,6 +97,8 @@ export default function Home() {
   // State for managing search AbortController
   const [searchController, setSearchController] = useState<AbortController | null>(null);
 
+  // Ref to track the current controller for cleanup
+  const currentControllerRef = useRef<AbortController | null>(null);
 
   // Enhanced search with offline mode support and faster performance
   const handleSearch = useCallback(async (queryToSearch: string) => {
@@ -108,19 +110,19 @@ export default function Home() {
     const trimmedQuery = queryToSearch.trim();
 
     // Cancel previous search if still running
-    if (searchController) {
+    if (currentControllerRef.current) {
       try {
-        if (!searchController.signal.aborted) {
-          searchController.abort();
+        if (!currentControllerRef.current.signal.aborted) {
+          currentControllerRef.current.abort();
         }
       } catch (err) {
         // Silently ignore abort errors - they're expected when cancelling
-        console.log(`Previous search cancelled: ${err.message}`);
+        console.log(`Previous search cancelled:`, err);
       }
-      setSearchController(null);
     }
 
     const controller = new AbortController();
+    currentControllerRef.current = controller;
     setSearchController(controller);
 
     // Try quick local search for common terms first
@@ -213,11 +215,12 @@ export default function Home() {
 
       // Set up timeout that safely aborts the controller
       timeoutId = setTimeout(() => {
-        if (!controller.signal.aborted) {
+        if (controller === currentControllerRef.current && !controller.signal.aborted) {
           try {
             controller.abort();
           } catch (err) {
             // Ignore abort errors
+            console.log('Timeout abort:', err);
           }
         }
       }, 10000); // 10 second timeout for better reliability
@@ -266,11 +269,15 @@ export default function Home() {
       }
 
       // Silently handle abort errors - they're expected when cancelling searches
-      if (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted'))) {
+      if (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted') || err instanceof DOMException)) {
         // Just return without setting error state for aborted requests
         console.log(`Search aborted for: "${trimmedQuery}"`);
         setIsSearching(false);
-        setSearchController(null);
+        // Only clear if this is still the current controller
+        if (controller === currentControllerRef.current) {
+          setSearchController(null);
+          currentControllerRef.current = null;
+        }
         return;
       }
 
@@ -296,11 +303,12 @@ export default function Home() {
     } finally {
       setIsSearching(false);
       // Only clear controller if it's the current one
-      if (controller === searchController) {
+      if (controller === currentControllerRef.current) {
         setSearchController(null);
+        currentControllerRef.current = null;
       }
     }
-  }, [t, networkStatus.isOfflineMode, getOfflineData, saveOfflineData, searchController]);
+  }, [t, networkStatus.isOfflineMode, getOfflineData, saveOfflineData]);
 
   // Offline search function using built-in medication database with enhanced partial matching
   const performOfflineSearch = useCallback(async (query: string): Promise<any[]> => {
@@ -475,6 +483,22 @@ export default function Home() {
   const handlePillIdClick = useCallback(() => {
     setLocation('/translator');
   }, [setLocation]);
+
+  // Cleanup effect for controller
+  useEffect(() => {
+    return () => {
+      if (currentControllerRef.current) {
+        try {
+          if (!currentControllerRef.current.signal.aborted) {
+            currentControllerRef.current.abort();
+          }
+        } catch (err) {
+          // Ignore cleanup errors
+        }
+        currentControllerRef.current = null;
+      }
+    };
+  }, []);
 
   // Debounced search for real-time results
   useEffect(() => {

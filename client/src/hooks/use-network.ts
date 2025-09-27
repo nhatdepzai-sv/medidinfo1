@@ -65,19 +65,31 @@ export function useNetwork(): NetworkStatus {
       try {
         // Test actual connectivity with a lightweight request
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
+          timeoutId = null;
+          controller.abort();
+        }, 3000);
 
         await fetch('/api/health', {
           method: 'GET',
           signal: controller.signal
         });
 
-        clearTimeout(timeoutId);
+        // Clear timeout only if it hasn't fired yet
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
 
         if (!networkStatus.isOnline) {
           updateNetworkStatus();
         }
       } catch (error) {
+        // Silently handle abort errors for network checks
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
+        
         if (networkStatus.isOnline) {
           setNetworkStatus(prev => ({
             ...prev,

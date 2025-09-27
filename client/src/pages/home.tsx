@@ -200,13 +200,21 @@ export default function Home() {
 
     // Online search with timeout for faster response
     try {
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+      // Set up timeout that clears the timeout ID when it fires
+      let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
+        timeoutId = null;
+        controller.abort();
+      }, 5000); // 5 second timeout for better UX
 
       const response = await fetch(`/api/search-medications?query=${encodeURIComponent(trimmedQuery)}`, {
         signal: controller.signal
       });
 
-      clearTimeout(timeoutId);
+      // Clear timeout only if it hasn't fired yet
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred.' }));
@@ -234,6 +242,9 @@ export default function Home() {
     } catch (err) {
       // Silently handle abort errors - they're expected when cancelling searches
       if (err instanceof Error && err.name === 'AbortError') {
+        // Just return without setting error state for aborted requests
+        setIsSearching(false);
+        setSearchController(null);
         return;
       }
 

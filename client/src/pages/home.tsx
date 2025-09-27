@@ -110,17 +110,19 @@ export default function Home() {
     const trimmedQuery = queryToSearch.trim();
 
     // Cancel previous search if still running (less aggressive)
-    if (currentControllerRef.current) {
+    if (currentControllerRef.current && !currentControllerRef.current.signal.aborted) {
       try {
-        if (!currentControllerRef.current.signal.aborted) {
-          currentControllerRef.current.abort();
-        }
+        currentControllerRef.current.abort();
       } catch (err) {
         // Silently ignore abort errors
       }
-      // Add small delay before starting new search
-      await new Promise(resolve => setTimeout(resolve, 50));
     }
+    
+    // Clear the ref before creating new controller
+    currentControllerRef.current = null;
+    
+    // Small delay before starting new search to prevent cascade
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     const controller = new AbortController();
     currentControllerRef.current = controller;
@@ -273,13 +275,7 @@ export default function Home() {
       if (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted') || err instanceof DOMException)) {
         // Just return without setting error state for aborted requests
         console.log(`Search aborted for: "${trimmedQuery}"`);
-        setIsSearching(false);
-        // Only clear if this is still the current controller
-        if (controller === currentControllerRef.current) {
-          setSearchController(null);
-          currentControllerRef.current = null;
-        }
-        return;
+        return; // Don't set any state for aborted requests
       }
 
       console.error('Search error:', err);
@@ -303,8 +299,8 @@ export default function Home() {
       }
     } finally {
       setIsSearching(false);
-      // Only clear controller if it's the current one
-      if (controller === currentControllerRef.current) {
+      // Only clear controller if it's the current one and not aborted
+      if (controller === currentControllerRef.current && !controller.signal.aborted) {
         setSearchController(null);
         currentControllerRef.current = null;
       }
@@ -488,16 +484,14 @@ export default function Home() {
   // Cleanup effect for controller
   useEffect(() => {
     return () => {
-      if (currentControllerRef.current) {
+      if (currentControllerRef.current && !currentControllerRef.current.signal.aborted) {
         try {
-          if (!currentControllerRef.current.signal.aborted) {
-            currentControllerRef.current.abort();
-          }
+          currentControllerRef.current.abort();
         } catch (err) {
           // Ignore cleanup errors
         }
-        currentControllerRef.current = null;
       }
+      currentControllerRef.current = null;
     };
   }, []);
 

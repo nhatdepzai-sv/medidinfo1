@@ -93,16 +93,14 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [offlineResults, setOfflineResults] = useState<any[]>([]);
-  
+
   // PWA Install Prompt
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
-  // State for managing search AbortController
-  const [searchController, setSearchController] = useState<AbortController | null>(null);
-
-  // Ref to track the current controller for cleanup
-  const currentControllerRef = useRef<AbortController | null>(null);
+  // State for managing search cancellation
+  const currentSearchIdRef = useRef<number>(0);
+  const searchCancelledRef = useRef<boolean>(false);
 
   // PWA Install Handler
   useEffect(() => {
@@ -132,14 +130,14 @@ export default function Home() {
 
     // Show the install prompt
     deferredPrompt.prompt();
-    
+
     // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
-    
+
     if (outcome === 'accepted') {
       console.log('User accepted the install prompt');
     }
-    
+
     // Clear the deferredPrompt
     setDeferredPrompt(null);
     setShowInstallPrompt(false);
@@ -149,34 +147,24 @@ export default function Home() {
   const handleSearch = useCallback(async (queryToSearch: string) => {
     if (!queryToSearch.trim()) return;
 
-    setIsSearching(true);
+    setIsLoading(true); // Use setIsLoading for general loading, setIsSearching for search-specific
     setError("");
 
     const trimmedQuery = queryToSearch.trim();
 
     // Cancel previous search more safely
-    if (currentControllerRef.current) {
-      try {
-        const oldController = currentControllerRef.current;
-        currentControllerRef.current = null;
-        if (!oldController.signal.aborted) {
-          oldController.abort();
-        }
-      } catch (err) {
-        // Silently ignore abort errors
-      }
-    }
-    
-    // Clear search controller state
-    setSearchController(null);
-    
+    searchCancelledRef.current = true;
+    const searchId = ++currentSearchIdRef.current;
+    searchCancelledRef.current = false;
+
     // Small delay to prevent rapid re-triggering
     await new Promise(resolve => setTimeout(resolve, 200));
 
-    // Create new controller
-    const controller = new AbortController();
-    currentControllerRef.current = controller;
-    setSearchController(controller);
+    // Check if search was cancelled during the delay
+    if (searchCancelledRef.current || searchId !== currentSearchIdRef.current) {
+      setIsLoading(false);
+      return;
+    }
 
     // Try quick local search for common terms first
     const quickLocalSearch = (query: string) => {
@@ -227,8 +215,7 @@ export default function Home() {
         medications: quickResults,
         message: `Found ${quickResults.length} medication(s) (Instant Search)`
       });
-      setIsSearching(false);
-      setSearchController(null);
+      setIsLoading(false);
       return;
     }
 
@@ -241,8 +228,7 @@ export default function Home() {
         medications: cachedResults,
         message: `Found ${cachedResults.length} cached medication(s) (Offline Mode)`
       });
-      setIsSearching(false);
-      setSearchController(null);
+      setIsLoading(false);
       return;
     }
 
@@ -256,8 +242,7 @@ export default function Home() {
           ? `Found ${offlineSearchResults.length} medication(s) (Offline Mode)`
           : 'No medications found in offline database'
       });
-      setIsSearching(false);
-      setSearchController(null);
+      setIsLoading(false);
       return;
     }
 
@@ -268,18 +253,14 @@ export default function Home() {
 
       // Set up timeout that safely aborts the controller
       timeoutId = setTimeout(() => {
-        if (controller === currentControllerRef.current && !controller.signal.aborted) {
-          try {
-            controller.abort();
-          } catch (err) {
-            // Ignore abort errors
-            console.log('Timeout abort:', err);
-          }
+        if (!searchCancelledRef.current && searchId === currentSearchIdRef.current) {
+          searchCancelledRef.current = true;
+          console.log('Timeout abort for:', trimmedQuery);
         }
       }, 10000); // 10 second timeout for better reliability
 
       const response = await fetch(`/api/search-medications?query=${encodeURIComponent(trimmedQuery)}`, {
-        signal: controller.signal
+        signal: new AbortController().signal // This is a placeholder, the actual cancellation is handled by searchCancelledRef and currentSearchIdRef
       });
 
       // Clear timeout if request completed successfully
@@ -297,6 +278,11 @@ export default function Home() {
       const result = await response.json();
       console.log(`Search result for "${trimmedQuery}":`, result);
 
+      // Check if search was cancelled
+      if (searchCancelledRef.current || searchId !== currentSearchIdRef.current) {
+        console.log(`Search cancelled after fetch for: "${trimmedQuery}"`);
+        return;
+      }
 
       if (result.success && result.medications && result.medications.length > 0) {
         // Cache successful results for offline use
@@ -321,9 +307,9 @@ export default function Home() {
         timeoutId = null;
       }
 
-      // Check if this is still the current controller
-      if (controller !== currentControllerRef.current) {
-        return; // Another search has started, exit silently
+      // Check if this is still the current search
+      if (searchCancelledRef.current || searchId !== currentSearchIdRef.current) {
+        return; // Another search has started or was cancelled, exit silently
       }
 
       // Silently handle abort errors - they're expected when cancelling searches
@@ -356,14 +342,14 @@ export default function Home() {
         console.error('Offline search also failed:', offlineErr);
       }
     } finally {
-      setIsSearching(false);
-      // Only clear if this is still the current controller
-      if (controller === currentControllerRef.current) {
-        setSearchController(null);
-        currentControllerRef.current = null;
+      // Only update loading state if this is still the current search
+      if (!searchCancelledRef.current && searchId === currentSearchIdRef.current) {
+        setIsLoading(false);
       }
+      setIsSearching(false); // Ensure isSearching is always reset
     }
   }, [t, networkStatus.isOfflineMode, getOfflineData, saveOfflineData]);
+
 
   // Offline search function using built-in medication database with enhanced partial matching
   const performOfflineSearch = useCallback(async (query: string): Promise<any[]> => {
@@ -539,20 +525,10 @@ export default function Home() {
     setLocation('/translator');
   }, [setLocation]);
 
-  // Cleanup effect for controller
+  // Cleanup effect for search cancellation
   useEffect(() => {
     return () => {
-      if (currentControllerRef.current) {
-        try {
-          const controller = currentControllerRef.current;
-          currentControllerRef.current = null;
-          if (!controller.signal.aborted) {
-            controller.abort();
-          }
-        } catch (err) {
-          // Ignore cleanup errors
-        }
-      }
+      searchCancelledRef.current = true;
     };
   }, []);
 
@@ -565,22 +541,17 @@ export default function Home() {
         setSearchResults({});
         setError('');
         // Cancel any ongoing search when query is cleared
-        if (currentControllerRef.current) {
-          try {
-            const controller = currentControllerRef.current;
-            currentControllerRef.current = null;
-            if (!controller.signal.aborted) {
-              controller.abort();
-            }
-          } catch (err) {
-            // Ignore errors
-          }
-        }
+        searchCancelledRef.current = true;
       }
     }, 1200); // Increased to 1200ms delay to prevent rapid firing
 
     return () => clearTimeout(debounceTimer);
   }, [searchQuery, handleSearch]);
+
+  // Dummy function for search history, replace with actual implementation
+  const addToSearchHistory = (query: string) => {
+    console.log('Adding to search history:', query);
+  };
 
   if (showCamera) {
     return (

@@ -813,41 +813,47 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
-      {/* Header */}
-      <div className="flex justify-between items-center p-4 bg-black/70 backdrop-blur-sm">
+      {/* Minimal Header - Only close button */}
+      <div className="absolute top-4 left-4 z-20">
         <Button
           onClick={onClose}
           variant="ghost"
           size="icon"
-          className="text-white hover:bg-white/20"
+          className="text-white hover:bg-white/20 bg-black/50"
           aria-label="Close camera"
         >
           <X className="h-6 w-6" />
         </Button>
+      </div>
 
-        <div className="flex items-center space-x-2">
-          {isActive && (
-            <Badge variant="secondary" className="bg-green-500/20 text-green-200">
-              Camera Active
-            </Badge>
-          )}
-          {flashEnabled && hasFlash && (
-            <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-200">
-              Flash On
-            </Badge>
-          )}
-        </div>
-
+      {/* Settings button in top right */}
+      <div className="absolute top-4 right-4 z-20">
         <Button
           onClick={() => setShowSettings(!showSettings)}
           variant="ghost"
           size="icon"
-          className="text-white hover:bg-white/20"
+          className="text-white hover:bg-white/20 bg-black/50"
           aria-label="Toggle settings"
         >
           <Settings className="h-6 w-6" />
         </Button>
       </div>
+
+      {/* Status indicators - moved to top center, smaller */}
+      {(isActive || (flashEnabled && hasFlash)) && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 flex items-center space-x-2">
+          {isActive && (
+            <Badge variant="secondary" className="bg-green-500/20 text-green-200 text-xs">
+              Active
+            </Badge>
+          )}
+          {flashEnabled && hasFlash && (
+            <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-200 text-xs">
+              Flash
+            </Badge>
+          )}
+        </div>
+      )}
 
       {/* Settings Panel */}
       {showSettings && (
@@ -904,7 +910,7 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
       )}
 
       {/* Camera View */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden">
         {isInitializing ? (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900">
             <div className="animate-spin w-12 h-12 border-4 border-white border-t-transparent rounded-full mb-4"></div>
@@ -1131,8 +1137,8 @@ function CameraInterface({ onCapture, onClose, onMedicationFound, setError, setP
         <canvas ref={canvasRef} className="hidden" />
       </div>
 
-      {/* Bottom Controls */}
-      <div className="p-6 bg-black/70 backdrop-blur-sm">
+      {/* Bottom Controls - Raised higher to avoid bottom nav */}
+      <div className="absolute bottom-20 left-0 right-0 p-6 bg-black/70 backdrop-blur-sm z-20">
         {isProcessing ? (
           <div className="flex justify-center">
             <Button

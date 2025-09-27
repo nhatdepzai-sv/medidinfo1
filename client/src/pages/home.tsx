@@ -108,8 +108,12 @@ export default function Home() {
     const trimmedQuery = queryToSearch.trim();
 
     // Cancel previous search if still running
-    if (searchController) {
-      searchController.abort();
+    if (searchController && !searchController.signal.aborted) {
+      try {
+        searchController.abort();
+      } catch (err) {
+        // Ignore abort errors
+      }
     }
 
     const controller = new AbortController();
@@ -199,19 +203,25 @@ export default function Home() {
     }
 
     // Online search with timeout for faster response
+    let timeoutId: NodeJS.Timeout | null = null;
     try {
-      // Set up timeout that clears the timeout ID when it fires
-      let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
-        timeoutId = null;
-        controller.abort();
+      // Set up timeout that safely aborts the controller
+      timeoutId = setTimeout(() => {
+        if (!controller.signal.aborted) {
+          try {
+            controller.abort();
+          } catch (err) {
+            // Ignore abort errors
+          }
+        }
       }, 5000); // 5 second timeout for better UX
 
       const response = await fetch(`/api/search-medications?query=${encodeURIComponent(trimmedQuery)}`, {
         signal: controller.signal
       });
 
-      // Clear timeout only if it hasn't fired yet
-      if (timeoutId !== null) {
+      // Clear timeout if request completed successfully
+      if (timeoutId) {
         clearTimeout(timeoutId);
         timeoutId = null;
       }
@@ -240,6 +250,12 @@ export default function Home() {
         });
       }
     } catch (err) {
+      // Clear timeout on error
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+
       // Silently handle abort errors - they're expected when cancelling searches
       if (err instanceof Error && err.name === 'AbortError') {
         // Just return without setting error state for aborted requests

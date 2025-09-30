@@ -85,11 +85,30 @@ app.use((req, res, next) => {
     process.exit(0);
   });
 
-  const server = app.listen(port, "0.0.0.0", () => {
+  const server = app.listen(port, "0.0.0.0", async () => {
     log(`✅ Server running at http://0.0.0.0:${port}`);
     log(`📊 Database contains ${fullComprehensiveDrugsDatabase.length + globalMedicationsDatabase.length + medicationsDatabase.length} medications`);
     log(`🔍 Search and OCR ready`);
     log(`🧠 Enhanced AI trainer active`);
+
+    // Ensure admin account exists
+    try {
+      const { Auth } = await import('./auth');
+      const existingAdmin = await storage.getUserByUsername('admin');
+      
+      if (!existingAdmin) {
+        await Auth.registerAdmin({
+          username: 'admin',
+          email: 'admin@drugscan.com',
+          password: 'ILA1234567'
+        });
+        log(`👑 Admin account created successfully`);
+      } else {
+        log(`👑 Admin account already exists`);
+      }
+    } catch (error) {
+      console.error('Failed to create admin account:', error);
+    }
 
     // Start background training on the medication database
     console.log(`🚀 Starting background AI training on medication database...`);

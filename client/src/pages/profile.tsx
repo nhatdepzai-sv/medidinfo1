@@ -1,17 +1,24 @@
 
 import { useState } from "react";
-import { User, Settings, Bell, Shield, HelpCircle, LogOut } from "lucide-react";
+import { User, Settings, Bell, Shield, HelpCircle, LogOut, UserCog, BarChart3, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import BottomNavigation from "@/components/bottom-navigation";
 import LanguageSwitcher from "@/components/language-switcher";
 import { useLanguage } from "@/contexts/language-context";
+import { useAuth } from "@/contexts/auth-context";
+import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState(true);
   const [autoSave, setAutoSave] = useState(false);
+
+  // Check if user is admin
+  const isAdmin = user?.username === 'admin';
 
   const profileSections = [
     {
@@ -79,10 +86,57 @@ export default function Profile() {
             </div>
             <h2 className="text-xl font-semibold mb-1">{user?.username || 'Anonymous User'}</h2>
             <p className="text-gray-500 text-sm">
-              {user?.username === 'Guest User' ? 'Guest User' : 'DrugScan User'}
+              {user?.username === 'Guest User' ? 'Guest User' : 
+               isAdmin ? 'Administrator' : 'DrugScan User'}
             </p>
+            {user?.email && (
+              <p className="text-xs text-gray-400 mt-1">{user.email}</p>
+            )}
           </CardContent>
         </Card>
+
+        {/* Admin Commands Section */}
+        {isAdmin && (
+          <Card className="mb-4 border-red-200 bg-red-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center space-x-2 text-base text-red-700">
+                <Shield className="w-5 h-5" />
+                <span>Admin Commands</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/admin')}
+                  className="justify-start border-red-300 hover:bg-red-100"
+                >
+                  <UserCog className="w-4 h-4 mr-2" />
+                  Admin Dashboard
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/training')}
+                  className="justify-start border-red-300 hover:bg-red-100"
+                >
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  AI Training Dashboard
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open('/api/stats', '_blank')}
+                  className="justify-start border-red-300 hover:bg-red-100"
+                >
+                  <Database className="w-4 h-4 mr-2" />
+                  System Statistics
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Profile Sections */}
         {profileSections.map((section) => (

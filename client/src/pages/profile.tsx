@@ -8,12 +8,12 @@ import BottomNavigation from "@/components/bottom-navigation";
 import LanguageSwitcher from "@/components/language-switcher";
 import { useLanguage } from "@/contexts/language-context";
 import { useAuth } from "@/contexts/auth-context";
-import { useNavigate } from "react-router-dom";
+import { useLocation } from "wouter";
 
 export default function Profile() {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const [location, setLocation] = useLocation();
   const [notifications, setNotifications] = useState(true);
   const [autoSave, setAutoSave] = useState(false);
 
@@ -109,7 +109,7 @@ export default function Profile() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate('/admin')}
+                  onClick={() => setLocation('/admin')}
                   className="justify-start border-red-300 hover:bg-red-100"
                 >
                   <UserCog className="w-4 h-4 mr-2" />
@@ -118,7 +118,7 @@ export default function Profile() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate('/training')}
+                  onClick={() => setLocation('/training')}
                   className="justify-start border-red-300 hover:bg-red-100"
                 >
                   <BarChart3 className="w-4 h-4 mr-2" />

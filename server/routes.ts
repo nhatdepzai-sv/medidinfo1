@@ -174,17 +174,20 @@ export function setupRoutes(app: express.Application) {
   });
 
   app.post("/api/auth/guest", async (req: Request, res: Response) => {
+    console.log("Guest login endpoint called");
     try {
       const result = await AuthService.loginAsGuest();
+      console.log("Guest login successful:", result.user.id);
 
-      res.json({
+      res.status(200).json({
         success: true,
         user: result.user,
-        token: result.token
+        token: result.token,
+        message: "Guest login successful"
       });
     } catch (error: any) {
       console.error("Guest login error:", error);
-      res.status(400).json({
+      res.status(200).json({
         success: false,
         message: error.message || "Guest login failed"
       });

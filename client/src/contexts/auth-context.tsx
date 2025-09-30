@@ -107,12 +107,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginAsGuest = async (): Promise<boolean> => {
     try {
+      const apiUrl = window.location.origin + '/api/auth/guest';
+      console.log('Attempting guest login to:', apiUrl);
+      
       const response = await fetch('/api/auth/guest', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
       });
 
-      const data = await response.json();
+      console.log('Guest login response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const text = await response.text();
+      console.log('Raw response:', text);
+      
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error('Failed to parse JSON:', parseError);
+        console.error('Response text:', text);
+        throw new Error('Server returned invalid JSON response');
+      }
       
       if (data.success) {
         setUser(data.user);

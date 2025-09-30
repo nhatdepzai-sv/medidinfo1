@@ -173,7 +173,7 @@ export function setupRoutes(app: express.Application) {
     }
   });
 
-  app.post("/api/auth/guest", async (req, res) => {
+  app.post("/api/auth/guest", async (req: Request, res: Response) => {
     try {
       const result = await AuthService.loginAsGuest();
 
@@ -183,6 +183,7 @@ export function setupRoutes(app: express.Application) {
         token: result.token
       });
     } catch (error: any) {
+      console.error("Guest login error:", error);
       res.status(400).json({
         success: false,
         message: error.message || "Guest login failed"

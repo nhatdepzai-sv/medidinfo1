@@ -93,11 +93,12 @@ app.use((req, res, next) => {
 
     // Ensure admin account exists
     try {
-      const { Auth } = await import('./auth');
+      const { AuthService } = await import('./auth');
+      const { storage } = await import('./storage');
       const existingAdmin = await storage.getUserByUsername('admin');
       
       if (!existingAdmin) {
-        await Auth.registerAdmin({
+        await AuthService.registerAdmin({
           username: 'admin',
           email: 'admin@drugscan.com',
           password: 'ILA1234567'

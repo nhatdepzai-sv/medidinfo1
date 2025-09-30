@@ -30,7 +30,7 @@ async function safeDbOperation<T>(operation: () => Promise<T>, fallback: () => T
   if (!useDatabase || !db) {
     return fallback();
   }
-  
+
   try {
     return await operation();
   } catch (error) {
@@ -48,6 +48,7 @@ function generateId(): string {
 export interface IStorage {
   getUser(id: string): Promise<(User & { role?: string }) | undefined>;
   getUserByUsername(username: string): Promise<(User & { role?: string }) | undefined>;
+  getUserByEmail(email: string): Promise<(User & { role?: string }) | undefined>; // Added for email uniqueness check
   createUser(user: InsertUser & { role?: string }): Promise<User & { role?: string }>;
 
   getMedication(id: string): Promise<Medication | undefined>;
@@ -164,7 +165,38 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
+  async getUserByEmail(email: string): Promise<(User & { role?: string }) | undefined> {
+    return await safeDbOperation(
+      async () => {
+        const users = await db.select().from(schema.users).where(eq(schema.users.email, email));
+        return users[0] as (User & { role?: string });
+      },
+      () => {
+        // Search through memory users by email
+        for (const user of Array.from(this.memoryUsers.values())) {
+          if (user.email === email) {
+            return user as (User & { role?: string });
+          }
+        }
+        return undefined;
+      }
+    );
+  }
+
   async createUser(userData: InsertUser & { role?: string }): Promise<User & { role?: string }> {
+    // Check if email already exists
+    const existingUserByEmail = await this.getUserByEmail(userData.email);
+    if (existingUserByEmail) {
+      throw new Error("Email address is already in use.");
+    }
+
+    // Check if username already exists
+    const existingUserByUsername = await this.getUserByUsername(userData.username);
+    if (existingUserByUsername) {
+      throw new Error("Username is already in use.");
+    }
+
+
     const newUser: User & { role?: string } = {
       id: generateId(),
       username: userData.username,
@@ -184,7 +216,7 @@ export class DatabaseStorage implements IStorage {
         return newUser;
       }
     );
-    
+
     return newUser;
   }
 
@@ -261,7 +293,7 @@ export class DatabaseStorage implements IStorage {
     const searchTerm = `%${query.toLowerCase()}%`;
 
     // First, try direct database search
-    const directResults = useDatabase && db ? 
+    const directResults = useDatabase && db ?
       await db.select().from(schema.medications).where(
         or(
           sql`LOWER(${schema.medications.name}) LIKE ${searchTerm}`,
@@ -311,7 +343,7 @@ export class DatabaseStorage implements IStorage {
 
       // Flatten and deduplicate results
       const allAliasResults = aliasResults.flat();
-      const uniqueResults = allAliasResults.filter((med, index, arr) => 
+      const uniqueResults = allAliasResults.filter((med, index, arr) =>
         arr.findIndex(m => m.id === med.id) === index
       );
 

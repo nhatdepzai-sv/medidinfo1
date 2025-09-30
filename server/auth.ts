@@ -31,6 +31,12 @@ export class AuthService {
       throw new Error("Username already exists");
     }
 
+    // Check if email already exists
+    const existingEmail = await storage.getUserByEmail(userData.email);
+    if (existingEmail) {
+      throw new Error("Email already exists");
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(userData.password, 12);
 
@@ -63,6 +69,12 @@ export class AuthService {
     const existingUser = await storage.getUserByUsername(userData.username);
     if (existingUser) {
       throw new Error("Username already exists");
+    }
+
+    // Check if email already exists
+    const existingEmail = await storage.getUserByEmail(userData.email);
+    if (existingEmail) {
+      throw new Error("Email already exists");
     }
 
     // Hash password

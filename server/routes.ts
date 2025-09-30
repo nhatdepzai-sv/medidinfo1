@@ -317,6 +317,31 @@ export function setupRoutes(app: express.Application) {
     }
   });
 
+  app.delete("/api/admin/users", authenticateToken, async (req: any, res: Response) => {
+    try {
+      // Get all users first
+      const users = await storage.getAllUsers?.() || [];
+      
+      // Delete all users except the current admin
+      const currentUserId = req.user.userId;
+      const usersToDelete = users.filter(user => user.id !== currentUserId);
+      
+      for (const user of usersToDelete) {
+        await storage.deleteUser?.(user.id);
+      }
+      
+      res.json({
+        success: true,
+        message: `Successfully deleted ${usersToDelete.length} users`
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to clear all users"
+      });
+    }
+  });
+
   app.get("/api/admin/search-history", authenticateToken, async (req: any, res: Response) => {
     try {
       const history = await storage.getAllSearchHistory?.() || [];

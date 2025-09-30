@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +5,18 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Users, Search, BarChart3, Server } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface User {
   id: string;
@@ -36,13 +47,14 @@ export default function Admin() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [activeTab, setActiveTab] = useState('stats');
   const [loading, setLoading] = useState(false);
-  
+
   const { token } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const fetchData = async () => {
     if (!token) return;
-    
+
     setLoading(true);
     try {
       // Fetch stats
@@ -84,7 +96,7 @@ export default function Admin() {
 
   const deleteUser = async (userId: string) => {
     if (!token || !confirm('Are you sure you want to delete this user?')) return;
-    
+
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
@@ -106,6 +118,39 @@ export default function Admin() {
       });
     }
   };
+
+  const clearAllUsers = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear all users');
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setUsers([]); // Clear users from state immediately
+      fetchData(); // Re-fetch stats and other data to reflect changes
+      toast({
+        title: "Success",
+        description: data.message
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
 
   useEffect(() => {
     fetchData();
@@ -197,7 +242,33 @@ export default function Admin() {
       {activeTab === 'users' && (
         <Card>
           <CardHeader>
-            <CardTitle>User Management</CardTitle>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium">User Management</h3>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm">
+                    Clear All Users
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Clear All Users</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete all users? This action cannot be undone. Your admin account will be preserved.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => clearAllUsers.mutate()}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Clear All Users
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">

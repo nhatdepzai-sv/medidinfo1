@@ -1,17 +1,31 @@
 
 import React from 'react';
-import { Home, History, User, Search } from 'lucide-react';
+import { Home, History, User, Search, Shield, BarChart3 } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useAuth } from '@/contexts/auth-context';
 
 export default function BottomNavigation() {
   const [location, setLocation] = useLocation();
+  const { user } = useAuth();
 
-  const navItems = [
+  // Check if user is admin
+  const isAdmin = user?.username === 'admin';
+
+  const baseNavItems = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: Search, label: 'Search', path: '/translator' },
     { icon: History, label: 'History', path: '/history' },
     { icon: User, label: 'Profile', path: '/profile' }
   ];
+
+  const adminNavItems = [
+    { icon: Home, label: 'Home', path: '/' },
+    { icon: Shield, label: 'Admin', path: '/admin' },
+    { icon: BarChart3, label: 'Training', path: '/training' },
+    { icon: User, label: 'Profile', path: '/profile' }
+  ];
+
+  const navItems = isAdmin ? adminNavItems : baseNavItems;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">

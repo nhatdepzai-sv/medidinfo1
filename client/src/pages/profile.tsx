@@ -12,7 +12,7 @@ import { useLocation } from "wouter";
 
 export default function Profile() {
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
   const [notifications, setNotifications] = useState(true);
   const [autoSave, setAutoSave] = useState(false);
@@ -170,6 +170,21 @@ export default function Profile() {
             </CardContent>
           </Card>
         ))}
+
+        {/* Logout Button */}
+        <Card className="mb-4">
+          <CardContent className="p-4">
+            <Button 
+              variant="destructive" 
+              className="w-full"
+              onClick={logout}
+              data-testid="button-logout"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Log Out
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* App Info */}
         <Card>

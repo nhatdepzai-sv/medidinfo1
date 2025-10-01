@@ -53,6 +53,7 @@ function AppContent() {
           <Switch>
             <Route path="/" component={Home} />
             <Route path="/history" component={History} />
+            <Route path="/profile" component={Profile} />
             <Route path="/translator" component={Translator} />
             <Route path="/training" component={TrainingPage} />
             <Route path="/admin" component={Admin} />

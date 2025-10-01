@@ -60,6 +60,10 @@ externalPort = 80
 localPort = 37379
 externalPort = 3000
 
+[[ports]]
+localPort = 38983
+externalPort = 3001
+
 [agent]
 expertMode = true
 integrations = ["javascript_openai:1.0.0", "javascript_database:1.0.0"]

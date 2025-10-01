@@ -4,7 +4,6 @@ import { User, Settings, Bell, Shield, HelpCircle, LogOut, UserCog, BarChart3, D
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import BottomNavigation from "@/components/bottom-navigation";
 import LanguageSwitcher from "@/components/language-switcher";
 import { useLanguage } from "@/contexts/language-context";
 import { useAuth } from "@/contexts/auth-context";
@@ -196,8 +195,6 @@ export default function Profile() {
           </CardContent>
         </Card>
       </div>
-
-      <BottomNavigation />
     </div>
   );
 }

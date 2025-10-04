@@ -1,0 +1,32 @@
+/vite.svg:1  Failed to load resource: the server responded with a status of 404 ()
+(index):31 SW registered:  ServiceWorkerRegistration
+/manifest.json:1  Failed to load resource: the server responded with a status of 401 ()
+(index):1 Manifest fetch from https://conanmedidinfofinal-j58mm53si-nhatdepzai-svs-projects.vercel.app/manifest.json failed, code 401
+The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+/api/auth/register:1  Failed to load resource: the server responded with a status of 404 ()
+index-DNn3Ktnt.js:104 Registration failed: SyntaxError: Unexpected token 'T', "The page c"... is not valid JSON
+u @ index-DNn3Ktnt.js:104
+/api/auth/register:1  Failed to load resource: the server responded with a status of 404 ()
+index-DNn3Ktnt.js:104 Registration failed: SyntaxError: Unexpected token 'T', "The page c"... is not valid JSON
+u @ index-DNn3Ktnt.js:104
+/api/auth/register:1  Failed to load resource: the server responded with a status of 404 ()
+index-DNn3Ktnt.js:104 Registration failed: SyntaxError: Unexpected token 'T', "The page c"... is not valid JSON
+u @ index-DNn3Ktnt.js:104
+/manifest.json:1  Failed to load resource: the server responded with a status of 401 ()
+/api/auth/register:1  Failed to load resource: the server responded with a status of 404 ()
+index-DNn3Ktnt.js:104 Registration failed: SyntaxError: Unexpected token 'T', "The page c"... is not valid JSON
+u @ index-DNn3Ktnt.js:104
+/api/auth/register:1  Failed to load resource: the server responded with a status of 404 ()
+index-DNn3Ktnt.js:104 Registration failed: SyntaxError: Unexpected token 'T', "The page c"... is not valid JSON
+u @ index-DNn3Ktnt.js:104
+/api/auth/register:1  Failed to load resource: the server responded with a status of 404 ()
+index-DNn3Ktnt.js:104 Registration failed: SyntaxError: Unexpected token 'T', "The page c"... is not valid JSON
+u @ index-DNn3Ktnt.js:104
+/api/auth/register:1  Failed to load resource: the server responded with a status of 404 ()
+index-DNn3Ktnt.js:104 Registration failed: SyntaxError: Unexpected token 'T', "The page c"... is not valid JSON
+u @ index-DNn3Ktnt.js:104

@@ -171,15 +171,19 @@ export function TrainingDashboard() {
           </p>
         </div>
         <div className="flex space-x-2">
-          <Badge variant={stats?.backgroundTraining?.isTraining ? "default" : "secondary"}>
-            {stats?.backgroundTraining?.isTraining ? "🔥 TRAINING ACTIVE" : "⏸️ PAUSED"}
+          <Badge variant={progress?.isTraining ? "default" : "secondary"}>
+            {progress?.isTraining ? "🔥 TRAINING ACTIVE" : "⏸️ PAUSED"}
           </Badge>
           <Button onClick={refreshStats} variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button onClick={toggleTraining} variant={stats?.backgroundTraining?.isTraining ? "destructive" : "default"}>
-            {stats?.backgroundTraining?.isTraining ? (
+          <Button 
+            onClick={toggleTraining} 
+            variant={progress?.isTraining ? "destructive" : "default"}
+            disabled={isLoading}
+          >
+            {progress?.isTraining ? (
               <>
                 <Pause className="h-4 w-4 mr-2" />
                 Pause Training

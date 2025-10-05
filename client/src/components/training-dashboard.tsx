@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { PlayIcon, Square, BarChart3, Brain, RefreshCw, Pause, Target, Database, Image } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context';
 
 interface TrainingProgress {
   processed: string;
@@ -66,22 +67,28 @@ export function TrainingDashboard() {
   const [progress, setProgress] = useState<TrainingProgress | null>(null);
   const [stats, setStats] = useState<TrainingStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { token } = useAuth();
 
   useEffect(() => {
-    fetchStats();
-    fetchProgress();
-
-    const interval = setInterval(() => {
-      fetchProgress();
+    if (token) {
       fetchStats();
-    }, 5000);
+      fetchProgress();
 
-    return () => clearInterval(interval);
-  }, []);
+      const interval = setInterval(() => {
+        fetchProgress();
+        fetchStats();
+      }, 5000);
+
+      return () => clearInterval(interval);
+    }
+  }, [token]);
 
   const fetchStats = async () => {
+    if (!token) return;
     try {
-      const response = await fetch('/api/ai-stats');
+      const response = await fetch('/api/ai-stats', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const data = await response.json();
       if (data.success) {
         setStats(data.stats);
@@ -92,8 +99,11 @@ export function TrainingDashboard() {
   };
 
   const fetchProgress = async () => {
+    if (!token) return;
     try {
-      const response = await fetch('/api/mass-training-progress');
+      const response = await fetch('/api/mass-training-progress', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const data = await response.json();
       if (data.success) {
         setProgress(data.progress);
@@ -104,11 +114,15 @@ export function TrainingDashboard() {
   };
 
   const startMassTraining = async () => {
+    if (!token) return;
     setIsLoading(true);
     try {
       const response = await fetch('/api/start-mass-training', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       const data = await response.json();
@@ -125,11 +139,15 @@ export function TrainingDashboard() {
   };
 
   const stopMassTraining = async () => {
+    if (!token) return;
     setIsLoading(true);
     try {
       const response = await fetch('/api/stop-mass-training', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       const data = await response.json();

@@ -248,34 +248,41 @@ export function TrainingDashboard() {
       )}
 
       {/* Training Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Training Information</CardTitle>
-          <CardDescription>About the mass training system</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-semibold mb-2">Training Phases</h3>
-              <ul className="space-y-1 text-sm text-muted-foreground">
-                <li>• Phase 1: Medication database variations (100K)</li>
-                <li>• Phase 2: Synthetic medication labels (500K)</li>
-                <li>• Phase 3: Real-world photo conditions (300K)</li>
-                <li>• Phase 4: Edge cases and corrupted text (100K)</li>
-              </ul>
+        <Card>
+          <CardHeader>
+            <CardTitle>10-Day Automated Training Program</CardTitle>
+            <CardDescription>Continuous AI training system running 24/7</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-semibold mb-2">Training Schedule</h3>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  <li>• Duration: 10 days continuous training</li>
+                  <li>• Target: 1,000,000 training samples</li>
+                  <li>• Interval: Every 30 seconds (100 samples/batch)</li>
+                  <li>• Daily Progress: ~115,700 samples per day</li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Expected Improvements</h3>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  <li>• 95%+ accuracy on clear medication labels</li>
+                  <li>• Better handling of poor lighting conditions</li>
+                  <li>• Improved recognition of damaged/partial text</li>
+                  <li>• Enhanced multi-language support</li>
+                  <li>• Advanced OCR pattern recognition</li>
+                </ul>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold mb-2">Expected Improvements</h3>
-              <ul className="space-y-1 text-sm text-muted-foreground">
-                <li>• 95%+ accuracy on clear medication labels</li>
-                <li>• Better handling of poor lighting conditions</li>
-                <li>• Improved recognition of damaged/partial text</li>
-                <li>• Enhanced multi-language support</li>
-              </ul>
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-900">
+                <strong>Automated Training Active:</strong> The system will automatically train the AI model over the next 10 days, 
+                processing medication variations, synthetic labels, and edge cases to achieve maximum accuracy.
+              </p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
     </div>
   );
 }

@@ -19,6 +19,9 @@ export default function Profile() {
   // Check if user is admin
   const isAdmin = user?.username === 'admin';
 
+  console.log('Profile - User:', user);
+  console.log('Profile - Is Admin:', isAdmin);
+
   const profileSections = [
     {
       title: "Settings",
@@ -94,8 +97,8 @@ export default function Profile() {
           </CardContent>
         </Card>
 
-        {/* Admin Commands Section */}
-        {isAdmin && (
+        {/* Admin Commands Section - Always show for admin user */}
+        {user?.username === 'admin' && (
           <Card className="mb-4 border-red-200 bg-red-50">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center space-x-2 text-base text-red-700">

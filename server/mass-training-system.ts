@@ -29,17 +29,17 @@ export interface SyntheticTrainingData {
 export class AutomatedAITrainingSystem {
   private progress: AutoTrainingProgress = {
     processed: 0,
-    target: 10000, // Reduced target for local training
+    target: 1000000, // 1 million training samples over 10 days
     successRate: 0,
     isTraining: false,
     startTime: new Date(),
     estimatedCompletion: null,
     currentBatch: 0,
-    totalBatches: 100,
+    totalBatches: 10000,
     trainingSpeed: 0
   };
 
-  private batchSize = 100;
+  private batchSize = 100; // Process 100 samples per batch
   private allMedications: any[] = [];
   private isRunning = false;
   private trainingInterval: NodeJS.Timeout | null = null;
@@ -87,10 +87,11 @@ export class AutomatedAITrainingSystem {
     // Start training immediately
     this.processContinuousTraining();
 
-    // Set up interval for continuous training (every 10 seconds)
+    // Set up interval for continuous training (every 30 seconds for 10-day training)
+    // This will process ~1,157 samples per day to reach 1M in 10 days
     this.trainingInterval = setInterval(() => {
       this.processContinuousTraining();
-    }, 10000);
+    }, 30000); // Every 30 seconds
   }
 
   /**

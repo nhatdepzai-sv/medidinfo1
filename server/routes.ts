@@ -20,7 +20,7 @@ let allMedicationsArray: any[] = [];
 function buildSearchIndex() {
   if (searchIndex) return;
   
-  console.log("🚀 Building search index for fast lookups...");
+  console.log("🚀 Building comprehensive search index for all medications...");
   searchIndex = new Map();
   
   // Combine all databases once
@@ -30,19 +30,29 @@ function buildSearchIndex() {
     ...medicationsDatabase
   ];
   
-  // Build index by first 2-3 characters for instant prefix matching
+  console.log(`📊 Total medications to index: ${allMedicationsArray.length.toLocaleString()}`);
+  
+  // Build index by first 2-5 characters for better prefix matching across all drugs
   allMedicationsArray.forEach((drug, idx) => {
     const addToIndex = (text: string) => {
       if (!text || text.length < 2) return;
       const normalized = text.toLowerCase().trim();
       
-      // Index by prefixes (2, 3, 4 chars)
-      for (let len = 2; len <= Math.min(4, normalized.length); len++) {
+      // Index by prefixes (2, 3, 4, 5 chars) for comprehensive coverage
+      for (let len = 2; len <= Math.min(5, normalized.length); len++) {
         const prefix = normalized.substring(0, len);
         if (!searchIndex!.has(prefix)) {
           searchIndex!.set(prefix, new Set());
         }
         searchIndex!.get(prefix)!.add(idx);
+      }
+      
+      // Also index full name for exact matches
+      if (normalized.length >= 5) {
+        if (!searchIndex!.has(normalized)) {
+          searchIndex!.set(normalized, new Set());
+        }
+        searchIndex!.get(normalized)!.add(idx);
       }
     };
     
@@ -52,7 +62,7 @@ function buildSearchIndex() {
     addToIndex(drug.genericNameVi);
   });
   
-  console.log(`✅ Search index built: ${searchIndex.size} prefixes, ${allMedicationsArray.length} medications`);
+  console.log(`✅ Search index built: ${searchIndex.size.toLocaleString()} prefixes, ${allMedicationsArray.length.toLocaleString()} medications fully indexed`);
 }
 
 // Shared search function to avoid recursive API calls
@@ -80,27 +90,49 @@ async function searchMedicationsInternal(query: string) {
   // Build index on first search
   buildSearchIndex();
   
-  // Use index to narrow down candidates - try multiple prefix lengths
+  // Use index to narrow down candidates - try multiple strategies
   let candidates: any[] = [];
   
-  // Try different prefix lengths (2, 3, 4 characters) to find matches
-  for (let prefixLen = 2; prefixLen <= Math.min(4, searchTerm.length); prefixLen++) {
-    const searchPrefix = searchTerm.substring(0, prefixLen);
-    const candidateIndices = searchIndex!.get(searchPrefix);
-    
-    if (candidateIndices && candidateIndices.size > 0) {
-      candidates = Array.from(candidateIndices).map(idx => allMedicationsArray[idx]);
-      break;
+  // Strategy 1: Try exact match first
+  const exactIndices = searchIndex!.get(searchTerm);
+  if (exactIndices && exactIndices.size > 0) {
+    candidates = Array.from(exactIndices).map(idx => allMedicationsArray[idx]);
+    console.log(`🎯 Exact match found: ${candidates.length} medications`);
+  }
+  
+  // Strategy 2: Try different prefix lengths (2, 3, 4, 5 characters) to find matches
+  if (candidates.length === 0) {
+    for (let prefixLen = 2; prefixLen <= Math.min(5, searchTerm.length); prefixLen++) {
+      const searchPrefix = searchTerm.substring(0, prefixLen);
+      const candidateIndices = searchIndex!.get(searchPrefix);
+      
+      if (candidateIndices && candidateIndices.size > 0) {
+        candidates = Array.from(candidateIndices).map(idx => allMedicationsArray[idx]);
+        console.log(`📍 Prefix match (${prefixLen} chars): ${candidates.length} medications`);
+        break;
+      }
     }
   }
   
-  // If still no candidates from index, do a full scan of first 5000 items
+  // Strategy 3: If still no candidates, search with partial matching across ALL medications
   if (candidates.length === 0) {
-    console.log("⚠️ Index miss, doing full scan");
-    candidates = allMedicationsArray.slice(0, 5000);
+    console.log("🔍 Performing deep search across all medications...");
+    // Search all medications for partial matches (this may be slower but comprehensive)
+    candidates = allMedicationsArray.filter(drug => {
+      const name = drug.name?.toLowerCase() || '';
+      const nameVi = drug.nameVi?.toLowerCase() || '';
+      const genericName = drug.genericName?.toLowerCase() || '';
+      const genericNameVi = drug.genericNameVi?.toLowerCase() || '';
+      
+      return name.includes(searchTerm) || 
+             nameVi.includes(searchTerm) || 
+             genericName.includes(searchTerm) || 
+             genericNameVi.includes(searchTerm);
+    });
+    console.log(`🌐 Deep search found: ${candidates.length} medications`);
   }
   
-  console.log(`📊 Searching ${candidates.length} candidates from ${allMedicationsArray.length} total`);
+  console.log(`📊 Searching ${candidates.length.toLocaleString()} candidates from ${allMedicationsArray.length.toLocaleString()} total`);
 
   // Optimized scoring algorithm - only process candidates
   const scoredResults = candidates.map((drug) => {
@@ -133,11 +165,11 @@ async function searchMedicationsInternal(query: string) {
     };
   });
 
-  // Filter and sort - lower threshold to catch more matches
+  // Filter and sort - lower threshold to catch more matches, show top 100 results
   const filteredResults = scoredResults
-    .filter(drug => drug.score > 25)
+    .filter(drug => drug.score > 20)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 50);
+    .slice(0, 100);
 
   console.log(`✅ Found ${filteredResults.length} medications for: "${searchTerm}"`);
 

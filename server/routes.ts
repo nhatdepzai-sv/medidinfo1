@@ -319,17 +319,26 @@ export function setupRoutes(app: express.Application) {
 
   app.delete("/api/admin/users", authenticateToken, async (req: any, res: Response) => {
     try {
+      // Check if user has admin role
+      const user = await storage.getUser(req.user.id);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+
       // Get all users first
       const users = await storage.getAllUsers?.() || [];
-      
+
       // Delete all users except the current admin
       const currentUserId = req.user.userId;
       const usersToDelete = users.filter(user => user.id !== currentUserId);
-      
+
       for (const user of usersToDelete) {
         await storage.deleteUser?.(user.id);
       }
-      
+
       res.json({
         success: true,
         message: `Successfully deleted ${usersToDelete.length} users`
@@ -344,6 +353,15 @@ export function setupRoutes(app: express.Application) {
 
   app.get("/api/admin/search-history", authenticateToken, async (req: any, res: Response) => {
     try {
+      // Check if user has admin role
+      const user = await storage.getUser(req.user.id);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+
       const history = await storage.getAllSearchHistory?.() || [];
       res.json({
         success: true,
@@ -359,6 +377,15 @@ export function setupRoutes(app: express.Application) {
 
   app.get("/api/admin/stats", authenticateToken, async (req: any, res: Response) => {
     try {
+      // Check if user has admin role
+      const user = await storage.getUser(req.user.id);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+
       const stats = {
         totalUsers: (await storage.getAllUsers?.())?.length || 0,
         totalSearches: (await storage.getAllSearchHistory?.())?.length || 0,
@@ -572,6 +599,15 @@ export function setupRoutes(app: express.Application) {
   // User feedback endpoint for AI training improvement
   app.post("/api/training/feedback", authenticateToken, async (req: any, res: Response) => {
     try {
+      // Check if user has admin role
+      const user = await storage.getUser(req.user.id);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+
       const { ocrText, correctMedication, wasCorrect, confidence } = req.body;
 
       if (!ocrText || !correctMedication) {
@@ -610,8 +646,17 @@ export function setupRoutes(app: express.Application) {
   });
 
   // Background training status endpoint
-  app.get("/api/training/status", (req, res) => {
+  app.get("/api/training/status", authenticateToken, async (req: any, res: Response) => {
     try {
+      // Check if user has admin role
+      const user = await storage.getUser(req.user.id);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+
       const stats = enhancedAITrainer.getTrainingStats();
       res.json({
         success: true,
@@ -627,13 +672,22 @@ export function setupRoutes(app: express.Application) {
   });
 
   // Mass training control endpoints
-  app.post("/api/start-mass-training", async (req, res) => {
+  app.post("/api/start-mass-training", authenticateToken, async (req, res) => {
     try {
+      // Check if user has admin role
+      const user = await storage.getUser(req.user.id);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+
       const { automatedTrainingSystem } = await import("./mass-training-system");
-      
+
       // Start the training
       automatedTrainingSystem.startTraining();
-      
+
       res.json({
         success: true,
         message: "Mass training started successfully",
@@ -648,13 +702,22 @@ export function setupRoutes(app: express.Application) {
     }
   });
 
-  app.post("/api/stop-mass-training", async (req, res) => {
+  app.post("/api/stop-mass-training", authenticateToken, async (req, res) => {
     try {
+      // Check if user has admin role
+      const user = await storage.getUser(req.user.id);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+
       const { automatedTrainingSystem } = await import("./mass-training-system");
-      
+
       // Stop the training
       automatedTrainingSystem.stopTraining();
-      
+
       res.json({
         success: true,
         message: "Mass training stopped successfully",
@@ -669,12 +732,21 @@ export function setupRoutes(app: express.Application) {
     }
   });
 
-  app.get("/api/mass-training-progress", async (req, res) => {
+  app.get("/api/mass-training-progress", authenticateToken, async (req: any, res: Response) => {
     try {
+      // Check if user has admin role
+      const user = await storage.getUser(req.user.id);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+
       const { automatedTrainingSystem } = await import("./mass-training-system");
-      
+
       const progress = automatedTrainingSystem.getProgress();
-      
+
       res.json({
         success: true,
         progress: {
@@ -695,14 +767,23 @@ export function setupRoutes(app: express.Application) {
     }
   });
 
-  app.get("/api/ai-stats", async (req, res) => {
+  app.get("/api/ai-stats", authenticateToken, async (req: any, res: Response) => {
     try {
+      // Check if user has admin role
+      const user = await storage.getUser(req.user.id);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+
       const { automatedTrainingSystem } = await import("./mass-training-system");
-      
+
       const stats = automatedTrainingSystem.getStats();
       const aiTrainerStats = enhancedAITrainer.getTrainingStats();
       const backgroundStatus = enhancedAITrainer.getBackgroundTrainingStatus();
-      
+
       res.json({
         success: true,
         stats: {
@@ -757,8 +838,17 @@ export function setupRoutes(app: express.Application) {
   });
 
   // Get database statistics
-  app.get("/api/stats", (req, res) => {
+  app.get("/api/stats", authenticateToken, async (req: any, res: Response) => {
     try {
+      // Check if user has admin role
+      const user = await storage.getUser(req.user.id);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+
       const allMedications = [
         ...fullComprehensiveDrugsDatabase,
         ...globalMedicationsDatabase,

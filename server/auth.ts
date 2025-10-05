@@ -1,4 +1,3 @@
-
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -21,6 +20,7 @@ export interface AuthUser {
   id: string;
   username: string;
   email: string;
+  role?: string; // Added role to AuthUser interface
 }
 
 export class AuthService {
@@ -49,7 +49,7 @@ export class AuthService {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.id, username: user.username },
+      { userId: user.id, username: user.username, role: user.role || 'user' },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -58,7 +58,8 @@ export class AuthService {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        role: user.role || 'user'
       },
       token
     };
@@ -99,7 +100,8 @@ export class AuthService {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        role: 'admin'
       },
       token
     };
@@ -120,7 +122,7 @@ export class AuthService {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.id, username: user.username },
+      { userId: user.id, username: user.username, role: user.role || 'user' },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -129,7 +131,8 @@ export class AuthService {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        role: user.role || 'user'
       },
       token
     };
@@ -138,17 +141,18 @@ export class AuthService {
   static async loginAsGuest(): Promise<{ user: AuthUser; token: string }> {
     // Generate a unique guest ID
     const guestId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Create a guest user object (not stored in database)
     const guestUser: AuthUser = {
       id: guestId,
       username: 'Guest User',
-      email: 'guest@drugscanner.app'
+      email: 'guest@drugscanner.app',
+      role: 'guest' // Assign a role to guest users
     };
 
     // Generate JWT token for guest
     const token = jwt.sign(
-      { userId: guestId, username: 'Guest User', isGuest: true },
+      { userId: guestId, username: 'Guest User', isGuest: true, role: 'guest' },
       JWT_SECRET,
       { expiresIn: "24h" } // Shorter expiry for guest sessions
     );
@@ -162,19 +166,20 @@ export class AuthService {
   static async verifyToken(token: string): Promise<AuthUser | null> {
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as any;
-      
+
       // Handle guest users
       if (decoded.isGuest) {
         return {
           id: decoded.userId,
           username: decoded.username,
-          email: 'guest@drugscanner.app'
+          email: 'guest@drugscanner.app',
+          role: decoded.role // Include role from token
         };
       }
-      
+
       try {
         const user = await storage.getUser(decoded.userId);
-        
+
         if (!user) {
           return null;
         }
@@ -182,7 +187,8 @@ export class AuthService {
         return {
           id: user.id,
           username: user.username,
-          email: user.email
+          email: user.email,
+          role: user.role || decoded.role || 'user' // Prioritize user role, then token role, then default
         };
       } catch (dbError) {
         console.warn('Database error during token verification:', dbError);
@@ -191,7 +197,8 @@ export class AuthService {
           return {
             id: decoded.userId,
             username: decoded.username,
-            email: 'fallback@drugscanner.app'
+            email: 'fallback@drugscanner.app',
+            role: decoded.role || 'user' // Include role from token or default
           };
         }
         return null;
@@ -222,7 +229,8 @@ export function authenticateToken(req: any, res: any, next: any) {
         req.user = {
           id: decoded.userId,
           username: decoded.username,
-          email: 'guest@drugscanner.app'
+          email: 'guest@drugscanner.app',
+          role: decoded.role
         };
         return next();
       }
@@ -235,7 +243,8 @@ export function authenticateToken(req: any, res: any, next: any) {
       req.user = {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        role: user.role || decoded.role || 'user' // Prioritize user role, then token role, then default
       };
       next();
     } catch (dbError) {
@@ -245,7 +254,8 @@ export function authenticateToken(req: any, res: any, next: any) {
         req.user = {
           id: decoded.userId,
           username: decoded.username,
-          email: 'fallback@drugscanner.app'
+          email: 'fallback@drugscanner.app',
+          role: decoded.role || 'user' // Include role from token or default
         };
         return next();
       }

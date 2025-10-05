@@ -2,18 +2,18 @@
 import { TrainingDashboard } from '@/components/training-dashboard';
 import { useAuth } from '@/contexts/auth-context';
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function TrainingPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     if (!user) {
-      navigate('/auth');
+      setLocation('/auth');
     }
-  }, [user, navigate]);
+  }, [user, setLocation]);
 
   // Check if user is admin
   if (user && (user as any).role !== 'admin') {

@@ -773,7 +773,18 @@ export function setupRoutes(app: express.Application) {
         }
       });
 
-      const backgroundTrainingStatus = enhancedAITrainer.getBackgroundTrainingStatus();
+      // Safely get background training status with error handling
+      let backgroundTrainingStatus;
+      try {
+        backgroundTrainingStatus = enhancedAITrainer.getBackgroundTrainingStatus();
+      } catch (err) {
+        console.warn("Background training status unavailable:", err);
+        backgroundTrainingStatus = {
+          isTraining: false,
+          hoursRemaining: 0,
+          cyclesCompleted: 0
+        };
+      }
 
       res.json({
         success: true,
@@ -785,19 +796,20 @@ export function setupRoutes(app: express.Application) {
             basic: medicationsDatabase.length
           },
           aiTraining: {
-            isTraining: backgroundTrainingStatus.isTraining,
-            hoursRemaining: Math.round(backgroundTrainingStatus.hoursRemaining * 10) / 10,
-            cyclesCompleted: backgroundTrainingStatus.cyclesCompleted
+            isTraining: backgroundTrainingStatus.isTraining || false,
+            hoursRemaining: Math.round((backgroundTrainingStatus.hoursRemaining || 0) * 10) / 10,
+            cyclesCompleted: backgroundTrainingStatus.cyclesCompleted || 0
           },
           lastUpdated: new Date().toISOString()
         }
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Get stats failed:", error);
       res.status(500).json({
         success: false,
-        message: "Failed to get statistics"
+        message: error.message || "Failed to get statistics",
+        error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
       });
     }
   });

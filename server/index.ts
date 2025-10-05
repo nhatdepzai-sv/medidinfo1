@@ -131,16 +131,20 @@ app.use((req, res, next) => {
         console.error(`❌ Background training failed:`, error);
       });
 
-    // Start 10-day automated mass training system
-    console.log(`🤖 Starting 10-day automated AI training system...`);
-    console.log(`🎯 Target: 1,000,000 training samples over 10 days`);
-    console.log(`⏱️ Training interval: Every 30 seconds`);
-    
-    // Auto-start the training system
-    setTimeout(() => {
-      automatedTrainingSystem.startTraining();
-      console.log(`✅ 10-day automated training system activated!`);
-    }, 5000); // Start after 5 seconds to allow server to fully initialize
+    // Start 10-day automated mass training system only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🤖 Starting 10-day automated AI training system...`);
+      console.log(`🎯 Target: 1,000,000 training samples over 10 days`);
+      console.log(`⏱️ Training interval: Every 30 seconds`);
+      
+      // Auto-start the training system
+      setTimeout(() => {
+        automatedTrainingSystem.startTraining();
+        console.log(`✅ 10-day automated training system activated!`);
+      }, 5000); // Start after 5 seconds to allow server to fully initialize
+    } else {
+      console.log(`🤖 Training system available via API (manual start required in production)`);
+    }
   });
 
   server.on('error', (err: any) => {

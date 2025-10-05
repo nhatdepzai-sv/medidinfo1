@@ -8,6 +8,53 @@ import { drugAliasService } from "./drug-alias-service";
 import { storage } from "./storage";
 import { AuthService, registerSchema, loginSchema, authenticateToken } from "./auth";
 
+// In-memory search cache for faster repeated queries
+const searchCache = new Map<string, any>();
+const CACHE_TTL = 300000; // 5 minutes
+
+// Pre-built search index for O(1) lookups
+let searchIndex: Map<string, Set<number>> | null = null;
+let allMedicationsArray: any[] = [];
+
+// Initialize search index on first search
+function buildSearchIndex() {
+  if (searchIndex) return;
+  
+  console.log("🚀 Building search index for fast lookups...");
+  searchIndex = new Map();
+  
+  // Combine all databases once
+  allMedicationsArray = [
+    ...fullComprehensiveDrugsDatabase,
+    ...globalMedicationsDatabase,
+    ...medicationsDatabase
+  ];
+  
+  // Build index by first 2-3 characters for instant prefix matching
+  allMedicationsArray.forEach((drug, idx) => {
+    const addToIndex = (text: string) => {
+      if (!text || text.length < 2) return;
+      const normalized = text.toLowerCase().trim();
+      
+      // Index by prefixes (2, 3, 4 chars)
+      for (let len = 2; len <= Math.min(4, normalized.length); len++) {
+        const prefix = normalized.substring(0, len);
+        if (!searchIndex!.has(prefix)) {
+          searchIndex!.set(prefix, new Set());
+        }
+        searchIndex!.get(prefix)!.add(idx);
+      }
+    };
+    
+    addToIndex(drug.name);
+    addToIndex(drug.genericName);
+    addToIndex(drug.nameVi);
+    addToIndex(drug.genericNameVi);
+  });
+  
+  console.log(`✅ Search index built: ${searchIndex.size} prefixes, ${allMedicationsArray.length} medications`);
+}
+
 // Shared search function to avoid recursive API calls
 async function searchMedicationsInternal(query: string) {
   if (!query || query.trim().length < 2) {
@@ -19,107 +66,102 @@ async function searchMedicationsInternal(query: string) {
   }
 
   const searchTerm = query.toLowerCase().trim();
+  
+  // Check cache first
+  const cacheKey = searchTerm;
+  const cached = searchCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log("⚡ Cache hit for:", searchTerm);
+    return cached.result;
+  }
+  
   console.log("🔍 Processing enhanced search term:", searchTerm);
+  
+  // Build index on first search
+  buildSearchIndex();
+  
+  // Use index to narrow down candidates
+  const searchPrefix = searchTerm.substring(0, Math.min(3, searchTerm.length));
+  const candidateIndices = searchIndex!.get(searchPrefix) || new Set<number>();
+  
+  // If no candidates from index, try broader search
+  let candidates: any[];
+  if (candidateIndices.size === 0) {
+    // Fallback to first 2000 medications if no index match
+    candidates = allMedicationsArray.slice(0, 2000);
+  } else {
+    // Use indexed candidates for much faster search
+    candidates = Array.from(candidateIndices).map(idx => allMedicationsArray[idx]);
+  }
+  
+  console.log(`📊 Narrowed to ${candidates.length} candidates from ${allMedicationsArray.length} total`);
 
-  // Combine all databases for comprehensive search
-  const allDatabases = [
-    ...fullComprehensiveDrugsDatabase,
-    ...globalMedicationsDatabase,
-    ...medicationsDatabase
-  ];
+  // Optimized scoring algorithm - only process candidates
+  const scoredResults = candidates.map((drug) => {
+    let score = 0;
+    const maxScore = 100;
 
-  // Advanced scoring algorithm for medication search with error handling
-  const scoredResults = await Promise.all(allDatabases.slice(0, 1000).map(async (drug) => {
-    try {
-      let score = 0;
-      const maxScore = 100;
+    const drugName = drug.name?.toLowerCase() || '';
+    const drugNameVi = drug.nameVi?.toLowerCase() || '';
+    const drugGenericName = drug.genericName?.toLowerCase() || '';
+    const drugGenericNameVi = drug.genericNameVi?.toLowerCase() || '';
 
-      const drugName = drug.name?.toLowerCase() || '';
-      const drugNameVi = drug.nameVi?.toLowerCase() || '';
-      const drugGenericName = drug.genericName?.toLowerCase() || '';
-      const drugGenericNameVi = drug.genericNameVi?.toLowerCase() || '';
-      const drugCategory = drug.category?.toLowerCase() || '';
-      const drugCategoryVi = drug.categoryVi?.toLowerCase() || '';
-
-      // Exact matches (highest priority)
-      if (drugName === searchTerm) score += 100;
-      else if (drugNameVi === searchTerm) score += 95;
-      else if (drugGenericName === searchTerm) score += 90;
-      else if (drugGenericNameVi === searchTerm) score += 85;
-
-      // Word-based exact matches (very high priority)
-      const drugNameWords = drugName.split(' ');
-      const drugNameViWords = drugNameVi.split(' ');
-      const drugGenericWords = drugGenericName.split(' ');
-      const drugGenericViWords = drugGenericNameVi.split(' ');
-
-      if (drugNameWords.some(word => word === searchTerm)) score += 85;
-      if (drugNameViWords.some(word => word === searchTerm)) score += 80;
-      if (drugGenericWords.some(word => word === searchTerm)) score += 75;
-      if (drugGenericViWords.some(word => word === searchTerm)) score += 70;
-
-      // Starts with matches (high priority)
-      if (drugName.startsWith(searchTerm)) score += 80;
-      else if (drugNameVi.startsWith(searchTerm)) score += 75;
-      else if (drugGenericName.startsWith(searchTerm)) score += 70;
-      else if (drugGenericNameVi.startsWith(searchTerm)) score += 65;
-
-      // Word starts with matches
-      if (drugNameWords.some(word => word.startsWith(searchTerm))) score += 60;
-      if (drugNameViWords.some(word => word.startsWith(searchTerm))) score += 55;
-      if (drugGenericWords.some(word => word.startsWith(searchTerm))) score += 50;
-      if (drugGenericViWords.some(word => word.startsWith(searchTerm))) score += 45;
-
-      // Contains matches (medium priority)
-      if (drugName.includes(searchTerm)) score += 50;
-      else if (drugNameVi.includes(searchTerm)) score += 45;
-      else if (drugGenericName.includes(searchTerm)) score += 40;
-      else if (drugGenericNameVi.includes(searchTerm)) score += 35;
-
-      // Category matches (lower priority)
-      if (drugCategory.includes(searchTerm)) score += 20;
-      if (drugCategoryVi.includes(searchTerm)) score += 15;
-
-      // Alias matches (lower priority) with error handling
-      try {
-        const aliases = await drugAliasService.getAllAliases(drug.name || drug.genericName || '');
-        if (aliases && aliases.some(alias => alias.toLowerCase().includes(searchTerm))) {
-          score += 30;
-        }
-      } catch (aliasError) {
-        console.warn('Alias lookup failed:', aliasError);
-        // Continue without alias scoring
-      }
-
-      // Ensure score does not exceed maxScore and is non-negative
-      return {
-        ...drug,
-        score: Math.max(0, Math.min(score, maxScore))
-      };
-    } catch (drugError) {
-      console.warn('Error processing drug:', drug.name, drugError);
-      return {
-        ...drug,
-        score: 0
-      };
+    // Fast exact match check first
+    if (drugName === searchTerm) score = 100;
+    else if (drugNameVi === searchTerm) score = 95;
+    else if (drugGenericName === searchTerm) score = 90;
+    else if (drugGenericNameVi === searchTerm) score = 85;
+    else {
+      // Only do expensive checks if no exact match
+      if (drugName.startsWith(searchTerm)) score = 80;
+      else if (drugNameVi.startsWith(searchTerm)) score = 75;
+      else if (drugGenericName.startsWith(searchTerm)) score = 70;
+      else if (drugGenericNameVi.startsWith(searchTerm)) score = 65;
+      else if (drugName.includes(searchTerm)) score = 50;
+      else if (drugNameVi.includes(searchTerm)) score = 45;
+      else if (drugGenericName.includes(searchTerm)) score = 40;
+      else if (drugGenericNameVi.includes(searchTerm)) score = 35;
     }
-  }));
 
-  // Filter results by score and limit the number of results
+    return {
+      ...drug,
+      score
+    };
+  });
+
+  // Filter and sort in one pass
   const filteredResults = scoredResults
-    .filter(drug => drug.score > 30) // Minimum score threshold
-    .sort((a, b) => b.score - a.score) // Sort by score descending
-    .slice(0, 50); // Limit to top 50 results
+    .filter(drug => drug.score > 30)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 50);
 
   console.log(`✅ Found ${filteredResults.length} medications for: "${searchTerm}"`);
 
-  return {
+  const result = {
     success: true,
     message: `Found ${filteredResults.length} medications`,
     medications: filteredResults,
     searchTerm: searchTerm,
     totalResults: filteredResults.length
   };
+  
+  // Cache the result
+  searchCache.set(cacheKey, {
+    result,
+    timestamp: Date.now()
+  });
+  
+  // Clear old cache entries periodically
+  if (searchCache.size > 1000) {
+    const now = Date.now();
+    for (const [key, value] of searchCache.entries()) {
+      if (now - value.timestamp > CACHE_TTL) {
+        searchCache.delete(key);
+      }
+    }
+  }
+
+  return result;
 }
 
 export function setupRoutes(app: express.Application) {

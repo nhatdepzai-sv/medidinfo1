@@ -80,48 +80,52 @@ async function searchMedicationsInternal(query: string) {
   // Build index on first search
   buildSearchIndex();
   
-  // Use index to narrow down candidates
-  const searchPrefix = searchTerm.substring(0, Math.min(3, searchTerm.length));
-  const candidateIndices = searchIndex!.get(searchPrefix) || new Set<number>();
+  // Use index to narrow down candidates - try multiple prefix lengths
+  let candidates: any[] = [];
   
-  // If no candidates from index, try broader search
-  let candidates: any[];
-  if (candidateIndices.size === 0) {
-    // Fallback to first 2000 medications if no index match
-    candidates = allMedicationsArray.slice(0, 2000);
-  } else {
-    // Use indexed candidates for much faster search
-    candidates = Array.from(candidateIndices).map(idx => allMedicationsArray[idx]);
+  // Try different prefix lengths (2, 3, 4 characters) to find matches
+  for (let prefixLen = 2; prefixLen <= Math.min(4, searchTerm.length); prefixLen++) {
+    const searchPrefix = searchTerm.substring(0, prefixLen);
+    const candidateIndices = searchIndex!.get(searchPrefix);
+    
+    if (candidateIndices && candidateIndices.size > 0) {
+      candidates = Array.from(candidateIndices).map(idx => allMedicationsArray[idx]);
+      break;
+    }
   }
   
-  console.log(`📊 Narrowed to ${candidates.length} candidates from ${allMedicationsArray.length} total`);
+  // If still no candidates from index, do a full scan of first 5000 items
+  if (candidates.length === 0) {
+    console.log("⚠️ Index miss, doing full scan");
+    candidates = allMedicationsArray.slice(0, 5000);
+  }
+  
+  console.log(`📊 Searching ${candidates.length} candidates from ${allMedicationsArray.length} total`);
 
   // Optimized scoring algorithm - only process candidates
   const scoredResults = candidates.map((drug) => {
     let score = 0;
-    const maxScore = 100;
 
     const drugName = drug.name?.toLowerCase() || '';
     const drugNameVi = drug.nameVi?.toLowerCase() || '';
     const drugGenericName = drug.genericName?.toLowerCase() || '';
     const drugGenericNameVi = drug.genericNameVi?.toLowerCase() || '';
 
-    // Fast exact match check first
+    // Fast exact match check first - highest scores
     if (drugName === searchTerm) score = 100;
     else if (drugNameVi === searchTerm) score = 95;
     else if (drugGenericName === searchTerm) score = 90;
     else if (drugGenericNameVi === searchTerm) score = 85;
-    else {
-      // Only do expensive checks if no exact match
-      if (drugName.startsWith(searchTerm)) score = 80;
-      else if (drugNameVi.startsWith(searchTerm)) score = 75;
-      else if (drugGenericName.startsWith(searchTerm)) score = 70;
-      else if (drugGenericNameVi.startsWith(searchTerm)) score = 65;
-      else if (drugName.includes(searchTerm)) score = 50;
-      else if (drugNameVi.includes(searchTerm)) score = 45;
-      else if (drugGenericName.includes(searchTerm)) score = 40;
-      else if (drugGenericNameVi.includes(searchTerm)) score = 35;
-    }
+    // Starts with search term - high scores
+    else if (drugName.startsWith(searchTerm)) score = 80;
+    else if (drugNameVi.startsWith(searchTerm)) score = 75;
+    else if (drugGenericName.startsWith(searchTerm)) score = 70;
+    else if (drugGenericNameVi.startsWith(searchTerm)) score = 65;
+    // Contains search term - medium scores
+    else if (drugName.includes(searchTerm)) score = 50;
+    else if (drugNameVi.includes(searchTerm)) score = 45;
+    else if (drugGenericName.includes(searchTerm)) score = 40;
+    else if (drugGenericNameVi.includes(searchTerm)) score = 35;
 
     return {
       ...drug,
@@ -129,9 +133,9 @@ async function searchMedicationsInternal(query: string) {
     };
   });
 
-  // Filter and sort in one pass
+  // Filter and sort - lower threshold to catch more matches
   const filteredResults = scoredResults
-    .filter(drug => drug.score > 30)
+    .filter(drug => drug.score > 25)
     .sort((a, b) => b.score - a.score)
     .slice(0, 50);
 

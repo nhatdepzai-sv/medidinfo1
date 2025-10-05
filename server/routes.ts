@@ -773,18 +773,8 @@ export function setupRoutes(app: express.Application) {
         }
       });
 
-      // Safely get background training status with error handling
-      let backgroundTrainingStatus;
-      try {
-        backgroundTrainingStatus = enhancedAITrainer.getBackgroundTrainingStatus();
-      } catch (err) {
-        console.warn("Background training status unavailable:", err);
-        backgroundTrainingStatus = {
-          isTraining: false,
-          hoursRemaining: 0,
-          cyclesCompleted: 0
-        };
-      }
+      // Get background training status
+      const backgroundTrainingStatus = enhancedAITrainer.getBackgroundTrainingStatus();
 
       res.json({
         success: true,

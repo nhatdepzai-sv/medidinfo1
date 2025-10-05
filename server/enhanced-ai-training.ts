@@ -699,6 +699,17 @@ export class EnhancedAITrainer {
     this.isLearningEnabled = enabled;
     console.log(`🧠 Continuous learning ${enabled ? 'enabled' : 'disabled'}`);
   }
+
+  /**
+   * Get background training status for UI display
+   */
+  getBackgroundTrainingStatus() {
+    return {
+      isTraining: this.isLearningEnabled && this.trainingDataCount > 0,
+      hoursRemaining: 0,
+      cyclesCompleted: Math.floor(this.trainingDataCount / 1000)
+    };
+  }
 }
 
 // Export singleton instance

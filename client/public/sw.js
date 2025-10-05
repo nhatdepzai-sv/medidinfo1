@@ -65,6 +65,12 @@ self.addEventListener('activate', (event) => {
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  
+  // Skip chrome-extension and other non-http(s) schemes
+  if (!request.url.startsWith('http://') && !request.url.startsWith('https://')) {
+    return;
+  }
+  
   const url = new URL(request.url);
 
   // Handle API requests
@@ -171,7 +177,7 @@ self.addEventListener('fetch', (event) => {
         // Not in cache, try network
         return fetch(request)
           .then((response) => {
-            // Don't cache non-successful responses
+            // Don't cache non-successful responses or non-http(s) schemes
             if (!response || response.status !== 200 || response.type !== 'basic') {
               return response;
             }
@@ -179,11 +185,16 @@ self.addEventListener('fetch', (event) => {
             // Clone the response
             const responseToCache = response.clone();
 
-            // Add to cache
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(request, responseToCache);
-              });
+            // Add to cache (only if http/https)
+            if (request.url.startsWith('http://') || request.url.startsWith('https://')) {
+              caches.open(CACHE_NAME)
+                .then((cache) => {
+                  cache.put(request, responseToCache);
+                })
+                .catch((err) => {
+                  console.log('[SW] Failed to cache:', err);
+                });
+            }
 
             return response;
           })

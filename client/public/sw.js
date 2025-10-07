@@ -2,23 +2,8 @@ const CACHE_NAME = 'drugscan-v1.2';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/src/main.tsx',
-  '/src/index.css',
-  '/src/App.tsx',
-  '/src/pages/home.tsx',
-  '/src/pages/history.tsx',
-  '/src/pages/profile.tsx',
-  '/src/pages/translator.tsx',
-  '/src/components/camera-interface.tsx',
-  '/src/components/drug-results.tsx',
-  '/src/components/bottom-navigation.tsx',
-  '/src/components/language-switcher.tsx',
-  '/src/contexts/language-context.tsx',
-  '/src/hooks/use-network.ts',
-  '/tessdata/eng.traineddata',
-  // Add critical assets
-  '/assets/',
-  '/fonts/',
+  '/manifest.json',
+  '/tessdata/eng.traineddata'
 ];
 
 // Install event - cache app shell

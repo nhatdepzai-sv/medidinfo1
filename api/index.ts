@@ -28,6 +28,27 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+// Add guest login route explicitly for Vercel
+app.post("/api/auth/guest", async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      user: {
+        id: "guest",
+        username: "guest",
+        email: "guest@drugscan.com"
+      },
+      token: "guest-token"
+    });
+  } catch (error: any) {
+    console.error("Guest login error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Guest login failed"
+    });
+  }
+});
+
 setupRoutes(app);
 addExtractMedicationRoute(app);
 

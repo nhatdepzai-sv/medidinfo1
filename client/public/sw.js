@@ -1,4 +1,3 @@
-
 const CACHE_NAME = 'drugscan-v1.2';
 const urlsToCache = [
   '/',
@@ -22,23 +21,27 @@ const urlsToCache = [
   '/fonts/',
 ];
 
-// Install event - cache resources
+// Install event - cache app shell
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing Service Worker');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('[SW] Caching app shell');
-        return cache.addAll(urlsToCache.map(url => {
-          // Handle relative URLs properly
-          return new Request(url, { mode: 'no-cors' });
-        }));
+        // Cache assets individually to avoid failure on missing files
+        return Promise.allSettled(
+          urlsToCache.map(url => 
+            cache.add(url).catch(err => {
+              console.warn(`[SW] Failed to cache ${url}:`, err);
+              return null;
+            })
+          )
+        );
       })
-      .catch((error) => {
-        console.error('[SW] Failed to cache:', error);
+      .catch((err) => {
+        console.error('[SW] Failed to cache:', err);
       })
   );
-  // Force the waiting service worker to become the active service worker
   self.skipWaiting();
 });
 
@@ -65,12 +68,12 @@ self.addEventListener('activate', (event) => {
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  
+
   // Skip chrome-extension and other non-http(s) schemes
   if (!request.url.startsWith('http://') && !request.url.startsWith('https://')) {
     return;
   }
-  
+
   const url = new URL(request.url);
 
   // Handle API requests
@@ -114,7 +117,7 @@ self.addEventListener('fetch', (event) => {
               if (cachedResponse) {
                 return cachedResponse;
               }
-              
+
               // Fallback to offline search
               const query = url.searchParams.get('query');
               return performOfflineSearch(query);
@@ -207,7 +210,7 @@ self.addEventListener('fetch', (event) => {
                 headers: { 'Content-Type': 'text/html' }
               });
             }
-            
+
             // For other requests, return a generic offline response
             return new Response('Offline', { status: 503 });
           });
@@ -307,7 +310,7 @@ async function performOfflineSearch(query) {
   ];
 
   const searchTerm = query.toLowerCase().trim();
-  
+
   // Enhanced scoring for partial matches
   const scoredResults = offlineMedications.map(med => {
     let score = 0;

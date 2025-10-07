@@ -1,4 +1,3 @@
-
 import express, { type Request, Response, NextFunction } from "express";
 import { setupRoutes } from "../server/routes";
 import { addExtractMedicationRoute } from "../server/routes-minimal";

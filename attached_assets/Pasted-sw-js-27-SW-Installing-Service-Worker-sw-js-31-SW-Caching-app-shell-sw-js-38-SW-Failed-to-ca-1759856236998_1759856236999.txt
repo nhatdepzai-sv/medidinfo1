@@ -1,0 +1,86 @@
+sw.js:27 [SW] Installing Service Worker
+sw.js:31 [SW] Caching app shell
+sw.js:38 [SW] Failed to cache: TypeError: Failed to execute 'addAll' on 'Cache': Request failed
+(anonymous) @ sw.js:38
+sw.js:47 [SW] Activating Service Worker
+(index):31 SW registered:  ServiceWorkerRegistration
+/icon-144.png:1  Failed to load resource: the server responded with a status of 404 ()
+(index):1 Error while trying to use the following icon from the Manifest: https://conanmedidinfofinal.vercel.app/icon-144.png (Download error or resource isn't a valid image)
+index-Be2AXPfn.js:104 Attempting guest login to: https://conanmedidinfofinal.vercel.app/api/auth/guest
+/api/auth/guest:1  Failed to load resource: the server responded with a status of 404 ()
+index-Be2AXPfn.js:104 Guest login response status: 404
+index-Be2AXPfn.js:104 Guest login failed: Error: HTTP error! status: 404
+    at c (index-Be2AXPfn.js:104:79513)
+    at async k (auth-AxLTJ_2m.js:21:979)
+c @ index-Be2AXPfn.js:104
+(index):1 The resource https://conanmedidinfofinal.vercel.app/tessdata/eng.traineddata was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+index-Be2AXPfn.js:104 Attempting guest login to: https://conanmedidinfofinal.vercel.app/api/auth/guest
+requests.js:1  POST https://conanmedidinfofinal.vercel.app/api/auth/guest 404 (Not Found)
+_$initInterceptor.s.fetch @ requests.js:1
+(anonymous) @ traffic.js:1
+fetch @ traffic.js:1
+c @ index-Be2AXPfn.js:104
+k @ auth-AxLTJ_2m.js:21
+mg @ index-Be2AXPfn.js:38
+yg @ index-Be2AXPfn.js:38
+vg @ index-Be2AXPfn.js:38
+oc @ index-Be2AXPfn.js:38
+Hf @ index-Be2AXPfn.js:38
+(anonymous) @ index-Be2AXPfn.js:38
+Ya @ index-Be2AXPfn.js:41
+ff @ index-Be2AXPfn.js:38
+Hs @ index-Be2AXPfn.js:38
+ka @ index-Be2AXPfn.js:38
+Mg @ index-Be2AXPfn.js:38
+index-Be2AXPfn.js:104 Guest login response status: 404
+index-Be2AXPfn.js:104 Guest login failed: Error: HTTP error! status: 404
+    at c (index-Be2AXPfn.js:104:79513)
+    at async k (auth-AxLTJ_2m.js:21:979)
+c @ index-Be2AXPfn.js:104
+await in c
+k @ auth-AxLTJ_2m.js:21
+mg @ index-Be2AXPfn.js:38
+yg @ index-Be2AXPfn.js:38
+vg @ index-Be2AXPfn.js:38
+oc @ index-Be2AXPfn.js:38
+Hf @ index-Be2AXPfn.js:38
+(anonymous) @ index-Be2AXPfn.js:38
+Ya @ index-Be2AXPfn.js:41
+ff @ index-Be2AXPfn.js:38
+Hs @ index-Be2AXPfn.js:38
+ka @ index-Be2AXPfn.js:38
+Mg @ index-Be2AXPfn.js:38
+(index):1 The resource https://conanmedidinfofinal.vercel.app/tessdata/eng.traineddata was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+requests.js:1  POST https://conanmedidinfofinal.vercel.app/api/auth/login 404 (Not Found)
+_$initInterceptor.s.fetch @ requests.js:1
+(anonymous) @ traffic.js:1
+fetch @ traffic.js:1
+a @ index-Be2AXPfn.js:104
+N @ auth-AxLTJ_2m.js:21
+mg @ index-Be2AXPfn.js:38
+yg @ index-Be2AXPfn.js:38
+vg @ index-Be2AXPfn.js:38
+oc @ index-Be2AXPfn.js:38
+Hf @ index-Be2AXPfn.js:38
+(anonymous) @ index-Be2AXPfn.js:38
+Ya @ index-Be2AXPfn.js:41
+ff @ index-Be2AXPfn.js:38
+Hs @ index-Be2AXPfn.js:38
+ka @ index-Be2AXPfn.js:38
+Mg @ index-Be2AXPfn.js:38
+index-Be2AXPfn.js:104 Login failed: SyntaxError: Unexpected token 'T', "The page c"... is not valid JSON
+a @ index-Be2AXPfn.js:104
+await in a
+N @ auth-AxLTJ_2m.js:21
+mg @ index-Be2AXPfn.js:38
+yg @ index-Be2AXPfn.js:38
+vg @ index-Be2AXPfn.js:38
+oc @ index-Be2AXPfn.js:38
+Hf @ index-Be2AXPfn.js:38
+(anonymous) @ index-Be2AXPfn.js:38
+Ya @ index-Be2AXPfn.js:41
+ff @ index-Be2AXPfn.js:38
+Hs @ index-Be2AXPfn.js:38
+ka @ index-Be2AXPfn.js:38
+Mg @ index-Be2AXPfn.js:38
+(index):1 The resource https://conanmedidinfofinal.vercel.app/tessdata/eng.traineddata was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.

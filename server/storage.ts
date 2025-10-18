@@ -12,12 +12,21 @@ let useDatabase = false;
 
 if (process.env.DATABASE_URL) {
   try {
+    console.log("Attempting database connection...");
     const neonSql = neon(process.env.DATABASE_URL);
     db = drizzle(neonSql, { schema });
-    useDatabase = true;
-    console.log("Database connection established");
-  } catch (error) {
-    console.error("Database connection failed:", error);
+    // Test the connection by selecting a single row from users table
+    db.select().from(schema.users).limit(1)
+      .then(() => {
+        useDatabase = true;
+        console.log("✅ Database connection established successfully");
+      })
+      .catch((err) => {
+        console.error("❌ Database connection test failed:", err.message);
+        useDatabase = false; // Ensure useDatabase is false if connection test fails
+      });
+  } catch (error: any) {
+    console.error("❌ Database initialization error:", error.message);
     useDatabase = false;
   }
 } else {
@@ -28,14 +37,15 @@ if (process.env.DATABASE_URL) {
 // Helper function to safely execute database operations
 async function safeDbOperation<T>(operation: () => Promise<T>, fallback: () => T): Promise<T> {
   if (!useDatabase || !db) {
+    console.log("Database is not available, using fallback memory operation.");
     return fallback();
   }
 
   try {
     return await operation();
-  } catch (error) {
-    console.error("Database operation failed, falling back to memory:", error);
-    useDatabase = false; // Temporarily disable database
+  } catch (error: any) {
+    console.error(`Database operation failed: ${error.message}. Falling back to memory.`);
+    useDatabase = false; // Temporarily disable database if an operation fails
     return fallback();
   }
 }
@@ -123,11 +133,11 @@ export class DatabaseStorage implements IStorage {
       }
 
       this.medicationsInitialized = true;
-    } catch (error) {
-      console.error("Error initializing medications:", error);
+    } catch (error: any) {
+      console.error("Error initializing medications:", error.message);
       // Fallback to memory storage
       if (!this.medicationsInitialized) {
-        console.log("Falling back to in-memory storage...");
+        console.log("Falling back to in-memory storage for medications...");
         medicationsDatabase.forEach(med => {
           const medication = { ...med, id: randomUUID() } as Medication;
           this.memoryMedications.set(medication.id, medication);

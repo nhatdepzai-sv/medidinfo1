@@ -204,11 +204,21 @@ export function setupRoutes(app: express.Application) {
   console.log("🔧 Setting up API routes...");
 
   // Health check endpoint
-  app.get("/api/health", (req, res) => {
+  app.get("/api/health", async (req, res) => {
+    let dbStatus = "unknown";
+    try {
+      await storage.getAllUsers?.();
+      dbStatus = "connected";
+    } catch (error: any) {
+      dbStatus = `error: ${error.message}`;
+    }
+
     res.json({
       status: "ok",
       timestamp: new Date().toISOString(),
-      version: "1.0.0"
+      version: "1.0.0",
+      database: dbStatus,
+      environment: process.env.NODE_ENV || "unknown"
     });
   });
 
@@ -225,9 +235,15 @@ export function setupRoutes(app: express.Application) {
         message: "Registration successful"
       });
     } catch (error: any) {
+      console.error("Registration error details:", {
+        message: error.message,
+        stack: error.stack,
+        body: req.body
+      });
       res.status(400).json({
         success: false,
-        message: error.message || "Registration failed"
+        message: error.message || "Registration failed",
+        error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
       });
     }
   });
@@ -264,10 +280,15 @@ export function setupRoutes(app: express.Application) {
         message: "Guest login successful"
       });
     } catch (error: any) {
-      console.error("Guest login error:", error);
+      console.error("Guest login error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       res.status(200).json({
         success: false,
-        message: error.message || "Guest login failed"
+        message: error.message || "Guest login failed",
+        error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
       });
     }
   });

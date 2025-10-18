@@ -29,9 +29,20 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    host: '0.0.0.0',
+    port: 5173,
+    strictPort: false,
+    hmr: {
+      clientPort: 443,
+      protocol: 'wss',
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],
+    },
+    watch: {
+      usePolling: true,
+      interval: 100,
     },
   },
 });

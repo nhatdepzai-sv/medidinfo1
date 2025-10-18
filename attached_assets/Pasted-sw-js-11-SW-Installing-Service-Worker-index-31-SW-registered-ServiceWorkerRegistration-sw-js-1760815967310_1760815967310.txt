@@ -1,0 +1,85 @@
+sw.js:11 [SW] Installing Service Worker
+(index):31 SW registered:  ServiceWorkerRegistration
+sw.js:15 [SW] Caching app shell
+(index):1 Error while trying to use the following icon from the Manifest: https://conanmedidinfofinal.vercel.app/icon-192.png (Download error or resource isn't a valid image)
+sw.js:35 [SW] Activating Service Worker
+index-Be2AXPfn.js:104 Attempting guest login to: https://conanmedidinfofinal.vercel.app/api/auth/guest
+/api/auth/guest:1  Failed to load resource: the server responded with a status of 500 ()
+index-Be2AXPfn.js:104 Guest login response status: 500
+index-Be2AXPfn.js:104 Guest login failed: Error: HTTP error! status: 500
+    at c (index-Be2AXPfn.js:104:79513)
+    at async k (auth-AxLTJ_2m.js:21:979)
+c @ index-Be2AXPfn.js:104
+(index):1 The resource https://conanmedidinfofinal.vercel.app/tessdata/eng.traineddata was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+register:1  Failed to load resource: the server responded with a status of 500 ()
+index-Be2AXPfn.js:104 Registration failed: SyntaxError: Unexpected token 'A', "A server e"... is not valid JSON
+u @ index-Be2AXPfn.js:104
+register:1  Failed to load resource: the server responded with a status of 500 ()
+index-Be2AXPfn.js:104 Registration failed: SyntaxError: Unexpected token 'A', "A server e"... is not valid JSON
+u @ index-Be2AXPfn.js:104
+requests.js:1  POST https://conanmedidinfofinal.vercel.app/api/auth/register 500 (Internal Server Error)
+s.fetch @ requests.js:1
+(anonymous) @ traffic.js:1
+fetch @ traffic.js:1
+u @ index-Be2AXPfn.js:104
+N @ auth-AxLTJ_2m.js:21
+mg @ index-Be2AXPfn.js:38
+yg @ index-Be2AXPfn.js:38
+vg @ index-Be2AXPfn.js:38
+oc @ index-Be2AXPfn.js:38
+Hf @ index-Be2AXPfn.js:38
+(anonymous) @ index-Be2AXPfn.js:38
+Ya @ index-Be2AXPfn.js:41
+ff @ index-Be2AXPfn.js:38
+Hs @ index-Be2AXPfn.js:38
+ka @ index-Be2AXPfn.js:38
+Mg @ index-Be2AXPfn.js:38
+index-Be2AXPfn.js:104 Registration failed: SyntaxError: Unexpected token 'A', "A server e"... is not valid JSON
+u @ index-Be2AXPfn.js:104
+await in u
+N @ auth-AxLTJ_2m.js:21
+mg @ index-Be2AXPfn.js:38
+yg @ index-Be2AXPfn.js:38
+vg @ index-Be2AXPfn.js:38
+oc @ index-Be2AXPfn.js:38
+Hf @ index-Be2AXPfn.js:38
+(anonymous) @ index-Be2AXPfn.js:38
+Ya @ index-Be2AXPfn.js:41
+ff @ index-Be2AXPfn.js:38
+Hs @ index-Be2AXPfn.js:38
+ka @ index-Be2AXPfn.js:38
+Mg @ index-Be2AXPfn.js:38
+(index):1 The resource https://conanmedidinfofinal.vercel.app/tessdata/eng.traineddata was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+requests.js:1  POST https://conanmedidinfofinal.vercel.app/api/auth/register 500 (Internal Server Error)
+s.fetch @ requests.js:1
+(anonymous) @ traffic.js:1
+fetch @ traffic.js:1
+u @ index-Be2AXPfn.js:104
+N @ auth-AxLTJ_2m.js:21
+mg @ index-Be2AXPfn.js:38
+yg @ index-Be2AXPfn.js:38
+vg @ index-Be2AXPfn.js:38
+oc @ index-Be2AXPfn.js:38
+Hf @ index-Be2AXPfn.js:38
+(anonymous) @ index-Be2AXPfn.js:38
+Ya @ index-Be2AXPfn.js:41
+ff @ index-Be2AXPfn.js:38
+Hs @ index-Be2AXPfn.js:38
+ka @ index-Be2AXPfn.js:38
+Mg @ index-Be2AXPfn.js:38
+index-Be2AXPfn.js:104 Registration failed: SyntaxError: Unexpected token 'A', "A server e"... is not valid JSON
+u @ index-Be2AXPfn.js:104
+await in u
+N @ auth-AxLTJ_2m.js:21
+mg @ index-Be2AXPfn.js:38
+yg @ index-Be2AXPfn.js:38
+vg @ index-Be2AXPfn.js:38
+oc @ index-Be2AXPfn.js:38
+Hf @ index-Be2AXPfn.js:38
+(anonymous) @ index-Be2AXPfn.js:38
+Ya @ index-Be2AXPfn.js:41
+ff @ index-Be2AXPfn.js:38
+Hs @ index-Be2AXPfn.js:38
+ka @ index-Be2AXPfn.js:38
+Mg @ index-Be2AXPfn.js:38
+(index):1 The resource https://conanmedidinfofinal.vercel.app/tessdata/eng.traineddata was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.

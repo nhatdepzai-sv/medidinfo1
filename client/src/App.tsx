@@ -9,6 +9,7 @@ import { LanguageProvider } from "./contexts/language-context";
 import { AuthProvider, useAuth } from "./contexts/auth-context";
 import BottomNavigation from "./components/bottom-navigation";
 import { useDeviceType } from "./hooks/use-device-type";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 // Lazy load pages for better performance
 const Home = lazy(() => import("./pages/home"));
@@ -166,6 +167,7 @@ function App() {
             <AuthProvider>
               <AppContent />
               <Toaster />
+              <SpeedInsights />
             </AuthProvider>
           </TooltipProvider>
         </QueryClientProvider>

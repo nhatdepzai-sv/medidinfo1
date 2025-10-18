@@ -10,29 +10,36 @@ import { eq, like, or, desc, asc, sql } from "drizzle-orm";
 let db: any = null;
 let useDatabase = false;
 
-if (process.env.DATABASE_URL) {
-  try {
-    console.log("Attempting database connection...");
-    const neonSql = neon(process.env.DATABASE_URL);
-    db = drizzle(neonSql, { schema });
-    // Test the connection by selecting a single row from users table
-    db.select().from(schema.users).limit(1)
-      .then(() => {
-        useDatabase = true;
-        console.log("✅ Database connection established successfully");
-      })
-      .catch((err) => {
-        console.error("❌ Database connection test failed:", err.message);
-        useDatabase = false; // Ensure useDatabase is false if connection test fails
-      });
-  } catch (error: any) {
-    console.error("❌ Database initialization error:", error.message);
+async function initializeDatabase() {
+  if (process.env.DATABASE_URL) {
+    try {
+      console.log("🔗 Attempting database connection...");
+      console.log("📍 DATABASE_URL found:", process.env.DATABASE_URL ? "Yes" : "No");
+      
+      const neonSql = neon(process.env.DATABASE_URL);
+      db = drizzle(neonSql, { schema });
+      
+      // Test the connection by selecting a single row from users table
+      await db.select().from(schema.users).limit(1);
+      useDatabase = true;
+      console.log("✅ Database connection established successfully");
+      console.log("💾 User tracking, search history, and persistence enabled");
+    } catch (error: any) {
+      console.error("❌ Database connection failed:", error.message);
+      console.warn("⚠️ Falling back to in-memory storage");
+      console.warn("⚠️ User data will be lost on restart");
+      useDatabase = false;
+    }
+  } else {
+    console.warn("⚠️ No DATABASE_URL environment variable found");
+    console.warn("⚠️ Using in-memory storage - data will not persist");
+    console.warn("💡 Add DATABASE_URL to Secrets to enable persistent storage");
     useDatabase = false;
   }
-} else {
-  console.log("No DATABASE_URL found, using in-memory storage");
-  useDatabase = false;
 }
+
+// Initialize database connection
+initializeDatabase().catch(console.error);
 
 // Helper function to safely execute database operations
 async function safeDbOperation<T>(operation: () => Promise<T>, fallback: () => T): Promise<T> {

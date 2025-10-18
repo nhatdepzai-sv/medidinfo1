@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect } from "react";
+import { lazy, Suspense, useState, useEffect, Component } from "react";
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -10,6 +10,48 @@ import { AuthProvider, useAuth } from "./contexts/auth-context";
 import BottomNavigation from "./components/bottom-navigation";
 import { useDeviceType } from "./hooks/use-device-type";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+
+// Error Boundary Component
+class ErrorBoundary extends Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error("App Error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h1>
+            <p className="text-gray-700 mb-4">
+              {this.state.error?.message || "An unexpected error occurred"}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+            >
+              Reload App
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 // Lazy load pages for better performance
 const Home = lazy(() => import("./pages/home"));
@@ -160,19 +202,21 @@ function AppContent() {
 
 function App() {
   return (
-    <LanguageProvider>
-      <ThemeProvider>
-        <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-            <AuthProvider>
-              <AppContent />
-              <Toaster />
-              <SpeedInsights />
-            </AuthProvider>
-          </TooltipProvider>
-        </QueryClientProvider>
-      </ThemeProvider>
-    </LanguageProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <ThemeProvider>
+          <QueryClientProvider client={queryClient}>
+            <TooltipProvider>
+              <AuthProvider>
+                <AppContent />
+                <Toaster />
+                {process.env.NODE_ENV === 'production' && <SpeedInsights />}
+              </AuthProvider>
+            </TooltipProvider>
+          </QueryClientProvider>
+        </ThemeProvider>
+      </LanguageProvider>
+    </ErrorBoundary>
   );
 }
 

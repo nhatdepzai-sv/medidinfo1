@@ -23,28 +23,48 @@
       "src": "/sw.js",
       "dest": "/sw.js",
       "headers": {
-        "Service-Worker-Allowed": "/"
+        "Service-Worker-Allowed": "/",
+        "Cache-Control": "public, max-age=0, must-revalidate"
       }
     },
     {
       "src": "/manifest.json",
-      "dest": "/manifest.json"
+      "dest": "/manifest.json",
+      "headers": {
+        "Cache-Control": "public, max-age=0, must-revalidate"
+      }
     },
     {
       "src": "/assets/(.*)",
-      "dest": "/assets/$1"
+      "dest": "/assets/$1",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      }
     },
     {
       "src": "/tessdata/(.*)",
       "dest": "/tessdata/$1"
     },
     {
-      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|svg|json|woff|woff2|ttf|eot|webmanifest|traineddata))",
-      "dest": "/$1"
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot))",
+      "dest": "/$1",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      }
+    },
+    {
+      "src": "/(.*\\.(json|webmanifest|traineddata))",
+      "dest": "/$1",
+      "headers": {
+        "Cache-Control": "public, max-age=0, must-revalidate"
+      }
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/index.html",
+      "headers": {
+        "Cache-Control": "public, max-age=0, must-revalidate"
+      }
     }
   ],
   "outputDirectory": "dist/public"

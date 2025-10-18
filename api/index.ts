@@ -1,5 +1,6 @@
 
 import express, { type Request, Response, NextFunction } from "express";
+import path from "path";
 import { setupRoutes } from "../server/routes";
 import { addExtractMedicationRoute } from "../server/routes-minimal";
 
@@ -18,6 +19,12 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// Serve static files from dist/public in production (Vercel)
+if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+  const publicPath = path.join(process.cwd(), 'dist', 'public');
+  app.use(express.static(publicPath));
+}
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {

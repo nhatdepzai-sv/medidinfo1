@@ -1,0 +1,157 @@
+sw.js:11 [SW] Installing Service Worker
+sw.js:15 [SW] Caching app shell
+sw.js:35 [SW] Activating Service Worker
+(index):31 SW registered:  ServiceWorkerRegistration
+(index):1 Error while trying to use the following icon from the Manifest: https://conanmedidinfofinal.vercel.app/icon-192.png (Download error or resource isn't a valid image)
+index-vCqKwkPf.js:104 Attempting guest login to: https://conanmedidinfofinal.vercel.app/api/auth/guest
+guest:1  Failed to load resource: the server responded with a status of 500 ()
+index-vCqKwkPf.js:104 Guest login response status: 500
+index-vCqKwkPf.js:104 Guest login failed: Error: HTTP error! status: 500
+    at c (index-vCqKwkPf.js:104:79513)
+    at async k (auth-1gfmS7MR.js:21:979)
+c @ index-vCqKwkPf.js:104
+index-vCqKwkPf.js:104 Attempting guest login to: https://conanmedidinfofinal.vercel.app/api/auth/guest
+requests.js:1  POST https://conanmedidinfofinal.vercel.app/api/auth/guest 500 (Internal Server Error)
+(anonymous) @ requests.js:1
+(anonymous) @ traffic.js:1
+fetch @ traffic.js:1
+c @ index-vCqKwkPf.js:104
+k @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+index-vCqKwkPf.js:104 Guest login response status: 500
+index-vCqKwkPf.js:104 Guest login failed: Error: HTTP error! status: 500
+    at c (index-vCqKwkPf.js:104:79513)
+    at async k (auth-1gfmS7MR.js:21:979)
+c @ index-vCqKwkPf.js:104
+await in c
+k @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+index-vCqKwkPf.js:104 Attempting guest login to: https://conanmedidinfofinal.vercel.app/api/auth/guest
+requests.js:1  POST https://conanmedidinfofinal.vercel.app/api/auth/guest 500 (Internal Server Error)
+(anonymous) @ requests.js:1
+(anonymous) @ traffic.js:1
+fetch @ traffic.js:1
+c @ index-vCqKwkPf.js:104
+k @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+index-vCqKwkPf.js:104 Guest login response status: 500
+index-vCqKwkPf.js:104 Guest login failed: Error: HTTP error! status: 500
+    at c (index-vCqKwkPf.js:104:79513)
+    at async k (auth-1gfmS7MR.js:21:979)
+c @ index-vCqKwkPf.js:104
+await in c
+k @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+(index):1 The resource https://conanmedidinfofinal.vercel.app/tessdata/eng.traineddata was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+index-vCqKwkPf.js:104 Attempting guest login to: https://conanmedidinfofinal.vercel.app/api/auth/guest
+requests.js:1  POST https://conanmedidinfofinal.vercel.app/api/auth/guest 500 (Internal Server Error)
+(anonymous) @ requests.js:1
+(anonymous) @ traffic.js:1
+fetch @ traffic.js:1
+c @ index-vCqKwkPf.js:104
+k @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+index-vCqKwkPf.js:104 Guest login response status: 500
+index-vCqKwkPf.js:104 Guest login failed: Error: HTTP error! status: 500
+    at c (index-vCqKwkPf.js:104:79513)
+    at async k (auth-1gfmS7MR.js:21:979)
+c @ index-vCqKwkPf.js:104
+await in c
+k @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+index-vCqKwkPf.js:104 Attempting guest login to: https://conanmedidinfofinal.vercel.app/api/auth/guest
+requests.js:1  POST https://conanmedidinfofinal.vercel.app/api/auth/guest 500 (Internal Server Error)
+(anonymous) @ requests.js:1
+(anonymous) @ traffic.js:1
+fetch @ traffic.js:1
+c @ index-vCqKwkPf.js:104
+k @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+index-vCqKwkPf.js:104 Guest login response status: 500
+index-vCqKwkPf.js:104 Guest login failed: Error: HTTP error! status: 500
+    at c (index-vCqKwkPf.js:104:79513)
+    at async k (auth-1gfmS7MR.js:21:979)
+c @ index-vCqKwkPf.js:104
+await in c
+k @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38

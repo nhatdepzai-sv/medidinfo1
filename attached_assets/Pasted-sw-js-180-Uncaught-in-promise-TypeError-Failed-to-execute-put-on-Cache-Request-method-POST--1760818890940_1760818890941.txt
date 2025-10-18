@@ -1,0 +1,182 @@
+sw.js:180 Uncaught (in promise) TypeError: Failed to execute 'put' on 'Cache': Request method 'POST' is unsupported
+    at sw.js:180:25
+(anonymous) @ sw.js:180
+Promise.then
+(anonymous) @ sw.js:179
+Promise.then
+(anonymous) @ sw.js:167
+Promise.then
+(anonymous) @ sw.js:145
+sw.js:180 Uncaught (in promise) TypeError: Failed to execute 'put' on 'Cache': Request method 'POST' is unsupported
+    at sw.js:180:25
+(anonymous) @ sw.js:180
+Promise.then
+(anonymous) @ sw.js:179
+Promise.then
+(anonymous) @ sw.js:167
+Promise.then
+(anonymous) @ sw.js:145
+(index):31 SW registered:  ServiceWorkerRegistration {installing: null, waiting: null, active: ServiceWorker, navigationPreload: NavigationPreloadManager, scope: 'https://conanmedidinfofinal.vercel.app/', …}
+(index):1 Error while trying to use the following icon from the Manifest: https://conanmedidinfofinal.vercel.app/icon-192.png (Download error or resource isn't a valid image)
+(index):1 The resource https://conanmedidinfofinal.vercel.app/tessdata/eng.traineddata was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+requests.js:1  POST https://conanmedidinfofinal.vercel.app/api/auth/login 500 (Internal Server Error)
+(anonymous) @ requests.js:1
+(anonymous) @ traffic.js:1
+fetch @ traffic.js:1
+a @ index-vCqKwkPf.js:104
+N @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+index-vCqKwkPf.js:104 Login failed: SyntaxError: Unexpected token 'A', "A server e"... is not valid JSON
+a @ index-vCqKwkPf.js:104
+await in a
+N @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+requests.js:1  POST https://conanmedidinfofinal.vercel.app/api/auth/login 500 (Internal Server Error)
+(anonymous) @ requests.js:1
+(anonymous) @ traffic.js:1
+fetch @ traffic.js:1
+a @ index-vCqKwkPf.js:104
+N @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+index-vCqKwkPf.js:104 Login failed: SyntaxError: Unexpected token 'A', "A server e"... is not valid JSON
+a @ index-vCqKwkPf.js:104
+await in a
+N @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+requests.js:1  POST https://conanmedidinfofinal.vercel.app/api/auth/login 500 (Internal Server Error)
+(anonymous) @ requests.js:1
+(anonymous) @ traffic.js:1
+fetch @ traffic.js:1
+a @ index-vCqKwkPf.js:104
+N @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+index-vCqKwkPf.js:104 Login failed: SyntaxError: Unexpected token 'A', "A server e"... is not valid JSON
+a @ index-vCqKwkPf.js:104
+await in a
+N @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+requests.js:1  POST https://conanmedidinfofinal.vercel.app/api/auth/login 500 (Internal Server Error)
+(anonymous) @ requests.js:1
+(anonymous) @ traffic.js:1
+fetch @ traffic.js:1
+a @ index-vCqKwkPf.js:104
+N @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+index-vCqKwkPf.js:104 Login failed: SyntaxError: Unexpected token 'A', "A server e"... is not valid JSON
+a @ index-vCqKwkPf.js:104
+await in a
+N @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+requests.js:1  POST https://conanmedidinfofinal.vercel.app/api/auth/login 500 (Internal Server Error)
+(anonymous) @ requests.js:1
+(anonymous) @ traffic.js:1
+fetch @ traffic.js:1
+a @ index-vCqKwkPf.js:104
+N @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+index-vCqKwkPf.js:104 Login failed: SyntaxError: Unexpected token 'A', "A server e"... is not valid JSON
+a @ index-vCqKwkPf.js:104
+await in a
+N @ auth-1gfmS7MR.js:21
+yg @ index-vCqKwkPf.js:38
+wg @ index-vCqKwkPf.js:38
+xg @ index-vCqKwkPf.js:38
+oc @ index-vCqKwkPf.js:38
+Hf @ index-vCqKwkPf.js:38
+(anonymous) @ index-vCqKwkPf.js:38
+qa @ index-vCqKwkPf.js:41
+pf @ index-vCqKwkPf.js:38
+Bs @ index-vCqKwkPf.js:38
+Ea @ index-vCqKwkPf.js:38
+Ig @ index-vCqKwkPf.js:38
+(index):1 The resource https://conanmedidinfofinal.vercel.app/tessdata/eng.traineddata was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.

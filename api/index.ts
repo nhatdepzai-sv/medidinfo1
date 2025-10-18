@@ -3,6 +3,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import { setupRoutes } from "../server/routes";
 import { addExtractMedicationRoute } from "../server/routes-minimal";
+import { AuthService } from "../server/auth";
 
 const app = express();
 app.use(express.json({ limit: '50mb' }));
@@ -36,22 +37,24 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Add guest login route explicitly for Vercel
+// Add guest login route explicitly for Vercel - MUST be before setupRoutes
 app.post("/api/auth/guest", async (req, res) => {
+  console.log("[Vercel] Guest login endpoint called");
   try {
-    const { AuthService } = await import("../server/auth");
     const result = await AuthService.loginAsGuest();
-    res.json({
+    console.log("[Vercel] Guest login successful:", result.user.id);
+    res.status(200).json({
       success: true,
       user: result.user,
       token: result.token,
       message: "Guest login successful"
     });
   } catch (error: any) {
-    console.error("Guest login error:", error);
+    console.error("[Vercel] Guest login error:", error);
     res.status(500).json({
       success: false,
-      message: error.message || "Guest login failed"
+      message: error.message || "Guest login failed",
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -62,8 +65,11 @@ addExtractMedicationRoute(app);
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || err.statusCode || 500;
   const message = err.message || "Internal Server Error";
-  res.status(status).json({ message });
-  console.error(`Error ${status}: ${message}`);
+  console.error(`[Vercel] Error ${status}:`, message);
+  res.status(status).json({ 
+    message,
+    error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
 });
 
 // Export for Vercel serverless

@@ -33,8 +33,9 @@ export default defineConfig({
     port: 5173,
     strictPort: false,
     hmr: {
-      clientPort: 443,
-      protocol: 'wss',
+      protocol: 'ws',
+      host: 'localhost',
+      port: 5173,
     },
     fs: {
       strict: true,
@@ -42,7 +43,7 @@ export default defineConfig({
     },
     watch: {
       usePolling: true,
-      interval: 100,
+      interval: 300,
     },
   },
 });

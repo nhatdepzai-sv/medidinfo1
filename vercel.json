@@ -20,6 +20,17 @@
       "dest": "/api/index.ts"
     },
     {
+      "src": "/sw.js",
+      "dest": "/sw.js",
+      "headers": {
+        "Service-Worker-Allowed": "/"
+      }
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/manifest.json"
+    },
+    {
       "src": "/assets/(.*)",
       "dest": "/assets/$1"
     },
@@ -28,12 +39,8 @@
       "dest": "/tessdata/$1"
     },
     {
-      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|svg|json|woff|woff2|ttf|eot|webmanifest))",
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|svg|json|woff|woff2|ttf|eot|webmanifest|traineddata))",
       "dest": "/$1"
-    },
-    {
-      "src": "/sw.js",
-      "dest": "/sw.js"
     },
     {
       "src": "/(.*)",

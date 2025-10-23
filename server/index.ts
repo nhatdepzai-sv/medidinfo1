@@ -48,6 +48,11 @@ app.use((req, res, next) => {
 
 
 (async () => {
+  // Wait for database to be ready before starting any operations
+  const { waitForDatabase } = await import('./storage');
+  await waitForDatabase();
+  console.log("🎯 Database ready - proceeding with server startup");
+
   // Add health check endpoint for network detection
   app.get("/api/health", (req, res) => {
     res.json({

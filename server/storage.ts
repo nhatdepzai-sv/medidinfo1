@@ -12,23 +12,36 @@ let useDatabase = false;
 
 async function initializeDatabase() {
   if (process.env.DATABASE_URL) {
-    try {
-      console.log("🔗 Attempting database connection...");
-      console.log("📍 DATABASE_URL found:", process.env.DATABASE_URL ? "Yes" : "No");
-      
-      const neonSql = neon(process.env.DATABASE_URL);
-      db = drizzle(neonSql, { schema });
-      
-      // Test the connection by selecting a single row from users table
-      await db.select().from(schema.users).limit(1);
-      useDatabase = true;
-      console.log("✅ Database connection established successfully");
-      console.log("💾 User tracking, search history, and persistence enabled");
-    } catch (error: any) {
-      console.error("❌ Database connection failed:", error.message);
-      console.warn("⚠️ Falling back to in-memory storage");
-      console.warn("⚠️ User data will be lost on restart");
-      useDatabase = false;
+    const maxRetries = 3;
+    const retryDelay = 1000; // 1 second
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔗 Attempting database connection (attempt ${attempt}/${maxRetries})...`);
+        console.log("📍 DATABASE_URL found:", process.env.DATABASE_URL ? "Yes" : "No");
+        
+        const neonSql = neon(process.env.DATABASE_URL);
+        db = drizzle(neonSql, { schema });
+        
+        // Test the connection by selecting a single row from users table
+        await db.select().from(schema.users).limit(1);
+        useDatabase = true;
+        console.log("✅ Database connection established successfully");
+        console.log("💾 User tracking, search history, and persistence enabled");
+        return; // Success - exit early
+      } catch (error: any) {
+        console.error(`❌ Database connection attempt ${attempt} failed:`, error.message);
+        
+        if (attempt < maxRetries) {
+          console.log(`⏳ Retrying in ${retryDelay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+        } else {
+          console.error("❌ All database connection attempts failed");
+          console.warn("⚠️ Falling back to in-memory storage");
+          console.warn("⚠️ User data will be lost on restart");
+          useDatabase = false;
+        }
+      }
     }
   } else {
     console.warn("⚠️ No DATABASE_URL environment variable found");
@@ -39,9 +52,15 @@ async function initializeDatabase() {
 }
 
 // Initialize database connection
-initializeDatabase().catch(console.error);
+const dbInitPromise = initializeDatabase();
+
+// Export for server startup synchronization
+export function waitForDatabase() {
+  return dbInitPromise;
+}
 
 // Helper function to safely execute database operations
+// For user operations only - provides in-memory fallback for resilience
 async function safeDbOperation<T>(operation: () => Promise<T>, fallback: () => T): Promise<T> {
   if (!useDatabase || !db) {
     console.log("Database is not available, using fallback memory operation.");
@@ -52,7 +71,7 @@ async function safeDbOperation<T>(operation: () => Promise<T>, fallback: () => T
     return await operation();
   } catch (error: any) {
     console.error(`Database operation failed: ${error.message}. Falling back to memory.`);
-    useDatabase = false; // Temporarily disable database if an operation fails
+    // Don't permanently disable database - let next request retry
     return fallback();
   }
 }
@@ -94,65 +113,12 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   private memoryUsers: Map<string, User & { role?: string }> = new Map();
-  private memoryMedications: Map<string, Medication> = new Map();
   private memorySearchHistory: SearchHistory[] = [];
-  private medicationsInitialized = false;
 
   constructor() {
-    // Initialize medications
-    this.initializeMedications().catch(console.error);
-  }
-
-  private async initializeMedications() {
-    try {
-      if (useDatabase && db) {
-        const existingMedications = await db.select().from(schema.medications).limit(1);
-
-        if (existingMedications.length === 0) {
-          console.log("Initializing medications database with 100,000+ medications...");
-          const medications = medicationsDatabase.map(med => ({
-            ...med,
-            id: randomUUID()
-          }));
-
-          console.log(`Preparing to insert ${medications.length} medications...`);
-
-          // Insert in batches to avoid memory issues
-          const batchSize = 1000;
-          for (let i = 0; i < medications.length; i += batchSize) {
-            const batch = medications.slice(i, i + batchSize);
-            await db.insert(schema.medications).values(batch);
-            console.log(`Inserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(medications.length / batchSize)}`);
-          }
-
-          console.log(`Successfully inserted ${medications.length} medications into database`);
-        } else {
-          console.log("Medications database already initialized");
-        }
-      } else {
-        // Use in-memory storage
-        console.log("Initializing in-memory medications database with 100,000+ medications...");
-        medicationsDatabase.forEach(med => {
-          const medication = { ...med, id: randomUUID() } as Medication;
-          this.memoryMedications.set(medication.id, medication);
-        });
-        console.log(`Successfully initialized ${this.memoryMedications.size} medications in memory`);
-      }
-
-      this.medicationsInitialized = true;
-    } catch (error: any) {
-      console.error("Error initializing medications:", error.message);
-      // Fallback to memory storage
-      if (!this.medicationsInitialized) {
-        console.log("Falling back to in-memory storage for medications...");
-        medicationsDatabase.forEach(med => {
-          const medication = { ...med, id: randomUUID() } as Medication;
-          this.memoryMedications.set(medication.id, medication);
-        });
-        this.medicationsInitialized = true;
-        console.log(`Fallback: Successfully initialized ${this.memoryMedications.size} medications in memory`);
-      }
-    }
+    // User authentication is ready immediately
+    // Medications are already in the database (populated via db:push or seed script)
+    console.log("✅ Storage initialized - authentication ready");
   }
 
   async getUser(id: string): Promise<(User & { role?: string }) | undefined> {
@@ -238,15 +204,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMedication(id: string): Promise<Medication | undefined> {
-    if (useDatabase && db) {
+    if (!useDatabase || !db) {
+      console.warn("Medication query attempted without database connection");
+      return undefined;
+    }
+    try {
       const medications = await db.select().from(schema.medications).where(eq(schema.medications.id, id));
       return medications[0];
+    } catch (error: any) {
+      console.error("Medication query failed:", error.message);
+      return undefined;
     }
-    return this.memoryMedications.get(id);
   }
 
   async getMedicationByName(name: string): Promise<Medication | undefined> {
-    if (useDatabase && db) {
+    if (!useDatabase || !db) {
+      console.warn("Medication query attempted without database connection");
+      return undefined;
+    }
+    try {
       const medications = await db.select().from(schema.medications).where(
         or(
           eq(schema.medications.name, name),
@@ -256,19 +232,18 @@ export class DatabaseStorage implements IStorage {
         )
       );
       return medications[0];
+    } catch (error: any) {
+      console.error("Medication query failed:", error.message);
+      return undefined;
     }
-
-    for (const med of Array.from(this.memoryMedications.values())) {
-      if (med.name === name || med.nameVi === name ||
-          med.genericName === name || med.genericNameVi === name) {
-        return med;
-      }
-    }
-    return undefined;
   }
 
   async getMedicationByPartialName(partialName: string): Promise<Medication | undefined> {
-    if (useDatabase && db) {
+    if (!useDatabase || !db) {
+      console.warn("Medication query attempted without database connection");
+      return undefined;
+    }
+    try {
       const medications = await db.select().from(schema.medications).where(
         or(
           like(schema.medications.name, `%${partialName}%`),
@@ -278,53 +253,48 @@ export class DatabaseStorage implements IStorage {
         )
       );
       return medications[0];
+    } catch (error: any) {
+      console.error("Medication query failed:", error.message);
+      return undefined;
     }
-
-    const lowerPartial = partialName.toLowerCase();
-    for (const med of Array.from(this.memoryMedications.values())) {
-      if (med.name?.toLowerCase().includes(lowerPartial) ||
-          med.nameVi?.toLowerCase().includes(lowerPartial) ||
-          med.genericName?.toLowerCase().includes(lowerPartial) ||
-          med.genericNameVi?.toLowerCase().includes(lowerPartial)) {
-        return med;
-      }
-    }
-    return undefined;
   }
 
   async createMedication(medication: InsertMedication): Promise<Medication> {
-    const newMedication = {
-      ...medication,
-      id: randomUUID()
-    } as Medication;
-
-    if (useDatabase && db) {
-      await db.insert(schema.medications).values(newMedication);
-    } else {
-      this.memoryMedications.set(newMedication.id, newMedication);
+    if (!useDatabase || !db) {
+      throw new Error("Database connection required for medication creation");
     }
-    return newMedication;
+    try {
+      const newMedication = {
+        ...medication,
+        id: randomUUID()
+      } as Medication;
+
+      await db.insert(schema.medications).values(newMedication);
+      return newMedication;
+    } catch (error: any) {
+      console.error("Failed to create medication:", error.message);
+      throw error; // Re-throw for create operations
+    }
   }
 
   async searchMedications(query: string): Promise<Medication[]> {
-    const searchTerm = `%${query.toLowerCase()}%`;
+    if (!useDatabase || !db) {
+      console.warn("Medication search attempted without database connection");
+      return [];
+    }
+    
+    try {
+      const searchTerm = `%${query.toLowerCase()}%`;
 
-    // First, try direct database search
-    const directResults = useDatabase && db ?
-      await db.select().from(schema.medications).where(
+      // First, try direct database search
+      const directResults = await db.select().from(schema.medications).where(
         or(
           sql`LOWER(${schema.medications.name}) LIKE ${searchTerm}`,
           sql`LOWER(${schema.medications.nameVi}) LIKE ${searchTerm}`,
           sql`LOWER(${schema.medications.genericName}) LIKE ${searchTerm}`,
           sql`LOWER(${schema.medications.genericNameVi}) LIKE ${searchTerm}`
         )
-      ).limit(20) :
-      Array.from(this.memoryMedications.values()).filter(med =>
-        med.name?.toLowerCase().includes(query.toLowerCase()) ||
-        med.nameVi?.toLowerCase().includes(query.toLowerCase()) ||
-        med.genericName?.toLowerCase().includes(query.toLowerCase()) ||
-        med.genericNameVi?.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 20);
+      ).limit(20);
 
     // If we found results, return them
     if (directResults.length > 0) {
@@ -340,21 +310,14 @@ export class DatabaseStorage implements IStorage {
       const aliasResults = await Promise.all(
         aliases.map(async (alias) => {
           const aliasSearchTerm = `%${alias.toLowerCase()}%`;
-          return useDatabase && db ?
-            await db.select().from(schema.medications).where(
-              or(
-                sql`LOWER(${schema.medications.name}) LIKE ${aliasSearchTerm}`,
-                sql`LOWER(${schema.medications.nameVi}) LIKE ${aliasSearchTerm}`,
-                sql`LOWER(${schema.medications.genericName}) LIKE ${aliasSearchTerm}`,
-                sql`LOWER(${schema.medications.genericNameVi}) LIKE ${aliasSearchTerm}`
-              )
-            ).limit(5) :
-            Array.from(this.memoryMedications.values()).filter(med =>
-              med.name?.toLowerCase().includes(alias.toLowerCase()) ||
-              med.nameVi?.toLowerCase().includes(alias.toLowerCase()) ||
-              med.genericName?.toLowerCase().includes(alias.toLowerCase()) ||
-              med.genericNameVi?.toLowerCase().includes(alias.toLowerCase())
-            ).slice(0, 5);
+          return await db.select().from(schema.medications).where(
+            or(
+              sql`LOWER(${schema.medications.name}) LIKE ${aliasSearchTerm}`,
+              sql`LOWER(${schema.medications.nameVi}) LIKE ${aliasSearchTerm}`,
+              sql`LOWER(${schema.medications.genericName}) LIKE ${aliasSearchTerm}`,
+              sql`LOWER(${schema.medications.genericNameVi}) LIKE ${aliasSearchTerm}`
+            )
+          ).limit(5);
         })
       );
 
@@ -370,10 +333,19 @@ export class DatabaseStorage implements IStorage {
       console.error('Alias search failed:', error);
       return directResults; // Fall back to direct results (empty array)
     }
+    } catch (error: any) {
+      console.error("Medication search failed:", error.message);
+      return []; // Return empty array on error
+    }
   }
 
   async fuzzySearchMedications(searchTerm: string): Promise<Medication[]> {
-    if (useDatabase && db) {
+    if (!useDatabase || !db) {
+      console.warn("Fuzzy medication search attempted without database connection");
+      return [];
+    }
+    
+    try {
       // Database fuzzy search with enhanced patterns
       const query = `%${searchTerm.toLowerCase()}%`;
       const results = await db
@@ -391,54 +363,9 @@ export class DatabaseStorage implements IStorage {
         )
         .limit(20);
       return results;
-    } else {
-      // Enhanced memory fuzzy search with multiple algorithms
-      const searchLower = searchTerm.toLowerCase().trim();
-      const results: { medication: Medication; score: number }[] = [];
-
-      for (const med of Array.from(this.memoryMedications.values())) {
-        let maxScore = 0;
-
-        // Check all searchable fields
-        const fields = [
-          med.name.toLowerCase(),
-          med.genericName?.toLowerCase() || '',
-          med.nameVi?.toLowerCase() || '',
-          med.genericNameVi?.toLowerCase() || '',
-          med.category?.toLowerCase() || '',
-          med.categoryVi?.toLowerCase() || ''
-        ].filter(field => field.length > 0);
-
-        for (const field of fields) {
-          // Exact substring match gets highest score
-          if (field.includes(searchLower) || searchLower.includes(field)) {
-            maxScore = Math.max(maxScore, 1.0);
-            continue;
-          }
-
-          // Levenshtein distance-based similarity
-          const levenScore = this.calculateLevenshteinSimilarity(searchLower, field);
-          maxScore = Math.max(maxScore, levenScore);
-
-          // Jaro-Winkler similarity
-          const jaroScore = this.calculateJaroWinklerSimilarity(searchLower, field);
-          maxScore = Math.max(maxScore, jaroScore);
-
-          // Word-based matching
-          const wordScore = this.calculateWordSimilarity(searchLower, field);
-          maxScore = Math.max(maxScore, wordScore);
-        }
-
-        if (maxScore > 0.5) { // 50% similarity threshold
-          results.push({ medication: med, score: maxScore });
-        }
-      }
-
-      // Sort by score and return top 20
-      return results
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 20)
-        .map(result => result.medication);
+    } catch (error: any) {
+      console.error("Fuzzy medication search failed:", error.message);
+      return []; // Return empty array on error
     }
   }
 

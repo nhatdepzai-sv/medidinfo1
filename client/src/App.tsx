@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useEffect, Component } from "react";
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
@@ -63,6 +63,25 @@ const Admin = lazy(() => import("./pages/admin"));
 const Auth = lazy(() => import("./pages/auth"));
 const NotFound = lazy(() => import("./pages/not-found"));
 
+function NavLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+  const [location] = useLocation();
+  const isActive = location === href;
+  
+  return (
+    <a 
+      href={href} 
+      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+        isActive 
+          ? 'bg-blue-600 text-white' 
+          : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'
+      }`}
+    >
+      {icon}
+      <span className="font-medium">{label}</span>
+    </a>
+  );
+}
+
 function AppContent() {
   const { user, isLoading } = useAuth();
   const deviceType = useDeviceType();
@@ -97,48 +116,54 @@ function AppContent() {
             <h1 className="text-2xl font-bold text-blue-600">DrugScan</h1>
             <p className="text-sm text-gray-500 mt-1">Medication Scanner</p>
           </div>
-          <nav className="flex-1 p-4 space-y-2">
-            <a href="/" className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-blue-50 text-gray-700 hover:text-blue-600 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            <NavLink 
+              href="/" 
+              icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-              </svg>
-              <span className="font-medium">Home</span>
-            </a>
-            <a href="/history" className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-blue-50 text-gray-700 hover:text-blue-600 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              </svg>}
+              label="Home"
+            />
+            <NavLink 
+              href="/history" 
+              icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="font-medium">History</span>
-            </a>
-            <a href="/translator" className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-blue-50 text-gray-700 hover:text-blue-600 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              </svg>}
+              label="History"
+            />
+            <NavLink 
+              href="/translator" 
+              icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-              </svg>
-              <span className="font-medium">Translator</span>
-            </a>
+              </svg>}
+              label="Translator"
+            />
             {user?.role === 'admin' && (
               <>
-                <a href="/training" className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-blue-50 text-gray-700 hover:text-blue-600 transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <NavLink 
+                  href="/training" 
+                  icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                  <span className="font-medium">Training</span>
-                </a>
-                <a href="/admin" className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-blue-50 text-gray-700 hover:text-blue-600 transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  </svg>}
+                  label="Training"
+                />
+                <NavLink 
+                  href="/admin" 
+                  icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span className="font-medium">Admin</span>
-                </a>
+                  </svg>}
+                  label="Admin"
+                />
               </>
             )}
-            <a href="/profile" className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-blue-50 text-gray-700 hover:text-blue-600 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <NavLink 
+              href="/profile" 
+              icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span className="font-medium">Profile</span>
-            </a>
+              </svg>}
+              label="Profile"
+            />
           </nav>
           <div className="p-4 border-t border-gray-200">
             <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 rounded-lg">

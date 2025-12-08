@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "java-graalvm22.3", "postgresql-16"]
+modules = ["nodejs-20", "web", "java-graalvm22.3"]
 run = "npm run dev"
 
 [nix]
@@ -63,6 +63,10 @@ externalPort = 3002
 [[ports]]
 localPort = 37379
 externalPort = 3000
+
+[[ports]]
+localPort = 39541
+externalPort = 3003
 
 [[ports]]
 localPort = 41353

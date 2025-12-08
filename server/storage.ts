@@ -23,14 +23,18 @@ async function initializeDatabase() {
         const neonSql = neon(process.env.DATABASE_URL);
         db = drizzle(neonSql, { schema });
         
-        // Test the connection by selecting a single row from users table
-        await db.select().from(schema.users).limit(1);
-        useDatabase = true;
-        console.log("✅ Database connection established successfully");
-        console.log("💾 User tracking, search history, and persistence enabled");
-        return; // Success - exit early
+        // Test the connection with a simple query
+        const result = await db.execute(sql`SELECT 1 as test`);
+        
+        if (result) {
+          useDatabase = true;
+          console.log("✅ Database connection established successfully");
+          console.log("💾 User tracking, search history, and persistence enabled");
+          return; // Success - exit early
+        }
       } catch (error: any) {
         console.error(`❌ Database connection attempt ${attempt} failed:`, error.message);
+        console.error("Error details:", error);
         
         if (attempt < maxRetries) {
           console.log(`⏳ Retrying in ${retryDelay}ms...`);

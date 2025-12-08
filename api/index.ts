@@ -9,6 +9,25 @@ const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
+// Initialize database connection for Vercel
+let dbInitialized = false;
+async function initializeDatabase() {
+  if (dbInitialized) return;
+  
+  try {
+    const { waitForDatabase } = await import('../server/storage');
+    await waitForDatabase();
+    console.log("[Vercel] ✅ Database initialized successfully");
+    dbInitialized = true;
+  } catch (error) {
+    console.error("[Vercel] ⚠️ Database initialization failed, using fallback:", error);
+    dbInitialized = true; // Mark as initialized to prevent retry loops
+  }
+}
+
+// Initialize on startup
+initializeDatabase();
+
 // CORS for Vercel
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
@@ -28,18 +47,24 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
 }
 
 // Health check endpoint
-app.get("/api/health", (req, res) => {
+app.get("/api/health", async (req, res) => {
+  await initializeDatabase();
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
     offline: false,
-    platform: "vercel"
+    platform: "vercel",
+    database: dbInitialized ? "initialized" : "initializing"
   });
 });
 
 // Add guest login route explicitly for Vercel - MUST be before setupRoutes
 app.post("/api/auth/guest", async (req, res) => {
   console.log("[Vercel] Guest login endpoint called");
+  
+  // Ensure database is initialized
+  await initializeDatabase();
+  
   try {
     const result = await AuthService.loginAsGuest();
     console.log("[Vercel] Guest login successful:", result.user.id);

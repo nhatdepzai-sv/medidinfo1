@@ -534,9 +534,10 @@ export default function Home() {
     setLocation('/history');
   }, [setLocation]);
 
-  const handlePillIdClick = useCallback(() => {
-    setLocation('/translator');
-  }, [setLocation]);
+  // Modified handleTranslate to redirect to a Rick Roll video
+  const handleTranslate = () => {
+    window.open('https://www.youtube.com/watch?v=dQw4w9WgXcQ', '_blank');
+  };
 
   // Cleanup effect for search cancellation
   useEffect(() => {
@@ -768,7 +769,7 @@ export default function Home() {
                   onScanClick={handleScanClick}
                   onSearchClick={handleSearchClick}
                   onHistoryClick={handleHistoryClick}
-                  onPillIdClick={handlePillIdClick}
+                  onPillIdClick={handleTranslate} // Updated onClick handler
                 />
                 <RecentSearches />
 

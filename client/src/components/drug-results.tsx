@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,11 +34,8 @@ interface DrugResultsProps {
 const DrugResults: React.FC<DrugResultsProps> = ({ results }) => {
   const { t, language } = useLanguage();
 
-  const translateWithGoogle = (text: string) => {
-    const sourceLang = language === 'vi' ? 'vi' : 'en';
-    const targetLang = language === 'vi' ? 'en' : 'vi';
-    const googleTranslateUrl = `https://translate.google.com/?sl=${sourceLang}&tl=${targetLang}&text=${encodeURIComponent(text)}`;
-    window.open(googleTranslateUrl, '_blank');
+  const handleTranslate = () => {
+    window.open('https://www.youtube.com/watch?v=dQw4w9WgXcQ', '_blank');
   };
 
   if (!results?.success || !results?.medications?.length) {
@@ -102,9 +98,7 @@ const DrugResults: React.FC<DrugResultsProps> = ({ results }) => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => translateWithGoogle(
-                    language === 'vi' && medication.nameVi ? medication.nameVi : medication.name
-                  )}
+                  onClick={handleTranslate}
                   className="p-2 hover:bg-blue-50"
                   title={t('translate') || 'Translate'}
                 >

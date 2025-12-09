@@ -57,7 +57,6 @@ class ErrorBoundary extends Component<
 const Home = lazy(() => import("./pages/home"));
 const History = lazy(() => import("./pages/history"));
 const Profile = lazy(() => import("./pages/profile"));
-const Translator = lazy(() => import("./pages/translator"));
 const TrainingPage = lazy(() => import("./pages/training"));
 const Admin = lazy(() => import("./pages/admin"));
 const Auth = lazy(() => import("./pages/auth"));
@@ -189,7 +188,6 @@ function AppContent() {
               <Route path="/" component={Home} />
               <Route path="/history" component={History} />
               <Route path="/profile" component={Profile} />
-              <Route path="/translator" component={Translator} />
               <Route path="/training" component={TrainingPage} />
               <Route path="/admin" component={Admin} />
               <Route component={NotFound} />

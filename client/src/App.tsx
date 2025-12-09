@@ -60,6 +60,7 @@ const Profile = lazy(() => import("./pages/profile"));
 const TrainingPage = lazy(() => import("./pages/training"));
 const Admin = lazy(() => import("./pages/admin"));
 const Auth = lazy(() => import("./pages/auth"));
+const Translator = lazy(() => import("./pages/translator"));
 const NotFound = lazy(() => import("./pages/not-found"));
 
 function NavLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
